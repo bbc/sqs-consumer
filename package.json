@@ -1,0 +1,31 @@
+{
+  "name": "sqs-consumer",
+  "version": "1.0.0",
+  "description": "Create applications that pull tasks from an SQS queue",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robinjmurphy/sqs-consumer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/robinjmurphy/sqs-consumer/issues"
+  },
+  "homepage": "https://github.com/robinjmurphy/sqs-consumer",
+  "keywords": [
+    "sqs",
+    "queue",
+    "consumer"
+  ],
+  "author": "robin@robinmurphy.co.uk",
+  "license": "ISC",
+  "devDependencies": {
+    "mocha": "^2.0.1",
+    "sinon": "^1.10.3"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.0.23"
+  }
+}
