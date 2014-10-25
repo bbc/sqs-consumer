@@ -1,7 +1,7 @@
 {
   "name": "sqs-consumer",
-  "version": "1.0.0",
-  "description": "Create applications that pull tasks from an SQS queue",
+  "version": "1.0.1",
+  "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
     "test": "mocha"
