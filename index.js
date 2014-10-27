@@ -40,13 +40,13 @@ util.inherits(Consumer, EventEmitter);
  * Start polling for messages.
  */
 Consumer.prototype.start = function () {
-  var options = {
+  var receiveParams = {
     QueueUrl: this.queueUrl,
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20
   };
 
-  this.sqs.receiveMessage(options, this._handleSqsResponse.bind(this));
+  this.sqs.receiveMessage(receiveParams, this._handleSqsResponse.bind(this));
 };
 
 
@@ -76,12 +76,12 @@ Consumer.prototype._handleSqsMessage = function (message) {
 
 Consumer.prototype._deleteMessage = function (message) {
   var consumer = this;
-  var options = {
+  var deleteParams = {
     QueueUrl: this.queueUrl,
     ReceiptHandle: message.ReceiptHandle
   };
 
-  this.sqs.deleteMessage(options, function (err) {
+  this.sqs.deleteMessage(deleteParams, function (err) {
     if (err) return consumer.emit('error', err);
 
     consumer.emit('message_processed', message);
