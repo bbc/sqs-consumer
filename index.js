@@ -1,6 +1,7 @@
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 var AWS = require('aws-sdk');
+var debug = require('debug')('sqs-consumer');
 var requiredOptions = [
     'queueUrl',
     'region',
@@ -46,13 +47,15 @@ Consumer.prototype.start = function () {
     WaitTimeSeconds: 20
   };
 
+  debug('Polling for messages');
   this.sqs.receiveMessage(receiveParams, this._handleSqsResponse.bind(this));
 };
-
 
 Consumer.prototype._handleSqsResponse = function(err, response) {
   if (err) this.emit('error', err);
 
+  debug('Received SQS response');
+  debug(response);
   if (response && response.Messages && response.Messages.length > 0) {
     var message = response.Messages[0];
 
@@ -81,6 +84,7 @@ Consumer.prototype._deleteMessage = function (message) {
     ReceiptHandle: message.ReceiptHandle
   };
 
+  debug('Deleting message %s', message.MessageId);
   this.sqs.deleteMessage(deleteParams, function (err) {
     if (err) return consumer.emit('error', err);
 

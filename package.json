@@ -26,6 +26,7 @@
     "sinon": "^1.10.3"
   },
   "dependencies": {
-    "aws-sdk": "^2.0.23"
+    "aws-sdk": "^2.0.23",
+    "debug": "^2.1.0"
   }
 }
