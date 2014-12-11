@@ -25,6 +25,10 @@ var app = new Consumer({
   }
 });
 
+app.on('error', function (err) {
+  console.log(err.message);
+});
+
 app.start();
 ```
 
