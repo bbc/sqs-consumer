@@ -1,6 +1,6 @@
 # sqs-consumer
 
-[![Build Status](https://travis-ci.org/robinjmurphy/sqs-consumer.svg)](https://travis-ci.org/robinjmurphy/sqs-consumer)
+[![Build Status](https://travis-ci.org/BBC/sqs-consumer.svg)](https://travis-ci.org/BBC/sqs-consumer)
 
 Build SQS-based applications without the boilerplate. Just define a function that receives an SQS message and call a callback when the message has been processed.
 
