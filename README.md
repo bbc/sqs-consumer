@@ -54,6 +54,10 @@ Creates a new SQS consumer.
 
 Start polling the queue for messages.
 
+### `consumer.stop()`
+
+Stop polling the queue for messages.
+
 ### Events
 
 Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emits the following events:

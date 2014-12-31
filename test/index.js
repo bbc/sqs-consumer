@@ -56,103 +56,127 @@ describe('Consumer', function () {
     });
   });
 
-  it('calls the handleMessage function when a message is received', function () {
-    consumer.start();
+  describe('.start', function () {
+    it('calls the handleMessage function when a message is received', function () {
+      consumer.start();
 
-    sinon.assert.calledWith(handleMessage, response.Messages[0]);
-  });
+      sinon.assert.calledWith(handleMessage, response.Messages[0]);
+    });
 
-  it('deletes the message when the handleMessage callback is called', function () {
-    handleMessage.yields(null);
+    it('deletes the message when the handleMessage callback is called', function () {
+      handleMessage.yields(null);
 
-    consumer.start();
+      consumer.start();
 
-    sinon.assert.calledWith(sqs.deleteMessage, {
-      QueueUrl: 'some-queue-url',
-      ReceiptHandle: 'receipt-handle'
+      sinon.assert.calledWith(sqs.deleteMessage, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle'
+      });
+    });
+
+    it('doesn\'t delete the message when a processing error is reported', function () {
+      handleMessage.yields(new Error('Processing error'));
+
+      consumer.on('error', function () {
+        // ignore the error
+      });
+
+      consumer.start();
+
+      sinon.assert.notCalled(sqs.deleteMessage);
+    });
+
+    it('waits before consuming new messages', function (done) {
+      sqs.receiveMessage.onSecondCall().yields(null, response);
+
+      consumer.start();
+
+      setTimeout(function () {
+        sinon.assert.calledTwice(handleMessage);
+        done();
+      }, consumer.waitTime + 1);
+    });
+
+    it('fires an error event when an error occurs receiving a message', function (done) {
+      var receiveErr = new Error('Receive error');
+
+      sqs.receiveMessage.yields(receiveErr);
+
+      consumer.on('error', function (err) {
+        assert.equal(err, receiveErr);
+        done();
+      });
+
+      consumer.start();
+    });
+
+    it('fires an error event when an error occurs deleting a message', function (done) {
+      var deleteErr = new Error('Delete error');
+
+      handleMessage.yields(null);
+      sqs.deleteMessage.yields(deleteErr);
+
+      consumer.on('error', function (err) {
+        assert.equal(err, deleteErr);
+        done();
+      });
+
+      consumer.start();
+    });
+
+    it('fires an error event when an error occurs processing a message', function (done) {
+      var processingErr = new Error('Processing error');
+
+      handleMessage.yields(processingErr);
+
+      consumer.on('error', function (err) {
+        assert.equal(err, processingErr);
+        done();
+      });
+
+      consumer.start();
+    });
+
+    it('fires a message_received event when a message is received', function (done) {
+      consumer.on('message_received', function (message) {
+        assert.equal(message, response.Messages[0]);
+        done();
+      });
+
+      consumer.start();
+    });
+
+    it('fires a message_processed event when a message is successfully deleted', function (done) {
+      handleMessage.yields(null);
+
+      consumer.on('message_processed', function (message) {
+        assert.equal(message, response.Messages[0]);
+        done();
+      });
+
+      consumer.start();
+    });
+
+    it('doesn\'t consumer more messages when called multiple times', function () {
+      consumer.start();
+      consumer.start();
+      consumer.start();
+
+      sinon.assert.calledOnce(sqs.receiveMessage);
     });
   });
 
-  it('doesn\'t delete the message when a processing error is reported', function () {
-    handleMessage.yields(new Error('Processing error'));
+  describe('.stop', function () {
+    it('stops the consumer polling for messages', function (done) {
+      sqs.receiveMessage.onSecondCall().yields(null, response);
 
-    consumer.on('error', function () {
-      // ignore the error
+      consumer.start();
+      consumer.stop();
+
+      setTimeout(function () {
+        sinon.assert.calledOnce(handleMessage);
+        done();
+      }, consumer.waitTime + 1);
     });
-
-    consumer.start();
-
-    sinon.assert.notCalled(sqs.deleteMessage);
-  });
-
-  it('waits before consuming new messages', function (done) {
-    sqs.receiveMessage.onSecondCall().yields(null, response);
-
-    consumer.start();
-
-    setTimeout(function () {
-      sinon.assert.calledTwice(handleMessage);
-      done();
-    }, consumer.waitTime + 1);
-  });
-
-  it('fires an error event when an error occurs receiving a message', function (done) {
-    var receiveErr = new Error('Receive error');
-
-    sqs.receiveMessage.yields(receiveErr);
-
-    consumer.on('error', function (err) {
-      assert.equal(err, receiveErr);
-      done();
-    });
-
-    consumer.start();
-  });
-
-  it('fires an error event when an error occurs deleting a message', function (done) {
-    var deleteErr = new Error('Delete error');
-
-    handleMessage.yields(null);
-    sqs.deleteMessage.yields(deleteErr);
-
-    consumer.on('error', function (err) {
-      assert.equal(err, deleteErr);
-      done();
-    });
-
-    consumer.start();
-  });
-
-  it('fires an error event when an error occurs processing a message', function (done) {
-    var processingErr = new Error('Processing error');
-
-    handleMessage.yields(processingErr);
-
-    consumer.on('error', function (err) {
-      assert.equal(err, processingErr);
-      done();
-    });
-
-    consumer.start();
-  });
-
-  it('fires a message_received event when a message is received', function (done) {
-    consumer.on('message_received', function (message) {
-      assert.equal(message, response.Messages[0]);
-      done();
-    });
-
-    consumer.start();
-  });
-
-  it('fires a message_processed event when a message is successfully deleted', function (done) {
-    handleMessage.yields(null);
-
-    consumer.on('message_processed', function (message) {
-      assert.equal(message, response.Messages[0]);
-      done();
-    });
-
-    consumer.start();
   });
 });

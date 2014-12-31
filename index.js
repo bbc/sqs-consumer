@@ -32,6 +32,7 @@ function Consumer(options) {
   this.queueUrl = options.queueUrl;
   this.handleMessage = options.handleMessage;
   this.waitTime = options.waitTime || 100;
+  this.stopped = true;
   this.sqs = options.sqs || new AWS.SQS();
 }
 
@@ -41,14 +42,32 @@ util.inherits(Consumer, EventEmitter);
  * Start polling for messages.
  */
 Consumer.prototype.start = function () {
+  if (this.stopped) {
+    debug('Starting consumer');
+    this.stopped = false;
+    this._poll();
+  }
+};
+
+/**
+ * Stop polling for messages.
+ */
+Consumer.prototype.stop = function () {
+  debug('Stopping consumer');
+  this.stopped = true;
+};
+
+Consumer.prototype._poll = function () {
   var receiveParams = {
     QueueUrl: this.queueUrl,
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20
   };
 
-  debug('Polling for messages');
-  this.sqs.receiveMessage(receiveParams, this._handleSqsResponse.bind(this));
+  if (!this.stopped) {
+    debug('Polling for messages');
+    this.sqs.receiveMessage(receiveParams, this._handleSqsResponse.bind(this));
+  }
 };
 
 Consumer.prototype._handleSqsResponse = function(err, response) {
@@ -64,7 +83,7 @@ Consumer.prototype._handleSqsResponse = function(err, response) {
   }
 
   // Start polling for a new message after the wait time.
-  setTimeout(this.start.bind(this), this.waitTime);
+  setTimeout(this._poll.bind(this), this.waitTime);
 };
 
 Consumer.prototype._handleSqsMessage = function (message) {
