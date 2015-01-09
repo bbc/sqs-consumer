@@ -94,7 +94,7 @@ describe('Consumer', function () {
       setTimeout(function () {
         sinon.assert.calledTwice(handleMessage);
         done();
-      }, consumer.waitTime + 1);
+      }, 11);
     });
 
     it('fires an error event when an error occurs receiving a message', function (done) {
