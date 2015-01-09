@@ -1,5 +1,6 @@
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
+var _ = require('lodash');
 var AWS = require('aws-sdk');
 var debug = require('debug')('sqs-consumer');
 var requiredOptions = [
@@ -8,10 +9,10 @@ var requiredOptions = [
     'handleMessage'
   ];
 
-function validateOptions(options) {
+function validate(options) {
   requiredOptions.forEach(function (option) {
     if (!options[option]) {
-     throw new Error('Missing SQS consumer option [' + option + '].');
+      throw new Error('Missing SQS consumer option [' + option + '].');
     }
   });
 }
@@ -26,14 +27,15 @@ function validateOptions(options) {
  * @param {object} options.sqs
  */
 function Consumer(options) {
-  validateOptions(options);
-  AWS.config.update({region: options.region});
+  validate(options);
 
   this.queueUrl = options.queueUrl;
   this.handleMessage = options.handleMessage;
-  this.waitTime = options.waitTime || 100;
   this.stopped = true;
-  this.sqs = options.sqs || new AWS.SQS();
+  this.sqs = options.sqs || new AWS.SQS({
+    region: options.region
+  });
+  this.poll = _.throttle(this._poll.bind(this), options.waitTime || 100);
 }
 
 util.inherits(Consumer, EventEmitter);
@@ -45,7 +47,7 @@ Consumer.prototype.start = function () {
   if (this.stopped) {
     debug('Starting consumer');
     this.stopped = false;
-    this._poll();
+    this.poll();
   }
 };
 
@@ -70,7 +72,7 @@ Consumer.prototype._poll = function () {
   }
 };
 
-Consumer.prototype._handleSqsResponse = function(err, response) {
+Consumer.prototype._handleSqsResponse = function (err, response) {
   if (err) this.emit('error', err);
 
   debug('Received SQS response');
@@ -82,8 +84,8 @@ Consumer.prototype._handleSqsResponse = function(err, response) {
     this._handleSqsMessage(message);
   }
 
-  // Start polling for a new message after the wait time.
-  setTimeout(this._poll.bind(this), this.waitTime);
+  // Poll for another message
+  this.poll();
 };
 
 Consumer.prototype._handleSqsMessage = function (message) {

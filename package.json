@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.0.23",
-    "debug": "^2.1.0"
+    "debug": "^2.1.0",
+    "lodash": "^2.4.1"
   }
 }
