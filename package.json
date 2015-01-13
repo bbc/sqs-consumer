@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
@@ -26,6 +26,7 @@
     "sinon": "^1.10.3"
   },
   "dependencies": {
+    "async": "^0.9.0",
     "aws-sdk": "^2.0.23",
     "debug": "^2.1.0",
     "lodash": "^2.4.1"
