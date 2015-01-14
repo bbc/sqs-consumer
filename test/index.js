@@ -15,16 +15,15 @@ describe('Consumer', function () {
   };
 
   beforeEach(function () {
-    handleMessage = sinon.stub();
+    handleMessage = sinon.stub().yieldsAsync(null);
     sqs = sinon.mock();
-    sqs.receiveMessage = sinon.stub().yields(null, response);
+    sqs.receiveMessage = sinon.stub().yieldsAsync(null, response);
     sqs.receiveMessage.onSecondCall().returns();
-    sqs.deleteMessage = sinon.stub().yields(null);
+    sqs.deleteMessage = sinon.stub().yieldsAsync(null);
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
       region: 'some-region',
       handleMessage: handleMessage,
-      waitTime: 10,
       sqs: sqs
     });
   });
@@ -56,47 +55,29 @@ describe('Consumer', function () {
     });
   });
 
+  it('requires the batchSize option to be no greater than 10', function () {
+    assert.throws(function () {
+      new Consumer({
+        region: 'some-region',
+        queueUrl: 'some-queue-url',
+        handleMessage: handleMessage,
+        batchSize: 11
+      });
+    });
+  });
+
+  it('requires the batchSize option to be greater than 0', function () {
+    assert.throws(function () {
+      new Consumer({
+        region: 'some-region',
+        queueUrl: 'some-queue-url',
+        handleMessage: handleMessage,
+        batchSize: -1
+      });
+    });
+  });
+
   describe('.start', function () {
-    it('calls the handleMessage function when a message is received', function () {
-      consumer.start();
-
-      sinon.assert.calledWith(handleMessage, response.Messages[0]);
-    });
-
-    it('deletes the message when the handleMessage callback is called', function () {
-      handleMessage.yields(null);
-
-      consumer.start();
-
-      sinon.assert.calledWith(sqs.deleteMessage, {
-        QueueUrl: 'some-queue-url',
-        ReceiptHandle: 'receipt-handle'
-      });
-    });
-
-    it('doesn\'t delete the message when a processing error is reported', function () {
-      handleMessage.yields(new Error('Processing error'));
-
-      consumer.on('error', function () {
-        // ignore the error
-      });
-
-      consumer.start();
-
-      sinon.assert.notCalled(sqs.deleteMessage);
-    });
-
-    it('waits before consuming new messages', function (done) {
-      sqs.receiveMessage.onSecondCall().yields(null, response);
-
-      consumer.start();
-
-      setTimeout(function () {
-        sinon.assert.calledTwice(handleMessage);
-        done();
-      }, 11);
-    });
-
     it('fires an error event when an error occurs receiving a message', function (done) {
       var receiveErr = new Error('Receive error');
 
@@ -157,18 +138,110 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('doesn\'t consumer more messages when called multiple times', function () {
+    it('calls the handleMessage function when a message is received', function (done) {
+      consumer.start();
+
+      consumer.on('message_processed', function () {
+        sinon.assert.calledWith(handleMessage, response.Messages[0]);
+        done();
+      });
+    });
+
+    it('deletes the message when the handleMessage callback is called', function (done) {
+      handleMessage.yields(null);
+
+      consumer.start();
+
+      consumer.on('message_processed', function () {
+        sinon.assert.calledWith(sqs.deleteMessage, {
+          QueueUrl: 'some-queue-url',
+          ReceiptHandle: 'receipt-handle'
+        });
+        done();
+      });
+    });
+
+    it('doesn\'t delete the message when a processing error is reported', function () {
+      handleMessage.yields(new Error('Processing error'));
+
+      consumer.on('error', function () {
+        // ignore the error
+      });
+
+      consumer.start();
+
+      sinon.assert.notCalled(sqs.deleteMessage);
+    });
+
+    it('consumes another message once one is processed', function (done) {
+      sqs.receiveMessage.onSecondCall().yields(null, response);
+      sqs.receiveMessage.onThirdCall().returns();
+
+      consumer.start();
+      setTimeout(function () {
+        sinon.assert.calledTwice(handleMessage);
+        done();
+      }, 10);
+    });
+
+    it('doesn\'t consume more messages when called multiple times', function () {
+      sqs.receiveMessage = sinon.stub().returns();
+      consumer.start();
+      consumer.start();
       consumer.start();
       consumer.start();
       consumer.start();
 
       sinon.assert.calledOnce(sqs.receiveMessage);
     });
+
+    it('consumes multiple messages when the batchSize is greater than 1', function (done) {
+      sqs.receiveMessage.yieldsAsync(null, {
+        Messages: [
+          {
+            ReceiptHandle: 'receipt-handle-1',
+            MessageId: '1',
+            Body: 'body-1'
+          },
+          {
+            ReceiptHandle: 'receipt-handle-2',
+            MessageId: '2',
+            Body: 'body-2'
+          },
+          {
+            ReceiptHandle: 'receipt-handle-3',
+            MessageId: '3',
+            Body: 'body-3'
+          }
+        ]
+      });
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: handleMessage,
+        batchSize: 3,
+        sqs: sqs
+      });
+
+      consumer.start();
+
+      setTimeout(function () {
+        sinon.assert.calledWith(sqs.receiveMessage, {
+          QueueUrl: 'some-queue-url',
+          MaxNumberOfMessages: 3,
+          WaitTimeSeconds: 20
+        });
+        sinon.assert.callCount(handleMessage, 3);
+        done();
+      }, 10);
+    });
   });
 
   describe('.stop', function () {
     it('stops the consumer polling for messages', function (done) {
-      sqs.receiveMessage.onSecondCall().yields(null, response);
+      sqs.receiveMessage.onSecondCall().yieldsAsync(null, response);
+      sqs.receiveMessage.onThirdCall().returns();
 
       consumer.start();
       consumer.stop();
@@ -176,7 +249,7 @@ describe('Consumer', function () {
       setTimeout(function () {
         sinon.assert.calledOnce(handleMessage);
         done();
-      }, consumer.waitTime + 1);
+      }, 10);
     });
   });
 });

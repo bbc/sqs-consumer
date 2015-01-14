@@ -1,6 +1,7 @@
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 var _ = require('lodash');
+var async = require('async');
 var AWS = require('aws-sdk');
 var debug = require('debug')('sqs-consumer');
 var requiredOptions = [
@@ -15,6 +16,10 @@ function validate(options) {
       throw new Error('Missing SQS consumer option [' + option + '].');
     }
   });
+
+  if (options.batchSize > 10 || options.batchSize < 1) {
+    throw new Error('SQS batchSize option must be between 1 and 10.');
+  }
 }
 
 /**
@@ -23,7 +28,7 @@ function validate(options) {
  * @param {string} options.queueUrl
  * @param {string} options.region
  * @param {function} options.handleMessage
- * @param {number} options.waitTime
+ * @param {number} options.batchSize
  * @param {object} options.sqs
  */
 function Consumer(options) {
@@ -32,10 +37,10 @@ function Consumer(options) {
   this.queueUrl = options.queueUrl;
   this.handleMessage = options.handleMessage;
   this.stopped = true;
+  this.batchSize = options.batchSize || 1;
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region
   });
-  this.poll = _.throttle(this._poll.bind(this), options.waitTime || 100);
 }
 
 util.inherits(Consumer, EventEmitter);
@@ -47,7 +52,7 @@ Consumer.prototype.start = function () {
   if (this.stopped) {
     debug('Starting consumer');
     this.stopped = false;
-    this.poll();
+    this._poll();
   }
 };
 
@@ -62,7 +67,7 @@ Consumer.prototype.stop = function () {
 Consumer.prototype._poll = function () {
   var receiveParams = {
     QueueUrl: this.queueUrl,
-    MaxNumberOfMessages: 1,
+    MaxNumberOfMessages: this.batchSize,
     WaitTimeSeconds: 20
   };
 
@@ -75,42 +80,52 @@ Consumer.prototype._poll = function () {
 Consumer.prototype._handleSqsResponse = function (err, response) {
   if (err) this.emit('error', err);
 
-  debug('Received SQS response');
-  debug(response);
-  if (response && response.Messages && response.Messages.length > 0) {
-    var message = response.Messages[0];
-
-    this.emit('message_received', message);
-    this._handleSqsMessage(message);
-  }
-
-  // Poll for another message
-  this.poll();
-};
-
-Consumer.prototype._handleSqsMessage = function (message) {
   var consumer = this;
 
-  this.handleMessage(message, function (err) {
-    if (err) return consumer.emit('error', err);
+  debug('Received SQS response');
+  debug(response);
 
-    consumer._deleteMessage(message);
+  if (response && response.Messages && response.Messages.length > 0) {
+    async.each(response.Messages, this._processMessage.bind(this), function () {
+      // start polling again once all of the messages have been processed
+      consumer._poll();
+    });
+  } else {
+    // there were no messages, so start polling again
+    this._poll();
+  }
+};
+
+Consumer.prototype._processMessage = function (message, cb) {
+  var consumer = this;
+
+  this.emit('message_received', message);
+  async.series([
+    function handleMessage(done) {
+      consumer.handleMessage(message, done);
+    },
+    function deleteMessage(done) {
+      consumer._deleteMessage(message, done);
+    }
+  ], function (err) {
+    if (err) {
+      consumer.emit('error', err);
+    } else {
+      consumer.emit('message_processed', message);
+    }
+
+    cb();
   });
 };
 
-Consumer.prototype._deleteMessage = function (message) {
-  var consumer = this;
+Consumer.prototype._deleteMessage = function (message, cb) {
   var deleteParams = {
     QueueUrl: this.queueUrl,
     ReceiptHandle: message.ReceiptHandle
   };
 
   debug('Deleting message %s', message.MessageId);
-  this.sqs.deleteMessage(deleteParams, function (err) {
-    if (err) return consumer.emit('error', err);
-
-    consumer.emit('message_processed', message);
-  });
+  this.sqs.deleteMessage(deleteParams, cb);
 };
 
 module.exports = Consumer;
