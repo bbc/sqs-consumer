@@ -4,7 +4,9 @@
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "coverage": "istanbul cover _mocha -- -R dot && open coverage/lcov-report/index.html",
+    "lcov": "istanbul cover _mocha -- -R dot"
   },
   "repository": {
     "type": "git",
@@ -22,6 +24,7 @@
   "author": "robin@robinmurphy.co.uk",
   "license": "MIT",
   "devDependencies": {
+    "istanbul": "^0.3.5",
     "mocha": "^2.0.1",
     "sinon": "^1.10.3"
   },
