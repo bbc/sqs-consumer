@@ -46,6 +46,13 @@ function Consumer(options) {
 util.inherits(Consumer, EventEmitter);
 
 /**
+ * Construct a new Consumer
+ */
+Consumer.create = function(options) {
+    return new Consumer(options);
+};
+
+/**
  * Start polling for messages.
  */
 Consumer.prototype.start = function () {
