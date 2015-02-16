@@ -16,7 +16,7 @@ npm install sqs-consumer
 
 var Consumer = require('sqs-consumer');
 
-var app = new Consumer({
+var app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
   region: 'eu-west-1',
   handleMessage: function (message, done) {
@@ -39,7 +39,7 @@ app.start();
 
 ## API
 
-### `new Consumer(options)`
+### `Consumer.create(options)`
 
 Creates a new SQS consumer.
 

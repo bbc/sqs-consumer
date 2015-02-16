@@ -48,8 +48,8 @@ util.inherits(Consumer, EventEmitter);
 /**
  * Construct a new Consumer
  */
-Consumer.create = function(options) {
-    return new Consumer(options);
+Consumer.create = function (options) {
+  return new Consumer(options);
 };
 
 /**
