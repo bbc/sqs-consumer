@@ -77,6 +77,19 @@ describe('Consumer', function () {
     });
   });
 
+  describe('.create', function () {
+    it('creates a new instance of a Consumer object', function() {
+        var consumer = Consumer.create({
+            region: 'some-region',
+            queueUrl: 'some-queue-url',
+            batchSize: 1,
+            handleMessage: handleMessage
+        });
+
+        assert(consumer instanceof Consumer);
+    });
+  });
+
   describe('.start', function () {
     it('fires an error event when an error occurs receiving a message', function (done) {
       var receiveErr = new Error('Receive error');
