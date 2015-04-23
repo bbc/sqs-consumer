@@ -97,7 +97,8 @@ describe('Consumer', function () {
       sqs.receiveMessage.yields(receiveErr);
 
       consumer.on('error', function (err) {
-        assert.equal(err, receiveErr);
+        assert.ok(err);
+        assert.equal(err.message, 'SQS receive message failed: Receive error');
         done();
       });
 
@@ -111,7 +112,8 @@ describe('Consumer', function () {
       sqs.deleteMessage.yields(deleteErr);
 
       consumer.on('error', function (err) {
-        assert.equal(err, deleteErr);
+        assert.ok(err);
+        assert.equal(err.message, 'SQS delete message failed: Delete error');
         done();
       });
 
