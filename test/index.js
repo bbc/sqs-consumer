@@ -1,3 +1,5 @@
+'use strict';
+
 var Consumer = require('..');
 var assert = require('assert');
 var sinon = require('sinon');
@@ -32,15 +34,6 @@ describe('Consumer', function () {
     assert.throws(function () {
       new Consumer({
         region: 'some-region',
-        handleMessage: handleMessage
-      });
-    });
-  });
-
-  it('requires an AWS region to be set', function () {
-    assert.throws(function () {
-      new Consumer({
-        queueUrl: 'some-queue-url',
         handleMessage: handleMessage
       });
     });
