@@ -18,7 +18,6 @@ var Consumer = require('sqs-consumer');
 
 var app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
-  region: 'eu-west-1',
   handleMessage: function (message, done) {
     // do some work with `message`
     done();
@@ -46,7 +45,7 @@ Creates a new SQS consumer.
 #### Options
 
 * `queueUrl` - _String_ - The SQS queue URL
-* `region` - _String_ - The AWS region
+* `region` - _String_ - The AWS region (default `eu-west-1`)
 * `handleMessage` - _Function_ - A function to be called whenever a message is receieved. Receives an SQS message object as its first argument and a function to call when the message has been handled as its second argument (i.e. `handleMessage(message, done)`).
 * `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
 * `sqs` - _Object_ - An optional [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) object to use if you need to configure the client manually

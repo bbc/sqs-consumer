@@ -1,12 +1,12 @@
+'use strict';
+
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
-var _ = require('lodash');
 var async = require('async');
 var AWS = require('aws-sdk');
 var debug = require('debug')('sqs-consumer');
 var requiredOptions = [
     'queueUrl',
-    'region',
     'handleMessage'
   ];
 
@@ -39,7 +39,7 @@ function Consumer(options) {
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
   this.sqs = options.sqs || new AWS.SQS({
-    region: options.region
+    region: options.region || 'eu-west-1'
   });
 }
 
