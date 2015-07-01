@@ -226,6 +226,7 @@ describe('Consumer', function () {
 
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
+        messageAttributeNames: 'some-attributes',
         region: 'some-region',
         handleMessage: handleMessage,
         batchSize: 3,
@@ -237,6 +238,7 @@ describe('Consumer', function () {
       setTimeout(function () {
         sinon.assert.calledWith(sqs.receiveMessage, {
           QueueUrl: 'some-queue-url',
+          MessageAttributeNames: 'some-attributes',
           MaxNumberOfMessages: 3,
           WaitTimeSeconds: 20
         });

@@ -36,6 +36,7 @@ function Consumer(options) {
 
   this.queueUrl = options.queueUrl;
   this.handleMessage = options.handleMessage;
+  this.messageAttributeNames = options.messageAttributeNames;
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
   this.sqs = options.sqs || new AWS.SQS({
@@ -74,6 +75,7 @@ Consumer.prototype.stop = function () {
 Consumer.prototype._poll = function () {
   var receiveParams = {
     QueueUrl: this.queueUrl,
+    MessageAttributeNames: this.messageAttributeNames,
     MaxNumberOfMessages: this.batchSize,
     WaitTimeSeconds: 20
   };
