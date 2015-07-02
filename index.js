@@ -28,6 +28,7 @@ function validate(options) {
  * @param {string} options.queueUrl
  * @param {string} options.region
  * @param {function} options.handleMessage
+ * @param {array} options.messageAttributeNames
  * @param {number} options.batchSize
  * @param {object} options.sqs
  */

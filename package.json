@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
@@ -33,5 +33,19 @@
     "aws-sdk": "^2.0.23",
     "codeclimate-test-reporter": "0.0.4",
     "debug": "^2.1.0"
+  },
+  "jshintConfig": {
+    "quotmark": "single",
+    "unused": true,
+    "undef": true,
+    "node": true,
+    "globals": {
+      "describe": false,
+      "it": false,
+      "before": false,
+      "beforeEach": false,
+      "after": false,
+      "afterEach": false
+    }
   }
 }
