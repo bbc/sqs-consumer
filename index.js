@@ -36,7 +36,7 @@ function Consumer(options) {
 
   this.queueUrl = options.queueUrl;
   this.handleMessage = options.handleMessage;
-  this.messageAttributeNames = options.messageAttributeNames;
+  this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
   this.sqs = options.sqs || new AWS.SQS({
