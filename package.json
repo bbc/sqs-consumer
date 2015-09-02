@@ -26,13 +26,16 @@
   "devDependencies": {
     "istanbul": "^0.3.5",
     "mocha": "^2.0.1",
-    "sinon": "^1.10.3"
+    "sinon": "^1.10.3",
+    "aws-sdk": "^2.0.23"
   },
   "dependencies": {
     "async": "^0.9.0",
-    "aws-sdk": "^2.0.23",
     "codeclimate-test-reporter": "0.0.4",
     "debug": "^2.1.0"
+  },
+  "peerDependencies": {
+    "aws-sdk": "^2.0.23"
   },
   "jshintConfig": {
     "quotmark": "single",
