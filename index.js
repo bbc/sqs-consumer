@@ -43,6 +43,9 @@ function Consumer(options) {
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'
   });
+
+  this._handleSqsResponseBound = this._handleSqsResponse.bind(this);
+  this._processMessageBound = this._processMessage.bind(this);
 }
 
 util.inherits(Consumer, EventEmitter);
@@ -83,7 +86,7 @@ Consumer.prototype._poll = function () {
 
   if (!this.stopped) {
     debug('Polling for messages');
-    this.sqs.receiveMessage(receiveParams, this._handleSqsResponse.bind(this));
+    this.sqs.receiveMessage(receiveParams, this._handleSqsResponseBound);
   }
 };
 
@@ -96,7 +99,7 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
   debug(response);
 
   if (response && response.Messages && response.Messages.length > 0) {
-    async.each(response.Messages, this._processMessage.bind(this), function () {
+    async.each(response.Messages, this._processMessageBound, function () {
       // start polling again once all of the messages have been processed
       consumer._poll();
     });
