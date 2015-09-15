@@ -13,7 +13,6 @@ npm install sqs-consumer
 ## Usage
 
 ```js
-
 var Consumer = require('sqs-consumer');
 
 var app = Consumer.create({
@@ -35,6 +34,37 @@ app.start();
 * Messages are deleted from the queue once `done()` is called.
 * Calling `done(err)` with an error object will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 * By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
+
+### Credentials
+
+By default the consumer will look for AWS credentials in the places [specified by the AWS SDK](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials). The simplest option is to export your credentials as environment variables:
+
+```
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_ACCESS_KEY_ID=...
+```
+
+If you need to specify your credentials manually, you can use a pre-configured instance of the [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) client:
+
+
+```js
+var Consumer = require('sqs-consumer');
+var AWS = require('aws-sdk');
+
+AWS.config.update({
+  region: 'eu-west-1',
+  accessKeyId: '...',
+  secretAccessKey: '...'
+});
+
+var app = Consumer.create({
+  queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
+  handleMessage: function (message, done) {
+    // ...
+  },
+  sqs: new AWS.SQS();
+});
+```
 
 ## API
 
