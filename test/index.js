@@ -76,6 +76,8 @@ describe('Consumer', function () {
             region: 'some-region',
             queueUrl: 'some-queue-url',
             batchSize: 1,
+            visibilityTimeout: 10,
+            waitTimeSeconds: 10,
             handleMessage: handleMessage
         });
 
@@ -240,7 +242,8 @@ describe('Consumer', function () {
           QueueUrl: 'some-queue-url',
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
-          WaitTimeSeconds: 20
+          WaitTimeSeconds: 20,
+          VisibilityTimeout: 0
         });
         sinon.assert.callCount(handleMessage, 3);
         done();

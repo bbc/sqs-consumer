@@ -31,6 +31,8 @@ function validate(options) {
  * @param {array} options.messageAttributeNames
  * @param {number} options.batchSize
  * @param {object} options.sqs
+ * @param {number} options.visibilityTimeout
+ * @param {number} options.waitTimeSeconds
  */
 function Consumer(options) {
   validate(options);
@@ -40,6 +42,9 @@ function Consumer(options) {
   this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
+  this.visibilityTimeout = options.visibilityTimeout || 0;
+  this.waitTimeSeconds = options.waitTimeSeconds || 20;
+
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'
   });
@@ -81,7 +86,8 @@ Consumer.prototype._poll = function () {
     QueueUrl: this.queueUrl,
     MessageAttributeNames: this.messageAttributeNames,
     MaxNumberOfMessages: this.batchSize,
-    WaitTimeSeconds: 20
+    WaitTimeSeconds: this.waitTimeSeconds,
+    VisibilityTimeout: this.visibilityTimeout
   };
 
   if (!this.stopped) {
