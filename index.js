@@ -42,8 +42,8 @@ function Consumer(options) {
   this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
-  this.visibilityTimeout = options.visibilityTimeout || 0;
-  this.waitTimeSeconds = options.waitTimeSeconds || 20;
+  this.visibilityTimeout = options.visibilityTimeout;
+  this.waitTimeSeconds = options.waitTimeSeconds;
 
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'

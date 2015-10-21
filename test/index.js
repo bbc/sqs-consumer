@@ -242,8 +242,8 @@ describe('Consumer', function () {
           QueueUrl: 'some-queue-url',
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
-          WaitTimeSeconds: 20,
-          VisibilityTimeout: 0
+          WaitTimeSeconds: undefined,
+          VisibilityTimeout: undefined
         });
         sinon.assert.callCount(handleMessage, 3);
         done();
