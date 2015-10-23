@@ -71,17 +71,17 @@ describe('Consumer', function () {
   });
 
   describe('.create', function () {
-    it('creates a new instance of a Consumer object', function() {
-        var consumer = Consumer.create({
-            region: 'some-region',
-            queueUrl: 'some-queue-url',
-            batchSize: 1,
-            visibilityTimeout: 10,
-            waitTimeSeconds: 10,
-            handleMessage: handleMessage
-        });
+    it('creates a new instance of a Consumer object', function () {
+      var consumer = Consumer.create({
+        region: 'some-region',
+        queueUrl: 'some-queue-url',
+        batchSize: 1,
+        visibilityTimeout: 10,
+        waitTimeSeconds: 10,
+        handleMessage: handleMessage
+      });
 
-        assert(consumer instanceof Consumer);
+      assert(consumer instanceof Consumer);
     });
   });
 
@@ -242,7 +242,7 @@ describe('Consumer', function () {
           QueueUrl: 'some-queue-url',
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
-          WaitTimeSeconds: undefined,
+          WaitTimeSeconds: 20,
           VisibilityTimeout: undefined
         });
         sinon.assert.callCount(handleMessage, 3);

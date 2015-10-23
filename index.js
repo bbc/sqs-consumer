@@ -43,7 +43,7 @@ function Consumer(options) {
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
   this.visibilityTimeout = options.visibilityTimeout;
-  this.waitTimeSeconds = options.waitTimeSeconds;
+  this.waitTimeSeconds = options.waitTimeSeconds || 20;
 
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'
