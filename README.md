@@ -27,6 +27,10 @@ app.on('error', function (err) {
   console.log(err.message);
 });
 
+app.on('processing_error', function (err) {
+  console.log(err.message);
+});
+
 app.start();
 ```
 
@@ -97,6 +101,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 
 |Event|Params|Description|
 |-----|------|-----------|
-|`error`|`err`|Fired when an error occurs interacting with the queue or processing the message.|
+|`error`|`err`|Fired when an error occurs interacting with the queue.|
+|`processing_error`|`err`|Fired when an error occurs processing the message.|
 |`message_received`|`message`|Fired when a message is received.|
 |`message_processed`|`message`|Fired when a message is successfully processed and removed from the queue.|

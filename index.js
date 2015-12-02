@@ -10,6 +10,15 @@ var requiredOptions = [
     'handleMessage'
   ];
 
+/**
+ * Construct a new SQSError
+ */
+function SQSError(message) {
+  this.name = 'SQSError';
+  this.message = (message || '');
+}
+SQSError.prototype = Error.prototype;
+
 function validate(options) {
   requiredOptions.forEach(function (option) {
     if (!options[option]) {
@@ -97,7 +106,7 @@ Consumer.prototype._poll = function () {
 };
 
 Consumer.prototype._handleSqsResponse = function (err, response) {
-  if (err) this.emit('error', new Error('SQS receive message failed: ' + err.message));
+  if (err) this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
 
   var consumer = this;
 
@@ -128,11 +137,14 @@ Consumer.prototype._processMessage = function (message, cb) {
     }
   ], function (err) {
     if (err) {
-      consumer.emit('error', err);
+      if (err.name === 'SQSError') {
+        consumer.emit('error', err);
+      } else {
+        consumer.emit('processing_error', err);
+      }
     } else {
       consumer.emit('message_processed', message);
     }
-
     cb();
   });
 };
@@ -145,7 +157,7 @@ Consumer.prototype._deleteMessage = function (message, cb) {
 
   debug('Deleting message %s', message.MessageId);
   this.sqs.deleteMessage(deleteParams, function (err) {
-    if (err) return cb(new Error('SQS delete message failed: ' + err.message));
+    if (err) return cb(new SQSError('SQS delete message failed: ' + err.message));
 
     cb();
   });
