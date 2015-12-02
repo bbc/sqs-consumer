@@ -120,7 +120,7 @@ describe('Consumer', function () {
 
       handleMessage.yields(processingErr);
 
-      consumer.on('error', function (err) {
+      consumer.on('processing_error', function (err) {
         assert.equal(err, processingErr);
         done();
       });
@@ -174,7 +174,7 @@ describe('Consumer', function () {
     it('doesn\'t delete the message when a processing error is reported', function () {
       handleMessage.yields(new Error('Processing error'));
 
-      consumer.on('error', function () {
+      consumer.on('processing_error', function () {
         // ignore the error
       });
 
