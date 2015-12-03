@@ -27,10 +27,6 @@ app.on('error', function (err) {
   console.log(err.message);
 });
 
-app.on('processing_error', function (err) {
-  console.log(err.message);
-});
-
 app.start();
 ```
 
