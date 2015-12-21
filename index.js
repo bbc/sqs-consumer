@@ -37,6 +37,7 @@ function validate(options) {
  * @param {string} options.queueUrl
  * @param {string} options.region
  * @param {function} options.handleMessage
+ * @param {array} options.attributeNames
  * @param {array} options.messageAttributeNames
  * @param {number} options.batchSize
  * @param {object} options.sqs
@@ -48,6 +49,7 @@ function Consumer(options) {
 
   this.queueUrl = options.queueUrl;
   this.handleMessage = options.handleMessage;
+  this.attributeNames = options.attributeNames || [];
   this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
@@ -93,6 +95,7 @@ Consumer.prototype.stop = function () {
 Consumer.prototype._poll = function () {
   var receiveParams = {
     QueueUrl: this.queueUrl,
+    AttributeNames: this.attributeNames,
     MessageAttributeNames: this.messageAttributeNames,
     MaxNumberOfMessages: this.batchSize,
     WaitTimeSeconds: this.waitTimeSeconds,
