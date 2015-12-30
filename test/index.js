@@ -240,6 +240,7 @@ describe('Consumer', function () {
       setTimeout(function () {
         sinon.assert.calledWith(sqs.receiveMessage, {
           QueueUrl: 'some-queue-url',
+          AttributeNames: [],
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
           WaitTimeSeconds: 20,
@@ -248,6 +249,45 @@ describe('Consumer', function () {
         sinon.assert.callCount(handleMessage, 3);
         done();
       }, 10);
+    });
+
+    it('consumes messages with message attibute \'ApproximateReceiveCount\'', function (done) {
+
+      var messageWithAttr = {
+        ReceiptHandle: 'receipt-handle-1',
+        MessageId: '1',
+        Body: 'body-1',
+        Attributes: {
+          ApproximateReceiveCount: 1
+        }
+      };
+
+      sqs.receiveMessage.yieldsAsync(null, {
+        Messages: [messageWithAttr]
+      });
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        attributeNames: ['ApproximateReceiveCount'],
+        region: 'some-region',
+        handleMessage: handleMessage,
+        sqs: sqs
+      });
+
+      consumer.on('message_received', function (message) {
+        sinon.assert.calledWith(sqs.receiveMessage, {
+          QueueUrl: 'some-queue-url',
+          AttributeNames: ['ApproximateReceiveCount'],
+          MessageAttributeNames: [],
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 20,
+          VisibilityTimeout: undefined
+        });
+        assert.equal(message, messageWithAttr);
+        done();
+      });
+
+      consumer.start();
     });
   });
 
