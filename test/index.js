@@ -128,6 +128,40 @@ describe('Consumer', function () {
       consumer.start();
     });
 
+    it('fires an error event when a credentials error occurs', function (done) {
+      var credentialsErr = { code : 'CredentialsError', message: 'Missing credentials in config'};
+      sqs.receiveMessage.yields(credentialsErr);
+
+      consumer.on('error', function (err) {
+        assert.ok(err);
+        assert.equal(err.message, 'SQS receive message failed: ' + credentialsErr.message);
+        sinon.assert.calledOnce(sqs.receiveMessage);
+        setTimeout(function () {
+            sinon.assert.notCalled(handleMessage);
+            done();
+        }, 10);
+      });
+
+      consumer.start();
+    });
+
+    it('fires an error event when an invalid signature error occurs', function (done) {
+      var invalidSignatureErr = { statusCode : 403, message: 'The security token included in the request is invalid'};
+      sqs.receiveMessage.yields(invalidSignatureErr);
+
+      consumer.on('error', function (err) {
+        assert.ok(err);
+        assert.equal(err.message, 'SQS receive message failed: ' + invalidSignatureErr.message);
+        sinon.assert.calledOnce(sqs.receiveMessage);
+        setTimeout(function () {
+            sinon.assert.notCalled(handleMessage);
+            done();
+        }, 10);
+      });
+
+      consumer.start();
+    });
+
     it('fires a message_received event when a message is received', function (done) {
       consumer.on('message_received', function (message) {
         assert.equal(message, response.Messages[0]);
