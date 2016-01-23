@@ -62,7 +62,7 @@ var app = Consumer.create({
   handleMessage: function (message, done) {
     // ...
   },
-  sqs: new AWS.SQS();
+  sqs: new AWS.SQS()
 });
 ```
 
