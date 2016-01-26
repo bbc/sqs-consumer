@@ -31,6 +31,10 @@ function validate(options) {
   }
 }
 
+function isAuthenticationError(err) {
+    return (err.statusCode === 403 || err.code === 'CredentialsError');
+}
+
 /**
  * An SQS consumer.
  * @param {object} options
@@ -109,9 +113,19 @@ Consumer.prototype._poll = function () {
 };
 
 Consumer.prototype._handleSqsResponse = function (err, response) {
-  if (err) this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
-
   var consumer = this;
+
+  if (err) {
+      this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
+      if (isAuthenticationError(err)) {
+        debug('Pause polling for 10 seconds, please fix the credentials error');
+        setTimeout(function() {
+            debug('Start polling again, hopefully the credentials problem is fixed');
+            consumer.start();
+        }, 10000);
+        return this.stop();
+      }
+  }
 
   debug('Received SQS response');
   debug(response);
