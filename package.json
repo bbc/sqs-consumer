@@ -29,12 +29,12 @@
     "istanbul": "^0.4.1",
     "jshint": "^2.9.1",
     "mocha": "^2.0.1",
+    "codeclimate-test-reporter": "0.3.0",
     "sinon": "^1.10.3"
   },
   "dependencies": {
     "async": "^0.9.0",
     "aws-sdk": "^2.0.23",
-    "codeclimate-test-reporter": "0.3.0",
     "debug": "^2.1.0"
   },
   "jshintConfig": {
