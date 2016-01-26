@@ -6,7 +6,9 @@
   "scripts": {
     "test": "mocha",
     "coverage": "istanbul cover _mocha -- -R dot && open coverage/lcov-report/index.html",
-    "lcov": "istanbul cover _mocha -- -R dot"
+    "lcov": "istanbul cover _mocha -- -R dot",
+    "lint": "jshint .",
+    "posttest": "npm run lint"
   },
   "repository": {
     "type": "git",
@@ -25,6 +27,7 @@
   "license": "MIT",
   "devDependencies": {
     "istanbul": "^0.3.5",
+    "jshint": "^2.9.1",
     "mocha": "^2.0.1",
     "sinon": "^1.10.3"
   },
