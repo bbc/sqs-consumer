@@ -32,7 +32,7 @@ function validate(options) {
 }
 
 function isAuthenticationError(err) {
-    return (err.statusCode === 403 || err.code === 'CredentialsError');
+  return (err.statusCode === 403 || err.code === 'CredentialsError');
 }
 
 /**
@@ -59,6 +59,7 @@ function Consumer(options) {
   this.batchSize = options.batchSize || 1;
   this.visibilityTimeout = options.visibilityTimeout;
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
+  this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'
@@ -116,15 +117,7 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
   var consumer = this;
 
   if (err) {
-      this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
-      if (isAuthenticationError(err)) {
-        debug('Pause polling for 10 seconds, please fix the credentials error');
-        setTimeout(function() {
-            debug('Start polling again, hopefully the credentials problem is fixed');
-            consumer.start();
-        }, 10000);
-        return this.stop();
-      }
+    this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
   }
 
   debug('Received SQS response');
@@ -135,6 +128,10 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
       // start polling again once all of the messages have been processed
       consumer._poll();
     });
+  } else if (err && isAuthenticationError(err)) {
+    // there was an authentication error, so wait a bit before repolling
+    debug('There was an authentication error. Pausing before retrying.');
+    setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
   } else {
     // there were no messages, so start polling again
     this._poll();

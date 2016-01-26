@@ -26,7 +26,8 @@ describe('Consumer', function () {
       queueUrl: 'some-queue-url',
       region: 'some-region',
       handleMessage: handleMessage,
-      sqs: sqs
+      sqs: sqs,
+      authenticationErrorTimeout: 20
     });
   });
 
@@ -128,35 +129,43 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires an error event when a credentials error occurs', function (done) {
-      var credentialsErr = { code : 'CredentialsError', message: 'Missing credentials in config'};
+    it('waits before repolling when a credentials error occurs', function (done) {
+      var credentialsErr = {
+        code: 'CredentialsError',
+        message: 'Missing credentials in config'
+      };
+
       sqs.receiveMessage.yields(credentialsErr);
 
-      consumer.on('error', function (err) {
-        assert.ok(err);
-        assert.equal(err.message, 'SQS receive message failed: ' + credentialsErr.message);
-        sinon.assert.calledOnce(sqs.receiveMessage);
+      consumer.on('error', function () {
         setTimeout(function () {
-            sinon.assert.notCalled(handleMessage);
-            done();
+          sinon.assert.calledOnce(sqs.receiveMessage);
         }, 10);
+        setTimeout(function () {
+          sinon.assert.calledTwice(sqs.receiveMessage);
+          done();
+        }, 30);
       });
 
       consumer.start();
     });
 
-    it('fires an error event when an invalid signature error occurs', function (done) {
-      var invalidSignatureErr = { statusCode : 403, message: 'The security token included in the request is invalid'};
+    it('waits before repolling when a 403 error occurs', function (done) {
+      var invalidSignatureErr = {
+        statusCode: 403,
+        message: 'The security token included in the request is invalid'
+      };
+
       sqs.receiveMessage.yields(invalidSignatureErr);
 
-      consumer.on('error', function (err) {
-        assert.ok(err);
-        assert.equal(err.message, 'SQS receive message failed: ' + invalidSignatureErr.message);
-        sinon.assert.calledOnce(sqs.receiveMessage);
+      consumer.on('error', function () {
         setTimeout(function () {
-            sinon.assert.notCalled(handleMessage);
-            done();
+          sinon.assert.calledOnce(sqs.receiveMessage);
         }, 10);
+        setTimeout(function () {
+          sinon.assert.calledTwice(sqs.receiveMessage);
+          done();
+        }, 30);
       });
 
       consumer.start();
