@@ -61,9 +61,17 @@ var app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
   handleMessage: function (message, done) {
     // ...
+    done();
   },
   sqs: new AWS.SQS()
 });
+
+app.on('error', function (err) {
+  console.log(err.message);
+});
+
+app.start();
+
 ```
 
 ## API
