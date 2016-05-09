@@ -152,7 +152,7 @@ Consumer.prototype._processMessage = function (message, cb) {
     }
   ], function (err) {
     if (err) {
-      if (err.name === 'SQSError') {
+      if (err.name === SQSError.name) {
         consumer.emit('error', err);
       } else {
         consumer.emit('processing_error', err);
