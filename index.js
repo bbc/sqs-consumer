@@ -14,10 +14,11 @@ var requiredOptions = [
  * Construct a new SQSError
  */
 function SQSError(message) {
-  this.name = 'SQSError';
+  Error.captureStackTrace(this, this.constructor);
+  this.name = this.constructor.name;
   this.message = (message || '');
 }
-SQSError.prototype = Error.prototype;
+util.inherits(SQSError, Error);
 
 function validate(options) {
   requiredOptions.forEach(function (option) {
@@ -151,7 +152,7 @@ Consumer.prototype._processMessage = function (message, cb) {
     }
   ], function (err) {
     if (err) {
-      if (err.name === 'SQSError') {
+      if (err.name === SQSError.name) {
         consumer.emit('error', err);
       } else {
         consumer.emit('processing_error', err);
