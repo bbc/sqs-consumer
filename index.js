@@ -61,6 +61,7 @@ function Consumer(options) {
   this.visibilityTimeout = options.visibilityTimeout;
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
+  this.deleteMessageFromQueue = options.deleteMessageFromQueue || true;
 
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'
@@ -148,7 +149,11 @@ Consumer.prototype._processMessage = function (message, cb) {
       consumer.handleMessage(message, done);
     },
     function deleteMessage(done) {
-      consumer._deleteMessage(message, done);
+      if(consumer.deleteMessageFromQueue === true){
+        consumer._deleteMessage(message, done);
+      } else {
+        done();
+      }
     }
   ], function (err) {
     if (err) {
