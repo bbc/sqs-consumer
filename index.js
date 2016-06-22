@@ -93,9 +93,10 @@ Consumer.prototype.start = function () {
 /**
  * Stop polling for messages.
  */
-Consumer.prototype.stop = function () {
+Consumer.prototype.stop = function (done) {
   debug('Stopping consumer');
   this.stopped = true;
+  this.handleStop = done;
 };
 
 Consumer.prototype._poll = function () {
@@ -107,6 +108,10 @@ Consumer.prototype._poll = function () {
     WaitTimeSeconds: this.waitTimeSeconds,
     VisibilityTimeout: this.visibilityTimeout
   };
+  
+  if (this.handleStop) {
+    this.handleStop();
+  }
 
   if (!this.stopped) {
     debug('Polling for messages');
