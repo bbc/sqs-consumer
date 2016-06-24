@@ -347,5 +347,17 @@ describe('Consumer', function () {
         done();
       }, 10);
     });
+
+    it('calls stop callback', function (done) {
+      var handleStop = sinon.stub();
+
+      consumer.start();
+      consumer.stop(handleStop);
+
+      setTimeout(function () {
+        sinon.assert.calledOnce(handleStop);
+        done();
+      }, 10);
+    });
   });
 });
