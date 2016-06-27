@@ -111,6 +111,8 @@ Consumer.prototype._poll = function () {
   if (!this.stopped) {
     debug('Polling for messages');
     this.sqs.receiveMessage(receiveParams, this._handleSqsResponseBound);
+  } else {
+    this.emit('stopped');
   }
 };
 
