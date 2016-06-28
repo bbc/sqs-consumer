@@ -335,15 +335,63 @@ describe('Consumer', function () {
   });
 
   describe('.stop', function () {
-    it('stops the consumer polling for messages', function (done) {
+    beforeEach(function () {
       sqs.receiveMessage.onSecondCall().yieldsAsync(null, response);
       sqs.receiveMessage.onThirdCall().returns();
+    });
 
+    it('stops the consumer polling for messages', function (done) {
       consumer.start();
       consumer.stop();
 
       setTimeout(function () {
         sinon.assert.calledOnce(handleMessage);
+        done();
+      }, 10);
+    });
+
+    it('fires a stopped event when last poll occurs after stopping', function (done) {
+      var handleStop = sinon.stub().returns();
+
+      consumer.on('stopped', handleStop);
+
+      consumer.start();
+      consumer.stop();
+
+      setTimeout(function () {
+        sinon.assert.calledOnce(handleStop);
+        done();
+      }, 10);
+    });
+
+    it('fires a stopped event only once when stopped multiple times', function (done) {
+      var handleStop = sinon.stub().returns();
+
+      consumer.on('stopped', handleStop);
+
+      consumer.start();
+      consumer.stop();
+      consumer.stop();
+      consumer.stop();
+
+      setTimeout(function () {
+        sinon.assert.calledOnce(handleStop);
+        done();
+      }, 10);
+    });
+
+    it('fires a stopped event a second time if started and stopped twice', function (done) {
+      var handleStop = sinon.stub().returns();
+
+      consumer.on('stopped', handleStop);
+
+      consumer.start();
+      consumer.stop();
+      consumer.start();
+      consumer.stop();
+
+      setTimeout(function () {
+        sinon.assert.calledTwice(handleStop);
         done();
       }, 10);
     });
