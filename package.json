@@ -28,7 +28,7 @@
   "devDependencies": {
     "istanbul": "^0.4.1",
     "jshint": "^2.9.1",
-    "mocha": "^2.0.1",
+    "mocha": "^3.0.1",
     "codeclimate-test-reporter": "0.3.3",
     "sinon": "^1.10.3"
   },
