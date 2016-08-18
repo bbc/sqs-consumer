@@ -92,6 +92,7 @@ Creates a new SQS consumer.
 * `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning.
 * `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
 * `sqs` - _Object_ - An optional [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) object to use if you need to configure the client manually
+* `emptyQueueEvent` - _Boolean_ - If you want to know when the queue is empty active this flag (will emit an event). Default will not do
 
 ### `consumer.start()`
 
@@ -112,3 +113,4 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 |`message_received`|`message`|Fired when a message is received.|
 |`message_processed`|`message`|Fired when a message is successfully processed and removed from the queue.|
 |`stopped`|None|Fired when the consumer finally stops its work.|
+|`emptyQueue`|None|Fired when the queue is empty (All messages have been consumed).|

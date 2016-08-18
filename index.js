@@ -62,6 +62,9 @@ function Consumer(options) {
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
+  this.emptyQueueEvent = options.emptyQueueEvent || false;
+  this.queueIsNotEmpty = true;
+
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || 'eu-west-1'
   });
@@ -127,10 +130,17 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
   debug(response);
 
   if (response && response.Messages && response.Messages.length > 0) {
+    this.queueIsNotEmpty = true;
     async.each(response.Messages, this._processMessageBound, function () {
       // start polling again once all of the messages have been processed
       consumer._poll();
     });
+  } else if (response && !response.Messages) {
+    if (this.emptyQueueEvent && this.queueIsNotEmpty) {
+      this.queueIsNotEmpty = false;
+      this.emit('emptyQueue');
+    }
+    this._poll();
   } else if (err && isAuthenticationError(err)) {
     // there was an authentication error, so wait a bit before repolling
     debug('There was an authentication error. Pausing before retrying.');
