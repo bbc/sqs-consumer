@@ -332,6 +332,16 @@ describe('Consumer', function () {
 
       consumer.start();
     });
+
+    it('fires a emptyQueue event when all messages have been consumed', function (done) {
+      sqs.receiveMessage.yieldsAsync(null, {});
+
+      consumer.on('empty', function () {
+        done();
+      });
+
+      consumer.start();
+    });
   });
 
   describe('.stop', function () {

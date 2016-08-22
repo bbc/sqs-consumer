@@ -131,6 +131,9 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
       // start polling again once all of the messages have been processed
       consumer._poll();
     });
+  } else if (response && !response.Messages) {
+    this.emit('empty');
+    this._poll();
   } else if (err && isAuthenticationError(err)) {
     // there was an authentication error, so wait a bit before repolling
     debug('There was an authentication error. Pausing before retrying.');
