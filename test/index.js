@@ -336,16 +336,7 @@ describe('Consumer', function () {
     it('fires a emptyQueue event when all messages have been consumed', function (done) {
       sqs.receiveMessage.yieldsAsync(null, {});
 
-      consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
-        handleMessage: handleMessage,
-        sqs: sqs,
-        authenticationErrorTimeout: 20,
-        emptyQueueEvent: true
-      });
-
-      consumer.on('emptyQueue', function () {
+      consumer.on('empty', function () {
         done();
       });
 
