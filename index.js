@@ -63,7 +63,7 @@ function Consumer(options) {
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
   this.sqs = options.sqs || new AWS.SQS({
-    region: options.region || 'eu-west-1'
+    region: options.region || process.env.AWS_REGION || 'eu-west-1'
   });
 
   this._handleSqsResponseBound = this._handleSqsResponse.bind(this);
