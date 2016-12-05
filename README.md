@@ -6,24 +6,24 @@ Build SQS-based applications without the boilerplate. Just define a function tha
 
 ## Installation
 
-```
-npm install sqs-consumer
+```bash
+npm install sqs-consumer --save
 ```
 
 ## Usage
 
 ```js
-var Consumer = require('sqs-consumer');
+const Consumer = require('sqs-consumer');
 
-var app = Consumer.create({
+const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
-  handleMessage: function (message, done) {
+  handleMessage: (message, done) => {
     // do some work with `message`
     done();
   }
 });
 
-app.on('error', function (err) {
+app.on('error', (err) => {
   console.log(err.message);
 });
 
@@ -39,7 +39,7 @@ app.start();
 
 By default the consumer will look for AWS credentials in the places [specified by the AWS SDK](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials). The simplest option is to export your credentials as environment variables:
 
-```
+```bash
 export AWS_SECRET_ACCESS_KEY=...
 export AWS_ACCESS_KEY_ID=...
 ```
@@ -48,8 +48,8 @@ If you need to specify your credentials manually, you can use a pre-configured i
 
 
 ```js
-var Consumer = require('sqs-consumer');
-var AWS = require('aws-sdk');
+const Consumer = require('sqs-consumer');
+const AWS = require('aws-sdk');
 
 AWS.config.update({
   region: 'eu-west-1',
@@ -57,21 +57,20 @@ AWS.config.update({
   secretAccessKey: '...'
 });
 
-var app = Consumer.create({
+const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
-  handleMessage: function (message, done) {
+  handleMessage: (message, done) => {
     // ...
     done();
   },
   sqs: new AWS.SQS()
 });
 
-app.on('error', function (err) {
+app.on('error', (err) => {
   console.log(err.message);
 });
 
 app.start();
-
 ```
 
 ## API
