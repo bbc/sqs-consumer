@@ -35,7 +35,7 @@
   "dependencies": {
     "async": "^2.0.1",
     "aws-sdk": "^2.0.23",
-    "debug": "^2.1.0"
+    "debug": "^2.4.0"
   },
   "jshintConfig": {
     "quotmark": "single",
