@@ -106,7 +106,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 
 |Event|Params|Description|
 |-----|------|-----------|
-|`error`|`err`, `message`|Fired when an error occurs interacting with the queue.|
+|`error`|`err`, `[message]`|Fired when an error occurs interacting with the queue. If the error correlates to a message, that error is included in Params|
 |`processing_error`|`err`, `message`|Fired when an error occurs processing the message.|
 |`message_received`|`message`|Fired when a message is received.|
 |`message_processed`|`message`|Fired when a message is successfully processed and removed from the queue.|
