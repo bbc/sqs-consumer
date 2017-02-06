@@ -22,6 +22,7 @@ describe('Consumer', function () {
     sqs.receiveMessage = sinon.stub().yieldsAsync(null, response);
     sqs.receiveMessage.onSecondCall().returns();
     sqs.deleteMessage = sinon.stub().yieldsAsync(null);
+    sqs._deleteMessage = sinon.stub().yieldsAsync(null);
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
       region: 'some-region',
@@ -109,20 +110,35 @@ describe('Consumer', function () {
 
       consumer.on('error', function (err) {
         assert.ok(err);
-        assert.equal(err.message, 'SQS delete message failed: Delete error');
         done();
       });
 
       consumer.start();
     });
 
-    it('fires an error event when an error occurs processing a message', function (done) {
+    it('fires a `processing_error` event when a non-`SQSError` error occurs processing a message', function (done) {
       var processingErr = new Error('Processing error');
 
       handleMessage.yields(processingErr);
 
-      consumer.on('processing_error', function (err) {
+      consumer.on('processing_error', function (err, message) {
         assert.equal(err, processingErr);
+        assert.equal(message.MessageId, '123');
+        done();
+      });
+
+      consumer.start();
+    });
+
+    it('fires an `error` event when an `SQSError` occurs processing a message', function (done) {
+      var sqsError = new Error('Processing error');
+      sqsError.name = 'SQSError';
+
+      handleMessage.yields(sqsError);
+
+      consumer.on('error', function (err, message) {
+        assert.equal(err, sqsError);
+        assert.equal(message.MessageId, '123');
         done();
       });
 
