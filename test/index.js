@@ -110,6 +110,7 @@ describe('Consumer', function () {
 
       consumer.on('error', function (err) {
         assert.ok(err);
+        assert.equal(err.message, 'SQS delete message failed: Delete error');
         done();
       });
 
