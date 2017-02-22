@@ -158,9 +158,9 @@ Consumer.prototype._processMessage = function (message, cb) {
   ], function (err) {
     if (err) {
       if (err.name === SQSError.name) {
-        consumer.emit('error', err);
+        consumer.emit('error', err, message);
       } else {
-        consumer.emit('processing_error', err);
+        consumer.emit('processing_error', err, message);
       }
     } else {
       consumer.emit('message_processed', message);
