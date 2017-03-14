@@ -118,7 +118,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 Consumer will receive and delete messages from the SQS queue. Hence "sqs:ReceiveMessage" and "sqs:DeleteMessage" access must be granted on the queue being consumed.
 
 IAM policy example: 
-```json
+```javascript
 {
     "Version": "2012-10-17",
     "Statement": [
