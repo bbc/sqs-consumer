@@ -112,3 +112,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 |`message_processed`|`message`|Fired when a message is successfully processed and removed from the queue.|
 |`stopped`|None|Fired when the consumer finally stops its work.|
 |`empty`|None|Fired when the queue is empty (All messages have been consumed).|
+
+### AWS IAM Permissions
+
+Consumer will receive and delete messages from the SQS queue. Hence "sqs:ReceiveMessage" and "sqs:DeleteMessage" access must be granted on the queue being consumed.
