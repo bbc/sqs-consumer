@@ -50,17 +50,6 @@ describe('Consumer', function () {
     });
   });
 
-  it('requires the batchSize option to be no greater than 10', function () {
-    assert.throws(function () {
-      new Consumer({
-        region: 'some-region',
-        queueUrl: 'some-queue-url',
-        handleMessage: handleMessage,
-        batchSize: 11
-      });
-    });
-  });
-
   it('requires the batchSize option to be greater than 0', function () {
     assert.throws(function () {
       new Consumer({
@@ -296,6 +285,7 @@ describe('Consumer', function () {
       });
 
       consumer.start();
+      sinon.stub(consumer, '_poll');
 
       setTimeout(function () {
         sinon.assert.calledWith(sqs.receiveMessage, {
@@ -307,6 +297,70 @@ describe('Consumer', function () {
           VisibilityTimeout: undefined
         });
         sinon.assert.callCount(handleMessage, 3);
+        sinon.assert.calledOnce(consumer._poll);
+        sinon.assert.calledWith(consumer._poll, 3);
+
+        done();
+      }, 10);
+    });
+
+    it('polls sqs concurrently when the batchSize is greater than 10', function (done) {
+      var messages = [];
+
+      for (var i = 1; i < 16; i++) {
+        messages.push({
+          ReceiptHandle: 'receipt-handle-' + i,
+          MessageId: i.toString(),
+          Body: 'body-' + i
+        });
+      }
+
+      sqs.receiveMessage.withArgs({
+          QueueUrl: 'some-queue-url',
+          AttributeNames: [],
+          MessageAttributeNames: ['attribute-1', 'attribute-2'],
+          MaxNumberOfMessages: 10,
+          WaitTimeSeconds: 20,
+          VisibilityTimeout: undefined
+      })
+      .yieldsAsync(null, {
+        Messages: messages.slice(0, 10)
+      });
+
+      sqs.receiveMessage.withArgs({
+          QueueUrl: 'some-queue-url',
+          AttributeNames: [],
+          MessageAttributeNames: ['attribute-1', 'attribute-2'],
+          MaxNumberOfMessages: 5,
+          WaitTimeSeconds: 20,
+          VisibilityTimeout: undefined
+      })
+      .yieldsAsync(null, {
+        Messages: messages.slice(10)
+      });
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessage: handleMessage,
+        batchSize: 15,
+        sqs: sqs
+      });
+
+
+      consumer.start();
+      sinon.stub(consumer, '_poll');
+
+      setTimeout(function () {
+        sinon.assert.callCount(handleMessage, messages.length);
+        messages.forEach(function (m) {
+          sinon.assert.calledWith(handleMessage, m);
+        });
+
+        sinon.assert.calledTwice(consumer._poll);
+        sinon.assert.calledWith(consumer._poll, 10);
+        sinon.assert.calledWith(consumer._poll, 5);
         done();
       }, 10);
     });
