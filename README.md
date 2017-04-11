@@ -115,4 +115,4 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 
 ### AWS IAM Permissions
 
-Consumer will receive and delete messages from the SQS queue. Hence "sqs:ReceiveMessage" and "sqs:DeleteMessage" access must be granted on the queue being consumed.
+Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage` and `sqs:DeleteMessage` access is granted on the queue being consumed.
