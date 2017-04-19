@@ -59,6 +59,7 @@ function Consumer(options) {
   this.stopped = true;
   this.batchSize = options.batchSize || 1;
   this.visibilityTimeout = options.visibilityTimeout;
+  this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
@@ -161,6 +162,19 @@ Consumer.prototype._processMessage = function (message, cb) {
         consumer.emit('error', err, message);
       } else {
         consumer.emit('processing_error', err, message);
+      }
+
+      if (consumer.terminateVisibilityTimeout) {
+        consumer.sqs.changeMessageVisibility({
+          QueueUrl: consumer.queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: 0
+        }, function(err) {
+          if (err)
+            consumer.emit('error', err, message);
+          cb();
+        });
+        return;
       }
     } else {
       consumer.emit('message_processed', message);
