@@ -23,6 +23,8 @@ describe('Consumer', function () {
     sqs.receiveMessage.onSecondCall().returns();
     sqs.deleteMessage = sinon.stub().yieldsAsync(null);
     sqs._deleteMessage = sinon.stub().yieldsAsync(null);
+    sqs.changeMessageVisibility = sinon.stub().yieldsAsync(null);
+
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
       region: 'some-region',
@@ -357,6 +359,51 @@ describe('Consumer', function () {
         done();
       });
 
+      consumer.start();
+    });
+
+    it('terminate message visibility timeout on processing error', function(done) {
+      handleMessage.yields(new Error('Processing error'));
+
+      // Turn on terminate visibility timeout option
+      consumer.terminateVisibilityTimeout = true;
+      consumer.on('processing_error', function () {
+        setImmediate(function() {
+          sinon.assert.calledWith(sqs.changeMessageVisibility, {
+            QueueUrl: 'some-queue-url',
+            ReceiptHandle: 'receipt-handle',
+            VisibilityTimeout: 0
+          });
+          done();
+        });
+      });
+
+      // Start consumer
+      consumer.start();
+    });
+
+    it('fires error event when failed to terminate visibility timeout on processing error', function(done) {
+      handleMessage.yields(new Error('Processing error'));
+
+      // sqs failed to terminate visibility timeout
+      var sqsError = new Error('Processing error');
+      sqsError.name = 'SQSError';
+      sqs.changeMessageVisibility.yields(sqsError);
+
+      // Turn on terminate visibility timeout option
+      consumer.terminateVisibilityTimeout = true;
+      consumer.on('error', function () {
+        setImmediate(function() {
+          sinon.assert.calledWith(sqs.changeMessageVisibility, {
+            QueueUrl: 'some-queue-url',
+            ReceiptHandle: 'receipt-handle',
+            VisibilityTimeout: 0
+          });
+          done();
+        });
+      });
+
+      // Start consumer
       consumer.start();
     });
   });
