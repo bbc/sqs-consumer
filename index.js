@@ -170,8 +170,7 @@ Consumer.prototype._processMessage = function (message, cb) {
           ReceiptHandle: message.ReceiptHandle,
           VisibilityTimeout: 0
         }, function(err) {
-          if (err)
-            consumer.emit('error', err, message);
+          if (err) consumer.emit('error', err, message);
           cb();
         });
         return;
