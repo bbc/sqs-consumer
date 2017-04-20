@@ -382,6 +382,22 @@ describe('Consumer', function () {
       consumer.start();
     });
 
+    it('shouldn\'t terminate visibility timeout when terminateVisibilityTimeout option is false', function(done) {
+      handleMessage.yields(new Error('Processing error'));
+
+      // Turn off terminate visibility timeout option
+      consumer.terminateVisibilityTimeout = false;
+      consumer.on('processing_error', function () {
+        setImmediate(function() {
+          sinon.assert.notCalled(sqs.changeMessageVisibility);
+          done();
+        });
+      });
+
+      // Start consumer
+      consumer.start();
+    });
+
     it('fires error event when failed to terminate visibility timeout on processing error', function(done) {
       handleMessage.yields(new Error('Processing error'));
 
