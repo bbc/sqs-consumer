@@ -362,13 +362,12 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('terminate message visibility timeout on processing error', function(done) {
+    it('terminate message visibility timeout on processing error', function (done) {
       handleMessage.yields(new Error('Processing error'));
 
-      // Turn on terminate visibility timeout option
       consumer.terminateVisibilityTimeout = true;
       consumer.on('processing_error', function () {
-        setImmediate(function() {
+        setImmediate(function () {
           sinon.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
             ReceiptHandle: 'receipt-handle',
@@ -378,38 +377,33 @@ describe('Consumer', function () {
         });
       });
 
-      // Start consumer
       consumer.start();
     });
 
-    it('shouldn\'t terminate visibility timeout when terminateVisibilityTimeout option is false', function(done) {
+    it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', function (done) {
       handleMessage.yields(new Error('Processing error'));
 
-      // Turn off terminate visibility timeout option
       consumer.terminateVisibilityTimeout = false;
       consumer.on('processing_error', function () {
-        setImmediate(function() {
+        setImmediate(function () {
           sinon.assert.notCalled(sqs.changeMessageVisibility);
           done();
         });
       });
 
-      // Start consumer
       consumer.start();
     });
 
-    it('fires error event when failed to terminate visibility timeout on processing error', function(done) {
+    it('fires error event when failed to terminate visibility timeout on processing error', function (done) {
       handleMessage.yields(new Error('Processing error'));
 
-      // sqs failed to terminate visibility timeout
       var sqsError = new Error('Processing error');
       sqsError.name = 'SQSError';
       sqs.changeMessageVisibility.yields(sqsError);
 
-      // Turn on terminate visibility timeout option
       consumer.terminateVisibilityTimeout = true;
       consumer.on('error', function () {
-        setImmediate(function() {
+        setImmediate(function () {
           sinon.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
             ReceiptHandle: 'receipt-handle',
@@ -419,7 +413,6 @@ describe('Consumer', function () {
         });
       });
 
-      // Start consumer
       consumer.start();
     });
   });

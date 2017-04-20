@@ -88,7 +88,7 @@ Creates a new SQS consumer.
 * `messageAttributeNames` - _Array_ - List of message attributes to retrieve (i.e. `['name', 'address']`).
 * `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
 * `visibilityTimeout` - _Number_ - The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request.
-* `terminateVisibilityTimeout` - _Boolean_ - If true, set the message visibility timeout to 0 after it is left on the queue on 'processing_error', triggered by calling done(err) in the handleMessage callback (defaults to `false`).
+* `terminateVisibilityTimeout` - _Boolean_ - If true, sets the message visibility timeout to 0 after a `processing_error` (defaults to `false`).
 * `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning.
 * `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
 * `sqs` - _Object_ - An optional [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) object to use if you need to configure the client manually
