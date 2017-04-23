@@ -10,6 +10,8 @@ var requiredOptions = [
     'handleMessage'
   ];
 
+  var MAX_NUM_MESSAGES = 10;
+
 /**
  * Construct a new SQSError
  */
@@ -27,8 +29,8 @@ function validate(options) {
     }
   });
 
-  if (options.batchSize > 10 || options.batchSize < 1) {
-    throw new Error('SQS batchSize option must be between 1 and 10.');
+  if (options.batchSize < 1) {
+    throw new Error('SQS batchSize option must be greater than 0.');
   }
 }
 
@@ -67,7 +69,6 @@ function Consumer(options) {
     region: options.region || process.env.AWS_REGION || 'eu-west-1'
   });
 
-  this._handleSqsResponseBound = this._handleSqsResponse.bind(this);
   this._processMessageBound = this._processMessage.bind(this);
 }
 
@@ -87,7 +88,17 @@ Consumer.prototype.start = function () {
   if (this.stopped) {
     debug('Starting consumer');
     this.stopped = false;
-    this._poll();
+
+    var numReceives = Math.floor(this.batchSize / MAX_NUM_MESSAGES);
+    var remainder = this.batchSize % MAX_NUM_MESSAGES;
+
+    for (var i = 0; i < numReceives; i++) {
+      this._poll(MAX_NUM_MESSAGES);
+    }
+
+    if (remainder) {
+      this._poll(remainder);
+    }
   }
 };
 
@@ -99,27 +110,31 @@ Consumer.prototype.stop = function () {
   this.stopped = true;
 };
 
-Consumer.prototype._poll = function () {
+Consumer.prototype._poll = function (batchSize) {
+  var consumer = this;
+
   var receiveParams = {
     QueueUrl: this.queueUrl,
     AttributeNames: this.attributeNames,
     MessageAttributeNames: this.messageAttributeNames,
-    MaxNumberOfMessages: this.batchSize,
+    MaxNumberOfMessages: batchSize,
     WaitTimeSeconds: this.waitTimeSeconds,
     VisibilityTimeout: this.visibilityTimeout
   };
 
   if (!this.stopped) {
     debug('Polling for messages');
-    this.sqs.receiveMessage(receiveParams, this._handleSqsResponseBound);
+    this.sqs.receiveMessage(receiveParams, function (err, response) {
+      consumer._handleSqsResponse(err, response, function () {
+        consumer._poll(batchSize);
+      });
+    });
   } else {
     this.emit('stopped');
   }
 };
 
-Consumer.prototype._handleSqsResponse = function (err, response) {
-  var consumer = this;
-
+Consumer.prototype._handleSqsResponse = function (err, response, cb) {
   if (err) {
     this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
   }
@@ -128,20 +143,19 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
   debug(response);
 
   if (response && response.Messages && response.Messages.length > 0) {
-    async.each(response.Messages, this._processMessageBound, function () {
-      // start polling again once all of the messages have been processed
-      consumer._poll();
+    async.each(response.Messages, this._processMessageBound, function() {
+      cb();
     });
   } else if (response && !response.Messages) {
     this.emit('empty');
-    this._poll();
+    cb();
   } else if (err && isAuthenticationError(err)) {
     // there was an authentication error, so wait a bit before repolling
     debug('There was an authentication error. Pausing before retrying.');
-    setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
+    setTimeout(cb, this.authenticationErrorTimeout);
   } else {
     // there were no messages, so start polling again
-    this._poll();
+    cb();
   }
 };
 

@@ -86,7 +86,7 @@ Creates a new SQS consumer.
 * `handleMessage` - _Function_ - A function to be called whenever a message is received. Receives an SQS message object as its first argument and a function to call when the message has been handled as its second argument (i.e. `handleMessage(message, done)`).
 * `attributeNames` - _Array_ - List of queue attributes to retrieve (i.e. `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
 * `messageAttributeNames` - _Array_ - List of message attributes to retrieve (i.e. `['name', 'address']`).
-* `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
+* `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). Concurrent polling is used if this exceeds the AWS limit of 10.
 * `visibilityTimeout` - _Number_ - The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request.
 * `terminateVisibilityTimeout` - _Boolean_ - If true, sets the message visibility timeout to 0 after a `processing_error` (defaults to `false`).
 * `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning.
