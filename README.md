@@ -92,6 +92,7 @@ Creates a new SQS consumer.
 * `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning.
 * `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
 * `sqs` - _Object_ - An optional [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) object to use if you need to configure the client manually
+* `deleteMessageFromQueue` - _Boolean_ - The boolean that controls the deletion of the message from SQS queue (defaults to `true`).
 
 ### `consumer.start()`
 

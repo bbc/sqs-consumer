@@ -74,6 +74,20 @@ describe('Consumer', function () {
     });
   });
 
+  it('checks if deleteMessageFromQueue is set to false', function () {
+    assert.throws(function () {
+      var consumer = Consumer.create({
+        region: 'some-region',
+        queueUrl: 'some-queue-url',
+        handleMessage: handleMessage,
+        batchSize: -1,
+        deleteMessageFromQueue: false
+      });
+
+      assert(consumer.deleteMessageFromQueue).is(false);
+    });
+  });
+
   describe('.create', function () {
     it('creates a new instance of a Consumer object', function () {
       var consumer = Consumer.create({
