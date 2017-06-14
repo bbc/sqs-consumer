@@ -151,7 +151,11 @@ Consumer.prototype._processMessage = function (message, cb) {
   this.emit('message_received', message);
   async.series([
     function handleMessage(done) {
-      consumer.handleMessage(message, done);
+      try {
+        consumer.handleMessage(message, done);
+      } catch (err) {
+        done(new Error('Unexpected message handler failure: ' + err.message));
+      }
     },
     function deleteMessage(done) {
       consumer._deleteMessage(message, done);
@@ -169,7 +173,7 @@ Consumer.prototype._processMessage = function (message, cb) {
           QueueUrl: consumer.queueUrl,
           ReceiptHandle: message.ReceiptHandle,
           VisibilityTimeout: 0
-        }, function(err) {
+        }, function (err) {
           if (err) consumer.emit('error', err, message);
           cb();
         });

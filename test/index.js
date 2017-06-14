@@ -104,6 +104,26 @@ describe('Consumer', function () {
       consumer.start();
     });
 
+    it('handles unexpected exceptions thrown by the handler function', function (done) {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: function () {
+          throw new Error('unexpected parsing error');
+        },
+        sqs: sqs,
+        authenticationErrorTimeout: 20
+      });
+
+      consumer.on('processing_error', function (err) {
+        assert.ok(err);
+        assert.equal(err.message, 'Unexpected message handler failure: unexpected parsing error');
+        done();
+      });
+
+      consumer.start();
+    });
+
     it('fires an error event when an error occurs deleting a message', function (done) {
       var deleteErr = new Error('Delete error');
 
