@@ -38,10 +38,11 @@
     "debug": "^2.1.0"
   },
   "jshintConfig": {
+    "browser": true,
     "quotmark": "single",
     "unused": true,
     "undef": true,
-    "node": true,
+    "esversion": 6,
     "globals": {
       "describe": false,
       "it": false,

@@ -10,6 +10,9 @@ var requiredOptions = [
     'handleMessage'
   ];
 
+const VISIBILITY_TIMEOUT_FACTOR = 0.75;
+const PRIORITY_DELAY = 50;
+
 /**
  * Construct a new SQSError
  */
@@ -52,13 +55,16 @@ function isAuthenticationError(err) {
 function Consumer(options) {
   validate(options);
 
-  this.queueUrl = options.queueUrl;
+  this.numberActive = 0;
+  this.maxNumberActive = options.batchSize || 1;
+
+  this.queueUrls = [].concat(options.queueUrl);
+  this.queueUrlTimeouts = this.queueUrls.map(() => 0);
   this.handleMessage = options.handleMessage;
   this.attributeNames = options.attributeNames || [];
   this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
-  this.batchSize = options.batchSize || 1;
-  this.visibilityTimeout = options.visibilityTimeout;
+  this.visibilityTimeout = options.visibilityTimeout || 30;
   this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
@@ -66,9 +72,6 @@ function Consumer(options) {
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || process.env.AWS_REGION || 'eu-west-1'
   });
-
-  this._handleSqsResponseBound = this._handleSqsResponse.bind(this);
-  this._processMessageBound = this._processMessage.bind(this);
 }
 
 util.inherits(Consumer, EventEmitter);
@@ -96,107 +99,150 @@ Consumer.prototype.start = function () {
  */
 Consumer.prototype.stop = function () {
   debug('Stopping consumer');
-  this.stopped = true;
+  if (!this.stopped) {
+    this.emit('stopped');
+    this.stopped = true;
+  }
 };
 
 Consumer.prototype._poll = function () {
+  if (this.stopped) {
+    return;
+  }
+
+  if (this.numberActive < this.maxNumberActive) {
+    this.queueUrls.forEach((queueUrl, index) => {
+      clearTimeout(this.queueUrlTimeouts[index]);
+      this.queueUrlTimeouts[index] = setTimeout(() => this._pollQueue(queueUrl), index * PRIORITY_DELAY)
+    });
+  }
+};
+
+Consumer.prototype._pollQueue = function(queueUrl) {
+  if (this.stopped) {
+    return;
+  }
+
   var receiveParams = {
-    QueueUrl: this.queueUrl,
+    QueueUrl: queueUrl,
     AttributeNames: this.attributeNames,
     MessageAttributeNames: this.messageAttributeNames,
-    MaxNumberOfMessages: this.batchSize,
+    MaxNumberOfMessages: this.maxNumberActive - this.numberActive,
     WaitTimeSeconds: this.waitTimeSeconds,
     VisibilityTimeout: this.visibilityTimeout
   };
 
-  if (!this.stopped) {
-    debug('Polling for messages');
-    this.sqs.receiveMessage(receiveParams, this._handleSqsResponseBound);
-  } else {
-    this.emit('stopped');
-  }
-};
-
-Consumer.prototype._handleSqsResponse = function (err, response) {
-  var consumer = this;
-
-  if (err) {
-    this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
-  }
-
-  debug('Received SQS response');
-  debug(response);
-
-  if (response && response.Messages && response.Messages.length > 0) {
-    async.each(response.Messages, this._processMessageBound, function () {
-      // start polling again once all of the messages have been processed
-      consumer._poll();
-    });
-  } else if (response && !response.Messages) {
-    this.emit('empty');
-    this._poll();
-  } else if (err && isAuthenticationError(err)) {
-    // there was an authentication error, so wait a bit before repolling
-    debug('There was an authentication error. Pausing before retrying.');
-    setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
-  } else {
-    // there were no messages, so start polling again
-    this._poll();
-  }
-};
-
-Consumer.prototype._processMessage = function (message, cb) {
-  var consumer = this;
-
-  this.emit('message_received', message);
-  async.series([
-    function handleMessage(done) {
-      try {
-        consumer.handleMessage(message, done);
-      } catch (err) {
-        done(new Error('Unexpected message handler failure: ' + err.message));
-      }
-    },
-    function deleteMessage(done) {
-      consumer._deleteMessage(message, done);
+  this.sqs.receiveMessage(receiveParams, (err, response) => {
+    if (err) {
+      this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
     }
-  ], function (err) {
+
+    debug('Received SQS response');
+    debug(response);
+
+    if (response && response.Messages && response.Messages.length > 0) {
+      response.Messages.forEach(message => this._processMessage(message, queueUrl));
+    } 
+    else if (response && !response.Messages) {
+      this.emit('empty');
+      this._poll();
+    } 
+    else if (err && isAuthenticationError(err)) {
+      // there was an authentication error, so wait a bit before repolling
+      debug('There was an authentication error. Pausing before retrying.');
+      setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
+    } 
+    else {
+      // there were no messages, so start polling again
+      this._poll();
+    }
+  });
+}
+
+Consumer.prototype._processMessage = function (message, queueUrl) {
+  // make sure we aren't over-extending ourselves
+  if (this.stopped || this.numberActive >= this.maxNumberActive) {
+    this._cancelProcessingMessage(message, queueUrl);
+    return;
+  }
+
+  // mark us as having worked on this message --- 
+  // it is VERY important that all paths out of this processing will
+  // decrement the counter
+  this.numberActive++;
+  this.emit('message_received', message);
+
+  let hasDecremented = false, keepAliveTimeout = null, keepAlive = () => {
+    keepAliveTimeout = setTimeout(() => {
+      this.sqs.changeMessageVisibility({
+        QueueUrl: queueUrl,
+        ReceiptHandle: message.ReceiptHandle,
+        VisibilityTimeout: this.visibilityTimeout
+      }, err => {
+        if (err) this.emit('error', err, message);
+        keepAlive();
+      });
+    }, this.visibilityTimeout * VISIBILITY_TIMEOUT_FACTOR);
+  };
+
+  let done = err => {
+    if (!hasDecremented) {
+      this.numberActive--;
+      hasDecremented = true;
+    }
+    clearTimeout(keepAliveTimeout);
+
     if (err) {
       if (err.name === SQSError.name) {
-        consumer.emit('error', err, message);
+        this.emit('error', err, message);
       } else {
-        consumer.emit('processing_error', err, message);
+        this.emit('processing_error', err, message);
       }
 
-      if (consumer.terminateVisibilityTimeout) {
-        consumer.sqs.changeMessageVisibility({
-          QueueUrl: consumer.queueUrl,
-          ReceiptHandle: message.ReceiptHandle,
-          VisibilityTimeout: 0
-        }, function (err) {
-          if (err) consumer.emit('error', err, message);
-          cb();
-        });
-        return;
+      if (this.terminateVisibilityTimeout) {
+        this._cancelProcessingMessage(message, queueUrl);
       }
-    } else {
-      consumer.emit('message_processed', message);
+      else {
+        this._poll();
+      }
     }
-    cb();
-  });
+    else {
+      this._deleteMessage(message, queueUrl);
+      this.emit('message_processed', message);
+    }
+  };
+
+  keepAlive();
+
+  try {
+    this.handleMessage(message, done, queueUrl);
+  }
+  catch (err) {
+    done(new Error('Unexpected message handler failure: ' + err.message));
+  }
 };
 
-Consumer.prototype._deleteMessage = function (message, cb) {
+Consumer.prototype._deleteMessage = function (message, queueUrl) {
   var deleteParams = {
-    QueueUrl: this.queueUrl,
+    QueueUrl: queueUrl,
     ReceiptHandle: message.ReceiptHandle
   };
 
   debug('Deleting message %s', message.MessageId);
-  this.sqs.deleteMessage(deleteParams, function (err) {
-    if (err) return cb(new SQSError('SQS delete message failed: ' + err.message));
+  this.sqs.deleteMessage(deleteParams, err => {
+    if (err) this.emit('error', new SQSError('SQS delete message failed: ' + err.message));
+    this._poll();
+  });
+};
 
-    cb();
+Consumer.prototype._cancelProcessingMessage = function (message, queueUrl) {
+  this.sqs.changeMessageVisibility({
+    QueueUrl: queueUrl,
+    ReceiptHandle: message.ReceiptHandle,
+    VisibilityTimeout: 0
+  }, err => {
+    if (err) this.emit('error', err, message);
+    this._poll();
   });
 };
 

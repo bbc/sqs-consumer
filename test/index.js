@@ -127,7 +127,7 @@ describe('Consumer', function () {
     it('fires an error event when an error occurs deleting a message', function (done) {
       var deleteErr = new Error('Delete error');
 
-      handleMessage.yields(null);
+      //handleMessage.yields(null);
       sqs.deleteMessage.yields(deleteErr);
 
       consumer.on('error', function (err) {
@@ -276,7 +276,7 @@ describe('Consumer', function () {
       }, 10);
     });
 
-    it('doesn\'t consume more messages when called multiple times', function () {
+    it('doesn\'t consume more messages when called multiple times', function (done) {
       sqs.receiveMessage = sinon.stub().returns();
       consumer.start();
       consumer.start();
@@ -284,7 +284,10 @@ describe('Consumer', function () {
       consumer.start();
       consumer.start();
 
-      sinon.assert.calledOnce(sqs.receiveMessage);
+      setTimeout(function () {
+        sinon.assert.calledOnce(sqs.receiveMessage);
+        done();
+      }, 10);
     });
 
     it('consumes multiple messages when the batchSize is greater than 1', function (done) {
@@ -326,7 +329,7 @@ describe('Consumer', function () {
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
           WaitTimeSeconds: 20,
-          VisibilityTimeout: undefined
+          VisibilityTimeout: 30
         });
         sinon.assert.callCount(handleMessage, 3);
         done();
@@ -363,7 +366,7 @@ describe('Consumer', function () {
           MessageAttributeNames: [],
           MaxNumberOfMessages: 1,
           WaitTimeSeconds: 20,
-          VisibilityTimeout: undefined
+          VisibilityTimeout: 30
         });
         assert.equal(message, messageWithAttr);
         done();
@@ -448,7 +451,7 @@ describe('Consumer', function () {
       consumer.stop();
 
       setTimeout(function () {
-        sinon.assert.calledOnce(handleMessage);
+        sinon.assert.notCalled(handleMessage);
         done();
       }, 10);
     });
