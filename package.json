@@ -42,6 +42,7 @@
     "quotmark": "single",
     "unused": true,
     "undef": true,
+    "node": true,
     "esversion": 6,
     "globals": {
       "describe": false,

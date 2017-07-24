@@ -2,7 +2,6 @@
 
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
-var async = require('async');
 var AWS = require('aws-sdk');
 var debug = require('debug')('sqs-consumer');
 var requiredOptions = [
@@ -12,6 +11,7 @@ var requiredOptions = [
 
 const VISIBILITY_TIMEOUT_FACTOR = 0.75;
 const PRIORITY_DELAY = 50;
+const MAX_DURATION_OF_MESSAGE = 11 * 60 * 60 * 1000; // 11 hours
 
 /**
  * Construct a new SQSError
@@ -64,7 +64,9 @@ function Consumer(options) {
   this.attributeNames = options.attributeNames || [];
   this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
+  this.maxDurationOfMessage = options.maxDurationOfMessage || MAX_DURATION_OF_MESSAGE;
   this.visibilityTimeout = options.visibilityTimeout || 30;
+  this.initialVisibilityTimeout = options.initialVisibilityTimeout || this.visibilityTimeout;
   this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
@@ -113,7 +115,7 @@ Consumer.prototype._poll = function () {
   if (this.numberActive < this.maxNumberActive) {
     this.queueUrls.forEach((queueUrl, index) => {
       clearTimeout(this.queueUrlTimeouts[index]);
-      this.queueUrlTimeouts[index] = setTimeout(() => this._pollQueue(queueUrl), index * PRIORITY_DELAY)
+      this.queueUrlTimeouts[index] = setTimeout(() => this._pollQueue(queueUrl), index * PRIORITY_DELAY);
     });
   }
 };
@@ -129,7 +131,7 @@ Consumer.prototype._pollQueue = function(queueUrl) {
     MessageAttributeNames: this.messageAttributeNames,
     MaxNumberOfMessages: this.maxNumberActive - this.numberActive,
     WaitTimeSeconds: this.waitTimeSeconds,
-    VisibilityTimeout: this.visibilityTimeout
+    VisibilityTimeout: this.initialVisibilityTimeout
   };
 
   this.sqs.receiveMessage(receiveParams, (err, response) => {
@@ -157,7 +159,7 @@ Consumer.prototype._pollQueue = function(queueUrl) {
       this._poll();
     }
   });
-}
+};
 
 Consumer.prototype._processMessage = function (message, queueUrl) {
   // make sure we aren't over-extending ourselves
@@ -172,8 +174,23 @@ Consumer.prototype._processMessage = function (message, queueUrl) {
   this.numberActive++;
   this.emit('message_received', message);
 
-  let hasDecremented = false, keepAliveTimeout = null, keepAlive = () => {
+  let startTime = new Date().getTime(),
+      hasDecremented = false, 
+      keepAliveTimeout = null, 
+      keepAlive = () => {
+
     keepAliveTimeout = setTimeout(() => {
+
+      // if the message takes a REALLY long time to process,
+      // at some point SQS stops being able to extend the visibility timeout...
+      // so we have to just delete the message and hope it finishes.  
+      // this is not ideal for the super long term, but it better than the message
+      // becoming visible again and being processed again.
+      if (this.maxDurationOfMessage < new Date().getTime() - startTime) {
+        this._deleteMessage(message, queueUrl);
+        return;
+      }
+
       this.sqs.changeMessageVisibility({
         QueueUrl: queueUrl,
         ReceiptHandle: message.ReceiptHandle,
@@ -182,7 +199,7 @@ Consumer.prototype._processMessage = function (message, queueUrl) {
         if (err) this.emit('error', err, message);
         keepAlive();
       });
-    }, this.visibilityTimeout * VISIBILITY_TIMEOUT_FACTOR);
+    }, this.visibilityTimeout * VISIBILITY_TIMEOUT_FACTOR * 1000);
   };
 
   let done = err => {

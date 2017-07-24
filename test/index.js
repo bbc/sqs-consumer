@@ -127,7 +127,6 @@ describe('Consumer', function () {
     it('fires an error event when an error occurs deleting a message', function (done) {
       var deleteErr = new Error('Delete error');
 
-      //handleMessage.yields(null);
       sqs.deleteMessage.yields(deleteErr);
 
       consumer.on('error', function (err) {
@@ -438,6 +437,61 @@ describe('Consumer', function () {
 
       consumer.start();
     });
+
+
+    it('keeps message alive', function (done) {
+      this.timeout(5000);
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: function (message, done, queueUrl) {
+          setTimeout(done, 4000);
+        },
+        sqs: sqs,
+        authenticationErrorTimeout: 20,
+        visibilityTimeout: 2
+      });
+
+      consumer.start();
+
+      setTimeout(function () {
+        sinon.assert.calledWith(sqs.changeMessageVisibility, {
+          QueueUrl: 'some-queue-url',
+          ReceiptHandle: 'receipt-handle',
+          VisibilityTimeout: 2
+        });
+        sinon.assert.calledTwice(sqs.changeMessageVisibility);
+        done();
+      }, 4500);
+    });
+
+
+    it('deletes messages that are processing', function (done) {
+      this.timeout(5000);
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: function (message, done, queueUrl) {
+          setTimeout(done, 4000);
+        },
+        sqs: sqs,
+        authenticationErrorTimeout: 20,
+        visibilityTimeout: 30,
+        maxDurationOfMessage: 4
+      });
+
+      consumer.start();
+
+      setTimeout(function () {
+        sinon.assert.calledWith(sqs.deleteMessage, {
+          QueueUrl: 'some-queue-url',
+          ReceiptHandle: 'receipt-handle'
+        });
+        done();
+      }, 4500);
+    });
   });
 
   describe('.stop', function () {
@@ -501,5 +555,6 @@ describe('Consumer', function () {
         done();
       }, 10);
     });
+
   });
 });
