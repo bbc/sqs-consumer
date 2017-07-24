@@ -135,7 +135,7 @@ Consumer.prototype._pollQueue = function(queueUrl) {
   };
 
   this.sqs.receiveMessage(receiveParams, (err, response) => {
-    if (err) {
+    if (err) {    
       this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
     }
 
@@ -179,28 +179,27 @@ Consumer.prototype._processMessage = function (message, queueUrl) {
       keepAliveTimeout = null, 
       keepAlive = () => {
 
-    keepAliveTimeout = setTimeout(() => {
+        // if the message takes a REALLY long time to process,
+        // at some point SQS stops being able to extend the visibility timeout...
+        // so we have to just delete the message and hope it finishes.  
+        // this is not ideal for the super long term, but it better than the message
+        // becoming visible again and being processed again.
+        if (this.maxDurationOfMessage < new Date().getTime() - startTime) {
+          this._deleteMessage(message, queueUrl);
+          return;
+        }
 
-      // if the message takes a REALLY long time to process,
-      // at some point SQS stops being able to extend the visibility timeout...
-      // so we have to just delete the message and hope it finishes.  
-      // this is not ideal for the super long term, but it better than the message
-      // becoming visible again and being processed again.
-      if (this.maxDurationOfMessage < new Date().getTime() - startTime) {
-        this._deleteMessage(message, queueUrl);
-        return;
-      }
+        this.sqs.changeMessageVisibility({
+          QueueUrl: queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: this.visibilityTimeout
+        }, err => {
+          if (hasDecremented) return;
+          debug(err, message);
+        });
 
-      this.sqs.changeMessageVisibility({
-        QueueUrl: queueUrl,
-        ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: this.visibilityTimeout
-      }, err => {
-        if (err) this.emit('error', err, message);
-        keepAlive();
-      });
-    }, this.visibilityTimeout * VISIBILITY_TIMEOUT_FACTOR * 1000);
-  };
+        keepAliveTimeout = setTimeout(keepAlive, this.visibilityTimeout * VISIBILITY_TIMEOUT_FACTOR * 1000);
+      };
 
   let done = err => {
     if (!hasDecremented) {

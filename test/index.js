@@ -408,7 +408,7 @@ describe('Consumer', function () {
       consumer.terminateVisibilityTimeout = false;
       consumer.on('processing_error', function () {
         setImmediate(function () {
-          sinon.assert.notCalled(sqs.changeMessageVisibility);
+          sinon.assert.calledOnce(sqs.changeMessageVisibility); // it's okay that it is called once to reset timeout by 30 seconds since the fetch timeout might be smaller
           done();
         });
       });
@@ -424,7 +424,7 @@ describe('Consumer', function () {
       sqs.changeMessageVisibility.yields(sqsError);
 
       consumer.terminateVisibilityTimeout = true;
-      consumer.on('error', function () {
+      consumer.on('error', function (err) {
         setImmediate(function () {
           sinon.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
@@ -450,7 +450,7 @@ describe('Consumer', function () {
         },
         sqs: sqs,
         authenticationErrorTimeout: 20,
-        visibilityTimeout: 2
+        visibilityTimeout: 3
       });
 
       consumer.start();
@@ -459,7 +459,7 @@ describe('Consumer', function () {
         sinon.assert.calledWith(sqs.changeMessageVisibility, {
           QueueUrl: 'some-queue-url',
           ReceiptHandle: 'receipt-handle',
-          VisibilityTimeout: 2
+          VisibilityTimeout: 3
         });
         sinon.assert.calledTwice(sqs.changeMessageVisibility);
         done();
