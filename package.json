@@ -1,6 +1,6 @@
 {
-  "name": "sqs-consumer",
-  "version": "3.6.1",
+  "name": "sqs-priority-consumer",
+  "version": "3.7.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
@@ -12,18 +12,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/BBC/sqs-consumer.git"
+    "url": "https://github.com/jbreckman/sqs-priority-consumer.git"
   },
   "bugs": {
-    "url": "https://github.com/BBC/sqs-consumer/issues"
+    "url": "https://github.com/jbreckman/sqs-priority-consumer/issues"
   },
-  "homepage": "https://github.com/BBC/sqs-consumer",
+  "homepage": "https://github.com/jbreckman/sqs-priority-consumer",
   "keywords": [
     "sqs",
     "queue",
     "consumer"
   ],
-  "author": "robin@robinmurphy.co.uk",
+  "author": "jbreckman@gmail.com",
   "license": "MIT",
   "devDependencies": {
     "istanbul": "^0.4.1",
@@ -38,10 +38,12 @@
     "debug": "^2.1.0"
   },
   "jshintConfig": {
+    "browser": true,
     "quotmark": "single",
     "unused": true,
     "undef": true,
     "node": true,
+    "esversion": 6,
     "globals": {
       "describe": false,
       "it": false,

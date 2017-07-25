@@ -2,13 +2,15 @@
 
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
-var async = require('async');
 var AWS = require('aws-sdk');
 var debug = require('debug')('sqs-consumer');
 var requiredOptions = [
     'queueUrl',
     'handleMessage'
   ];
+
+const VISIBILITY_TIMEOUT_FACTOR = 0.75;
+const MAX_DURATION_OF_MESSAGE = 11 * 60 * 60 * 1000; // 11 hours
 
 /**
  * Construct a new SQSError
@@ -39,7 +41,7 @@ function isAuthenticationError(err) {
 /**
  * An SQS consumer.
  * @param {object} options
- * @param {string} options.queueUrl
+ * @param {string|array} options.queueUrl
  * @param {string} options.region
  * @param {function} options.handleMessage
  * @param {array} options.attributeNames
@@ -47,28 +49,38 @@ function isAuthenticationError(err) {
  * @param {number} options.batchSize
  * @param {object} options.sqs
  * @param {number} options.visibilityTimeout
- * @param {number} options.waitTimeSeconds
+ * @param {number|array} options.waitTimeSeconds
+ * @param {array} options.sticky
  */
 function Consumer(options) {
   validate(options);
 
-  this.queueUrl = options.queueUrl;
+  this.currentQueueIndex = 0;
+  this.numberActive = 0;
+  this.maxNumberActive = options.batchSize || 1;
+
+  this.queueUrls = [].concat(options.queueUrl);
   this.handleMessage = options.handleMessage;
   this.attributeNames = options.attributeNames || [];
   this.messageAttributeNames = options.messageAttributeNames || [];
   this.stopped = true;
-  this.batchSize = options.batchSize || 1;
-  this.visibilityTimeout = options.visibilityTimeout;
+  this.maxDurationOfMessage = options.maxDurationOfMessage || MAX_DURATION_OF_MESSAGE;
+  this.visibilityTimeout = options.visibilityTimeout || 30;
+  this.initialVisibilityTimeout = options.initialVisibilityTimeout || this.visibilityTimeout;
   this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
+  
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
+  if (!Array.isArray(this.waitTimeSeconds)) {
+    this.waitTimeSeconds = this.queueUrls.map(() => this.waitTimeSeconds);
+  }
+
+  this.sticky = options.sticky || this.queueUrls.map(() => false);
+
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
   this.sqs = options.sqs || new AWS.SQS({
     region: options.region || process.env.AWS_REGION || 'eu-west-1'
   });
-
-  this._handleSqsResponseBound = this._handleSqsResponse.bind(this);
-  this._processMessageBound = this._processMessage.bind(this);
 }
 
 util.inherits(Consumer, EventEmitter);
@@ -96,107 +108,177 @@ Consumer.prototype.start = function () {
  */
 Consumer.prototype.stop = function () {
   debug('Stopping consumer');
-  this.stopped = true;
+  if (!this.stopped) {
+    this.emit('stopped');
+    this.stopped = true;
+  }
 };
 
 Consumer.prototype._poll = function () {
+  if (this.stopped) {
+    return;
+  }
+
+  if (this.numberActive < this.maxNumberActive) {
+    clearTimeout(this._pollDebounce);
+    this._pollDebounce = setTimeout(() => {
+      let index = this.currentQueueIndex++;
+      if (this.currentQueueIndex >= this.queueUrls.length) {
+        this.currentQueueIndex = 0;
+      }
+
+      let url = this.queueUrls[index];
+      this._pollQueue(url, index);
+    }, 0);
+  }
+};
+
+Consumer.prototype._pollQueue = function(queueUrl, index) {
+  if (this.stopped) {
+    return;
+  }
+
   var receiveParams = {
-    QueueUrl: this.queueUrl,
+    QueueUrl: queueUrl,
     AttributeNames: this.attributeNames,
     MessageAttributeNames: this.messageAttributeNames,
-    MaxNumberOfMessages: this.batchSize,
-    WaitTimeSeconds: this.waitTimeSeconds,
-    VisibilityTimeout: this.visibilityTimeout
+    MaxNumberOfMessages: this.maxNumberActive - this.numberActive,
+    WaitTimeSeconds: this.waitTimeSeconds[index],
+    VisibilityTimeout: this.initialVisibilityTimeout
   };
 
-  if (!this.stopped) {
-    debug('Polling for messages');
-    this.sqs.receiveMessage(receiveParams, this._handleSqsResponseBound);
-  } else {
-    this.emit('stopped');
-  }
-};
-
-Consumer.prototype._handleSqsResponse = function (err, response) {
-  var consumer = this;
-
-  if (err) {
-    this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
-  }
-
-  debug('Received SQS response');
-  debug(response);
-
-  if (response && response.Messages && response.Messages.length > 0) {
-    async.each(response.Messages, this._processMessageBound, function () {
-      // start polling again once all of the messages have been processed
-      consumer._poll();
-    });
-  } else if (response && !response.Messages) {
-    this.emit('empty');
-    this._poll();
-  } else if (err && isAuthenticationError(err)) {
-    // there was an authentication error, so wait a bit before repolling
-    debug('There was an authentication error. Pausing before retrying.');
-    setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
-  } else {
-    // there were no messages, so start polling again
-    this._poll();
-  }
-};
-
-Consumer.prototype._processMessage = function (message, cb) {
-  var consumer = this;
-
-  this.emit('message_received', message);
-  async.series([
-    function handleMessage(done) {
-      try {
-        consumer.handleMessage(message, done);
-      } catch (err) {
-        done(new Error('Unexpected message handler failure: ' + err.message));
-      }
-    },
-    function deleteMessage(done) {
-      consumer._deleteMessage(message, done);
+  this.sqs.receiveMessage(receiveParams, (err, response) => {
+    if (err) {    
+      this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
     }
-  ], function (err) {
-    if (err) {
-      if (err.name === SQSError.name) {
-        consumer.emit('error', err, message);
-      } else {
-        consumer.emit('processing_error', err, message);
+
+    debug('Received SQS response');
+    debug(response);
+
+    if (response && response.Messages && response.Messages.length > 0) {
+
+      // if we get messages and the queue is "sticky",
+      // make sure we process that queue again next
+      if (this.sticky[index]) {
+        this.currentQueueIndex = index;
       }
 
-      if (consumer.terminateVisibilityTimeout) {
-        consumer.sqs.changeMessageVisibility({
-          QueueUrl: consumer.queueUrl,
-          ReceiptHandle: message.ReceiptHandle,
-          VisibilityTimeout: 0
-        }, function (err) {
-          if (err) consumer.emit('error', err, message);
-          cb();
-        });
-        return;
-      }
-    } else {
-      consumer.emit('message_processed', message);
+      response.Messages.forEach(message => this._processMessage(message, queueUrl));
+    } 
+    else if (response && !response.Messages) {
+      this.emit('empty');
+      this._poll();
+    } 
+    else if (err && isAuthenticationError(err)) {
+      // there was an authentication error, so wait a bit before repolling
+      debug('There was an authentication error. Pausing before retrying.');
+      setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
+    } 
+    else {
+      // there were no messages, so start polling again
+      this._poll();
     }
-    cb();
   });
 };
 
-Consumer.prototype._deleteMessage = function (message, cb) {
+Consumer.prototype._processMessage = function (message, queueUrl) {
+  // make sure we aren't over-extending ourselves
+  if (this.stopped || this.numberActive >= this.maxNumberActive) {
+    this._cancelProcessingMessage(message, queueUrl);
+    return;
+  }
+
+  // mark us as having worked on this message --- 
+  // it is VERY important that all paths out of this processing will
+  // decrement the counter
+  this.numberActive++;
+  this.emit('message_received', message);
+
+  let startTime = new Date().getTime(),
+      hasDecremented = false, 
+      keepAliveTimeout = null, 
+      keepAlive = () => {
+
+        // if the message takes a REALLY long time to process,
+        // at some point SQS stops being able to extend the visibility timeout...
+        // so we have to just delete the message and hope it finishes.  
+        // this is not ideal for the super long term, but it better than the message
+        // becoming visible again and being processed again.
+        if (this.maxDurationOfMessage < new Date().getTime() - startTime) {
+          this._deleteMessage(message, queueUrl);
+          return;
+        }
+
+        this.sqs.changeMessageVisibility({
+          QueueUrl: queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: this.visibilityTimeout
+        }, err => {
+          if (hasDecremented) return;
+          debug(err, message);
+        });
+
+        keepAliveTimeout = setTimeout(keepAlive, this.visibilityTimeout * VISIBILITY_TIMEOUT_FACTOR * 1000);
+      };
+
+  let done = err => {
+    if (!hasDecremented) {
+      this.numberActive--;
+      hasDecremented = true;
+    }
+    clearTimeout(keepAliveTimeout);
+
+    if (err) {
+      if (err.name === SQSError.name) {
+        this.emit('error', err, message);
+      } else {
+        this.emit('processing_error', err, message);
+      }
+
+      if (this.terminateVisibilityTimeout) {
+        this._cancelProcessingMessage(message, queueUrl);
+      }
+      else {
+        this._poll();
+      }
+    }
+    else {
+      this._deleteMessage(message, queueUrl);
+      this.emit('message_processed', message);
+    }
+  };
+
+  keepAlive();
+
+  try {
+    this.handleMessage(message, done, queueUrl);
+  }
+  catch (err) {
+    done(new Error('Unexpected message handler failure: ' + err.message));
+  }
+};
+
+Consumer.prototype._deleteMessage = function (message, queueUrl) {
   var deleteParams = {
-    QueueUrl: this.queueUrl,
+    QueueUrl: queueUrl,
     ReceiptHandle: message.ReceiptHandle
   };
 
   debug('Deleting message %s', message.MessageId);
-  this.sqs.deleteMessage(deleteParams, function (err) {
-    if (err) return cb(new SQSError('SQS delete message failed: ' + err.message));
+  this.sqs.deleteMessage(deleteParams, err => {
+    if (err) this.emit('error', new SQSError('SQS delete message failed: ' + err.message));
+    this._poll();
+  });
+};
 
-    cb();
+Consumer.prototype._cancelProcessingMessage = function (message, queueUrl) {
+  this.sqs.changeMessageVisibility({
+    QueueUrl: queueUrl,
+    ReceiptHandle: message.ReceiptHandle,
+    VisibilityTimeout: 0
+  }, err => {
+    if (err) this.emit('error', err, message);
+    this._poll();
   });
 };
 

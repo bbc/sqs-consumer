@@ -127,7 +127,6 @@ describe('Consumer', function () {
     it('fires an error event when an error occurs deleting a message', function (done) {
       var deleteErr = new Error('Delete error');
 
-      handleMessage.yields(null);
       sqs.deleteMessage.yields(deleteErr);
 
       consumer.on('error', function (err) {
@@ -276,7 +275,7 @@ describe('Consumer', function () {
       }, 10);
     });
 
-    it('doesn\'t consume more messages when called multiple times', function () {
+    it('doesn\'t consume more messages when called multiple times', function (done) {
       sqs.receiveMessage = sinon.stub().returns();
       consumer.start();
       consumer.start();
@@ -284,7 +283,10 @@ describe('Consumer', function () {
       consumer.start();
       consumer.start();
 
-      sinon.assert.calledOnce(sqs.receiveMessage);
+      setTimeout(function () {
+        sinon.assert.calledOnce(sqs.receiveMessage);
+        done();
+      }, 10);
     });
 
     it('consumes multiple messages when the batchSize is greater than 1', function (done) {
@@ -326,7 +328,7 @@ describe('Consumer', function () {
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
           WaitTimeSeconds: 20,
-          VisibilityTimeout: undefined
+          VisibilityTimeout: 30
         });
         sinon.assert.callCount(handleMessage, 3);
         done();
@@ -363,7 +365,7 @@ describe('Consumer', function () {
           MessageAttributeNames: [],
           MaxNumberOfMessages: 1,
           WaitTimeSeconds: 20,
-          VisibilityTimeout: undefined
+          VisibilityTimeout: 30
         });
         assert.equal(message, messageWithAttr);
         done();
@@ -406,7 +408,7 @@ describe('Consumer', function () {
       consumer.terminateVisibilityTimeout = false;
       consumer.on('processing_error', function () {
         setImmediate(function () {
-          sinon.assert.notCalled(sqs.changeMessageVisibility);
+          sinon.assert.calledOnce(sqs.changeMessageVisibility); // it's okay that it is called once to reset timeout by 30 seconds since the fetch timeout might be smaller
           done();
         });
       });
@@ -422,7 +424,7 @@ describe('Consumer', function () {
       sqs.changeMessageVisibility.yields(sqsError);
 
       consumer.terminateVisibilityTimeout = true;
-      consumer.on('error', function () {
+      consumer.on('error', function (err) {
         setImmediate(function () {
           sinon.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
@@ -434,6 +436,61 @@ describe('Consumer', function () {
       });
 
       consumer.start();
+    });
+
+
+    it('keeps message alive', function (done) {
+      this.timeout(5000);
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: function (message, done, queueUrl) {
+          setTimeout(done, 4000);
+        },
+        sqs: sqs,
+        authenticationErrorTimeout: 20,
+        visibilityTimeout: 3
+      });
+
+      consumer.start();
+
+      setTimeout(function () {
+        sinon.assert.calledWith(sqs.changeMessageVisibility, {
+          QueueUrl: 'some-queue-url',
+          ReceiptHandle: 'receipt-handle',
+          VisibilityTimeout: 3
+        });
+        sinon.assert.calledTwice(sqs.changeMessageVisibility);
+        done();
+      }, 4500);
+    });
+
+
+    it('deletes messages that are processing', function (done) {
+      this.timeout(5000);
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: function (message, done, queueUrl) {
+          setTimeout(done, 4000);
+        },
+        sqs: sqs,
+        authenticationErrorTimeout: 20,
+        visibilityTimeout: 30,
+        maxDurationOfMessage: 4
+      });
+
+      consumer.start();
+
+      setTimeout(function () {
+        sinon.assert.calledWith(sqs.deleteMessage, {
+          QueueUrl: 'some-queue-url',
+          ReceiptHandle: 'receipt-handle'
+        });
+        done();
+      }, 4500);
     });
   });
 
@@ -448,7 +505,7 @@ describe('Consumer', function () {
       consumer.stop();
 
       setTimeout(function () {
-        sinon.assert.calledOnce(handleMessage);
+        sinon.assert.notCalled(handleMessage);
         done();
       }, 10);
     });
@@ -498,5 +555,6 @@ describe('Consumer', function () {
         done();
       }, 10);
     });
+
   });
 });
