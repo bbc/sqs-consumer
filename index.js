@@ -10,7 +10,6 @@ var requiredOptions = [
   ];
 
 const VISIBILITY_TIMEOUT_FACTOR = 0.75;
-const PRIORITY_DELAY = 50;
 const MAX_DURATION_OF_MESSAGE = 11 * 60 * 60 * 1000; // 11 hours
 
 /**
@@ -55,11 +54,11 @@ function isAuthenticationError(err) {
 function Consumer(options) {
   validate(options);
 
+  this.currentQueueIndex = 0;
   this.numberActive = 0;
   this.maxNumberActive = options.batchSize || 1;
 
   this.queueUrls = [].concat(options.queueUrl);
-  this.queueUrlTimeouts = this.queueUrls.map(() => 0);
   this.handleMessage = options.handleMessage;
   this.attributeNames = options.attributeNames || [];
   this.messageAttributeNames = options.messageAttributeNames || [];
@@ -68,7 +67,12 @@ function Consumer(options) {
   this.visibilityTimeout = options.visibilityTimeout || 30;
   this.initialVisibilityTimeout = options.initialVisibilityTimeout || this.visibilityTimeout;
   this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
+  
   this.waitTimeSeconds = options.waitTimeSeconds || 20;
+  if (!Array.isArray(this.waitTimeSeconds)) {
+    this.waitTimeSeconds = this.queueUrls.map(() => this.waitTimeSeconds);
+  }
+
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
   this.sqs = options.sqs || new AWS.SQS({
@@ -113,14 +117,20 @@ Consumer.prototype._poll = function () {
   }
 
   if (this.numberActive < this.maxNumberActive) {
-    this.queueUrls.forEach((queueUrl, index) => {
-      clearTimeout(this.queueUrlTimeouts[index]);
-      this.queueUrlTimeouts[index] = setTimeout(() => this._pollQueue(queueUrl), index * PRIORITY_DELAY);
-    });
+    clearTimeout(this._pollDebounce);
+    this._pollDebounce = setTimeout(() => {
+      let index = this.currentQueueIndex++;
+      if (this.currentQueueIndex > this.queueUrls.length) {
+        this.currentQueueIndex = 0;
+      }
+
+      let url = this.queueUrls[index];
+      this._pollQueue(url, index);
+    }, 0);
   }
 };
 
-Consumer.prototype._pollQueue = function(queueUrl) {
+Consumer.prototype._pollQueue = function(queueUrl, index) {
   if (this.stopped) {
     return;
   }
@@ -130,7 +140,7 @@ Consumer.prototype._pollQueue = function(queueUrl) {
     AttributeNames: this.attributeNames,
     MessageAttributeNames: this.messageAttributeNames,
     MaxNumberOfMessages: this.maxNumberActive - this.numberActive,
-    WaitTimeSeconds: this.waitTimeSeconds,
+    WaitTimeSeconds: this.waitTimeSeconds[index],
     VisibilityTimeout: this.initialVisibilityTimeout
   };
 
