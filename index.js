@@ -41,7 +41,7 @@ function isAuthenticationError(err) {
 /**
  * An SQS consumer.
  * @param {object} options
- * @param {string} options.queueUrl
+ * @param {string|array} options.queueUrl
  * @param {string} options.region
  * @param {function} options.handleMessage
  * @param {array} options.attributeNames
@@ -49,7 +49,8 @@ function isAuthenticationError(err) {
  * @param {number} options.batchSize
  * @param {object} options.sqs
  * @param {number} options.visibilityTimeout
- * @param {number} options.waitTimeSeconds
+ * @param {number|array} options.waitTimeSeconds
+ * @param {array} options.sticky
  */
 function Consumer(options) {
   validate(options);
@@ -72,6 +73,8 @@ function Consumer(options) {
   if (!Array.isArray(this.waitTimeSeconds)) {
     this.waitTimeSeconds = this.queueUrls.map(() => this.waitTimeSeconds);
   }
+
+  this.sticky = options.sticky || this.queueUrls.map(() => false);
 
   this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
 
@@ -120,7 +123,7 @@ Consumer.prototype._poll = function () {
     clearTimeout(this._pollDebounce);
     this._pollDebounce = setTimeout(() => {
       let index = this.currentQueueIndex++;
-      if (this.currentQueueIndex > this.queueUrls.length) {
+      if (this.currentQueueIndex >= this.queueUrls.length) {
         this.currentQueueIndex = 0;
       }
 
@@ -153,6 +156,13 @@ Consumer.prototype._pollQueue = function(queueUrl, index) {
     debug(response);
 
     if (response && response.Messages && response.Messages.length > 0) {
+
+      // if we get messages and the queue is "sticky",
+      // make sure we process that queue again next
+      if (this.sticky[index]) {
+        this.currentQueueIndex = index;
+      }
+
       response.Messages.forEach(message => this._processMessage(message, queueUrl));
     } 
     else if (response && !response.Messages) {
