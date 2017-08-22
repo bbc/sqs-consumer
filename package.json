@@ -23,8 +23,7 @@
     "queue",
     "consumer"
   ],
-  "author": "robin@robinmurphy.co.uk",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "devDependencies": {
     "codeclimate-test-reporter": "0.4.1",
     "istanbul": "^0.4.1",
