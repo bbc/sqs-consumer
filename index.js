@@ -130,6 +130,7 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
   if (response && response.Messages && response.Messages.length > 0) {
     async.each(response.Messages, this._processMessageBound, function () {
       // start polling again once all of the messages have been processed
+      consumer.emit("response_processed");
       consumer._poll();
     });
   } else if (response && !response.Messages) {
