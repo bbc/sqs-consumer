@@ -462,7 +462,7 @@ describe('Consumer', function () {
         sqs: sqs
       });
 
-			consumer.on('response_processed', done);
+      consumer.on('response_processed', done);
       consumer.start();
 
     });
