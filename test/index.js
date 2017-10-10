@@ -435,6 +435,37 @@ describe('Consumer', function () {
 
       consumer.start();
     });
+
+    it('fires response_processed event for each batch', function (done) {
+      sqs.receiveMessage.yieldsAsync(null, {
+        Messages: [
+          {
+            ReceiptHandle: 'receipt-handle-1',
+            MessageId: '1',
+            Body: 'body-1'
+          },
+          {
+            ReceiptHandle: 'receipt-handle-2',
+            MessageId: '2',
+            Body: 'body-2'
+          }
+        ]
+      });
+      handleMessage.yields(null);
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessage: handleMessage,
+        batchSize: 2,
+        sqs: sqs
+      });
+
+			consumer.on('response_processed', done);
+      consumer.start();
+
+    });
   });
 
   describe('.stop', function () {
