@@ -111,6 +111,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 |`processing_error`|`err`, `message`|Fired when an error occurs processing the message.|
 |`message_received`|`message`|Fired when a message is received.|
 |`message_processed`|`message`|Fired when a message is successfully processed and removed from the queue.|
+|`response_processed`|None|Fired after one batch of items (up to `batchSize`) has been successfully processed.|
 |`stopped`|None|Fired when the consumer finally stops its work.|
 |`empty`|None|Fired when the queue is empty (All messages have been consumed).|
 
