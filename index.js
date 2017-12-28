@@ -10,9 +10,6 @@ const requiredOptions = [
   'handleMessage'
 ];
 
-/**
- * Construct a new SQSError
- */
 function SQSError(message) {
   Error.captureStackTrace(this, this.constructor);
   this.name = this.constructor.name;
@@ -36,19 +33,6 @@ function isAuthenticationError(err) {
   return (err.statusCode === 403 || err.code === 'CredentialsError');
 }
 
-/**
- * An SQS consumer.
- * @param {object} options
- * @param {string} options.queueUrl
- * @param {string} options.region
- * @param {function} options.handleMessage
- * @param {array} options.attributeNames
- * @param {array} options.messageAttributeNames
- * @param {number} options.batchSize
- * @param {object} options.sqs
- * @param {number} options.visibilityTimeout
- * @param {number} options.waitTimeSeconds
- */
 function Consumer(options) {
   validate(options);
 
@@ -73,16 +57,10 @@ function Consumer(options) {
 
 util.inherits(Consumer, EventEmitter);
 
-/**
- * Construct a new Consumer
- */
 Consumer.create = function (options) {
   return new Consumer(options);
 };
 
-/**
- * Start polling for messages.
- */
 Consumer.prototype.start = function () {
   if (this.stopped) {
     debug('Starting consumer');
@@ -91,9 +69,6 @@ Consumer.prototype.start = function () {
   }
 };
 
-/**
- * Stop polling for messages.
- */
 Consumer.prototype.stop = function () {
   debug('Stopping consumer');
   this.stopped = true;
