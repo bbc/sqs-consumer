@@ -1,3 +1,4 @@
 node_modules
 test.js
-coveragepackage-lock.json
+coverage
+package-lock.json
