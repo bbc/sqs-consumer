@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "async": "^2.0.1",
+    "auto-bind": "^1.1.0",
     "aws-sdk": "^2.100.0",
     "debug": "^2.1.0"
   },
