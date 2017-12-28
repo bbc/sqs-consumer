@@ -11,8 +11,8 @@ const requiredOptions = [
 ];
 
 class SQSError extends Error {
-  constructor(...args) {
-    super(args);
+  constructor() {
+    super(Array.from(arguments));
     this.name = this.constructor.name;
   }
 }
