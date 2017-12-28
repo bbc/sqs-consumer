@@ -1,14 +1,14 @@
 'use strict';
 
-var Consumer = require('..');
-var assert = require('assert');
-var sinon = require('sinon');
+const Consumer = require('..');
+const assert = require('assert');
+const sinon = require('sinon');
 
-describe('Consumer', function () {
-  var consumer;
-  var handleMessage;
-  var sqs;
-  var response = {
+describe('Consumer', () => {
+  let consumer;
+  let handleMessage;
+  let sqs;
+  const response = {
     Messages: [{
       ReceiptHandle: 'receipt-handle',
       MessageId: '123',
@@ -16,7 +16,7 @@ describe('Consumer', function () {
     }]
   };
 
-  beforeEach(function () {
+  beforeEach(() => {
     handleMessage = sinon.stub().yieldsAsync(null);
     sqs = sinon.mock();
     sqs.receiveMessage = sinon.stub().yieldsAsync(null, response);
@@ -28,23 +28,23 @@ describe('Consumer', function () {
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
       region: 'some-region',
-      handleMessage: handleMessage,
-      sqs: sqs,
+      handleMessage,
+      sqs,
       authenticationErrorTimeout: 20
     });
   });
 
-  it('requires a queueUrl to be set', function () {
-    assert.throws(function () {
+  it('requires a queueUrl to be set', () => {
+    assert.throws(() => {
       new Consumer({
         region: 'some-region',
-        handleMessage: handleMessage
+        handleMessage
       });
     });
   });
 
-  it('requires a handleMessage function to be set', function () {
-    assert.throws(function () {
+  it('requires a handleMessage function to be set', () => {
+    assert.throws(() => {
       new Consumer({
         region: 'some-region',
         queueUrl: 'some-queue-url'
@@ -52,50 +52,50 @@ describe('Consumer', function () {
     });
   });
 
-  it('requires the batchSize option to be no greater than 10', function () {
-    assert.throws(function () {
+  it('requires the batchSize option to be no greater than 10', () => {
+    assert.throws(() => {
       new Consumer({
         region: 'some-region',
         queueUrl: 'some-queue-url',
-        handleMessage: handleMessage,
+        handleMessage,
         batchSize: 11
       });
     });
   });
 
-  it('requires the batchSize option to be greater than 0', function () {
-    assert.throws(function () {
+  it('requires the batchSize option to be greater than 0', () => {
+    assert.throws(() => {
       new Consumer({
         region: 'some-region',
         queueUrl: 'some-queue-url',
-        handleMessage: handleMessage,
+        handleMessage,
         batchSize: -1
       });
     });
   });
 
-  describe('.create', function () {
-    it('creates a new instance of a Consumer object', function () {
-      var consumer = Consumer.create({
+  describe('.create', () => {
+    it('creates a new instance of a Consumer object', () => {
+      const consumer = Consumer.create({
         region: 'some-region',
         queueUrl: 'some-queue-url',
         batchSize: 1,
         visibilityTimeout: 10,
         waitTimeSeconds: 10,
-        handleMessage: handleMessage
+        handleMessage
       });
 
       assert(consumer instanceof Consumer);
     });
   });
 
-  describe('.start', function () {
-    it('fires an error event when an error occurs receiving a message', function (done) {
-      var receiveErr = new Error('Receive error');
+  describe('.start', () => {
+    it('fires an error event when an error occurs receiving a message', (done) => {
+      const receiveErr = new Error('Receive error');
 
       sqs.receiveMessage.yields(receiveErr);
 
-      consumer.on('error', function (err) {
+      consumer.on('error', (err) => {
         assert.ok(err);
         assert.equal(err.message, 'SQS receive message failed: Receive error');
         done();
@@ -104,18 +104,18 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('handles unexpected exceptions thrown by the handler function', function (done) {
+    it('handles unexpected exceptions thrown by the handler function', (done) => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         region: 'some-region',
-        handleMessage: function () {
+        handleMessage: () => {
           throw new Error('unexpected parsing error');
         },
-        sqs: sqs,
+        sqs,
         authenticationErrorTimeout: 20
       });
 
-      consumer.on('processing_error', function (err) {
+      consumer.on('processing_error', (err) => {
         assert.ok(err);
         assert.equal(err.message, 'Unexpected message handler failure: unexpected parsing error');
         done();
@@ -124,13 +124,13 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires an error event when an error occurs deleting a message', function (done) {
-      var deleteErr = new Error('Delete error');
+    it('fires an error event when an error occurs deleting a message', (done) => {
+      const deleteErr = new Error('Delete error');
 
       handleMessage.yields(null);
       sqs.deleteMessage.yields(deleteErr);
 
-      consumer.on('error', function (err) {
+      consumer.on('error', (err) => {
         assert.ok(err);
         assert.equal(err.message, 'SQS delete message failed: Delete error');
         done();
@@ -139,12 +139,12 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires a `processing_error` event when a non-`SQSError` error occurs processing a message', function (done) {
-      var processingErr = new Error('Processing error');
+    it('fires a `processing_error` event when a non-`SQSError` error occurs processing a message', (done) => {
+      const processingErr = new Error('Processing error');
 
       handleMessage.yields(processingErr);
 
-      consumer.on('processing_error', function (err, message) {
+      consumer.on('processing_error', (err, message) => {
         assert.equal(err, processingErr);
         assert.equal(message.MessageId, '123');
         done();
@@ -153,13 +153,13 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires an `error` event when an `SQSError` occurs processing a message', function (done) {
-      var sqsError = new Error('Processing error');
+    it('fires an `error` event when an `SQSError` occurs processing a message', (done) => {
+      const sqsError = new Error('Processing error');
       sqsError.name = 'SQSError';
 
       handleMessage.yields(sqsError);
 
-      consumer.on('error', function (err, message) {
+      consumer.on('error', (err, message) => {
         assert.equal(err, sqsError);
         assert.equal(message.MessageId, '123');
         done();
@@ -168,19 +168,19 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('waits before repolling when a credentials error occurs', function (done) {
-      var credentialsErr = {
+    it('waits before repolling when a credentials error occurs', (done) => {
+      const credentialsErr = {
         code: 'CredentialsError',
         message: 'Missing credentials in config'
       };
 
       sqs.receiveMessage.yields(credentialsErr);
 
-      consumer.on('error', function () {
-        setTimeout(function () {
+      consumer.on('error', () => {
+        setTimeout(() => {
           sinon.assert.calledOnce(sqs.receiveMessage);
         }, 10);
-        setTimeout(function () {
+        setTimeout(() => {
           sinon.assert.calledTwice(sqs.receiveMessage);
           done();
         }, 30);
@@ -189,19 +189,19 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('waits before repolling when a 403 error occurs', function (done) {
-      var invalidSignatureErr = {
+    it('waits before repolling when a 403 error occurs', (done) => {
+      const invalidSignatureErr = {
         statusCode: 403,
         message: 'The security token included in the request is invalid'
       };
 
       sqs.receiveMessage.yields(invalidSignatureErr);
 
-      consumer.on('error', function () {
-        setTimeout(function () {
+      consumer.on('error', () => {
+        setTimeout(() => {
           sinon.assert.calledOnce(sqs.receiveMessage);
         }, 10);
-        setTimeout(function () {
+        setTimeout(() => {
           sinon.assert.calledTwice(sqs.receiveMessage);
           done();
         }, 30);
@@ -210,8 +210,8 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires a message_received event when a message is received', function (done) {
-      consumer.on('message_received', function (message) {
+    it('fires a message_received event when a message is received', (done) => {
+      consumer.on('message_received', (message) => {
         assert.equal(message, response.Messages[0]);
         done();
       });
@@ -219,10 +219,10 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires a message_processed event when a message is successfully deleted', function (done) {
+    it('fires a message_processed event when a message is successfully deleted', (done) => {
       handleMessage.yields(null);
 
-      consumer.on('message_processed', function (message) {
+      consumer.on('message_processed', (message) => {
         assert.equal(message, response.Messages[0]);
         done();
       });
@@ -230,21 +230,21 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('calls the handleMessage function when a message is received', function (done) {
+    it('calls the handleMessage function when a message is received', (done) => {
       consumer.start();
 
-      consumer.on('message_processed', function () {
+      consumer.on('message_processed', () => {
         sinon.assert.calledWith(handleMessage, response.Messages[0]);
         done();
       });
     });
 
-    it('deletes the message when the handleMessage callback is called', function (done) {
+    it('deletes the message when the handleMessage callback is called', (done) => {
       handleMessage.yields(null);
 
       consumer.start();
 
-      consumer.on('message_processed', function () {
+      consumer.on('message_processed', () => {
         sinon.assert.calledWith(sqs.deleteMessage, {
           QueueUrl: 'some-queue-url',
           ReceiptHandle: 'receipt-handle'
@@ -253,10 +253,10 @@ describe('Consumer', function () {
       });
     });
 
-    it('doesn\'t delete the message when a processing error is reported', function () {
+    it('doesn\'t delete the message when a processing error is reported', () => {
       handleMessage.yields(new Error('Processing error'));
 
-      consumer.on('processing_error', function () {
+      consumer.on('processing_error', () => {
         // ignore the error
       });
 
@@ -265,18 +265,18 @@ describe('Consumer', function () {
       sinon.assert.notCalled(sqs.deleteMessage);
     });
 
-    it('consumes another message once one is processed', function (done) {
+    it('consumes another message once one is processed', (done) => {
       sqs.receiveMessage.onSecondCall().yields(null, response);
       sqs.receiveMessage.onThirdCall().returns();
 
       consumer.start();
-      setTimeout(function () {
+      setTimeout(() => {
         sinon.assert.calledTwice(handleMessage);
         done();
       }, 10);
     });
 
-    it('doesn\'t consume more messages when called multiple times', function () {
+    it('doesn\'t consume more messages when called multiple times', () => {
       sqs.receiveMessage = sinon.stub().returns();
       consumer.start();
       consumer.start();
@@ -287,7 +287,7 @@ describe('Consumer', function () {
       sinon.assert.calledOnce(sqs.receiveMessage);
     });
 
-    it('consumes multiple messages when the batchSize is greater than 1', function (done) {
+    it('consumes multiple messages when the batchSize is greater than 1', (done) => {
       sqs.receiveMessage.yieldsAsync(null, {
         Messages: [
           {
@@ -312,14 +312,14 @@ describe('Consumer', function () {
         queueUrl: 'some-queue-url',
         messageAttributeNames: ['attribute-1', 'attribute-2'],
         region: 'some-region',
-        handleMessage: handleMessage,
+        handleMessage,
         batchSize: 3,
-        sqs: sqs
+        sqs
       });
 
       consumer.start();
 
-      setTimeout(function () {
+      setTimeout(() => {
         sinon.assert.calledWith(sqs.receiveMessage, {
           QueueUrl: 'some-queue-url',
           AttributeNames: [],
@@ -333,9 +333,9 @@ describe('Consumer', function () {
       }, 10);
     });
 
-    it('consumes messages with message attibute \'ApproximateReceiveCount\'', function (done) {
+    it('consumes messages with message attibute \'ApproximateReceiveCount\'', (done) => {
 
-      var messageWithAttr = {
+      const messageWithAttr = {
         ReceiptHandle: 'receipt-handle-1',
         MessageId: '1',
         Body: 'body-1',
@@ -352,11 +352,11 @@ describe('Consumer', function () {
         queueUrl: 'some-queue-url',
         attributeNames: ['ApproximateReceiveCount'],
         region: 'some-region',
-        handleMessage: handleMessage,
-        sqs: sqs
+        handleMessage,
+        sqs
       });
 
-      consumer.on('message_received', function (message) {
+      consumer.on('message_received', (message) => {
         sinon.assert.calledWith(sqs.receiveMessage, {
           QueueUrl: 'some-queue-url',
           AttributeNames: ['ApproximateReceiveCount'],
@@ -372,22 +372,22 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires a emptyQueue event when all messages have been consumed', function (done) {
+    it('fires a emptyQueue event when all messages have been consumed', (done) => {
       sqs.receiveMessage.yieldsAsync(null, {});
 
-      consumer.on('empty', function () {
+      consumer.on('empty', () => {
         done();
       });
 
       consumer.start();
     });
 
-    it('terminate message visibility timeout on processing error', function (done) {
+    it('terminate message visibility timeout on processing error', (done) => {
       handleMessage.yields(new Error('Processing error'));
 
       consumer.terminateVisibilityTimeout = true;
-      consumer.on('processing_error', function () {
-        setImmediate(function () {
+      consumer.on('processing_error', () => {
+        setImmediate(() => {
           sinon.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
             ReceiptHandle: 'receipt-handle',
@@ -400,12 +400,12 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', function (done) {
+    it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', (done) => {
       handleMessage.yields(new Error('Processing error'));
 
       consumer.terminateVisibilityTimeout = false;
-      consumer.on('processing_error', function () {
-        setImmediate(function () {
+      consumer.on('processing_error', () => {
+        setImmediate(() => {
           sinon.assert.notCalled(sqs.changeMessageVisibility);
           done();
         });
@@ -414,16 +414,16 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires error event when failed to terminate visibility timeout on processing error', function (done) {
+    it('fires error event when failed to terminate visibility timeout on processing error', (done) => {
       handleMessage.yields(new Error('Processing error'));
 
-      var sqsError = new Error('Processing error');
+      const sqsError = new Error('Processing error');
       sqsError.name = 'SQSError';
       sqs.changeMessageVisibility.yields(sqsError);
 
       consumer.terminateVisibilityTimeout = true;
-      consumer.on('error', function () {
-        setImmediate(function () {
+      consumer.on('error', () => {
+        setImmediate(() => {
           sinon.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
             ReceiptHandle: 'receipt-handle',
@@ -436,7 +436,7 @@ describe('Consumer', function () {
       consumer.start();
     });
 
-    it('fires response_processed event for each batch', function (done) {
+    it('fires response_processed event for each batch', (done) => {
       sqs.receiveMessage.yieldsAsync(null, {
         Messages: [
           {
@@ -457,9 +457,9 @@ describe('Consumer', function () {
         queueUrl: 'some-queue-url',
         messageAttributeNames: ['attribute-1', 'attribute-2'],
         region: 'some-region',
-        handleMessage: handleMessage,
+        handleMessage,
         batchSize: 2,
-        sqs: sqs
+        sqs
       });
 
       consumer.on('response_processed', done);
@@ -468,38 +468,38 @@ describe('Consumer', function () {
     });
   });
 
-  describe('.stop', function () {
-    beforeEach(function () {
+  describe('.stop', () => {
+    beforeEach(() => {
       sqs.receiveMessage.onSecondCall().yieldsAsync(null, response);
       sqs.receiveMessage.onThirdCall().returns();
     });
 
-    it('stops the consumer polling for messages', function (done) {
+    it('stops the consumer polling for messages', (done) => {
       consumer.start();
       consumer.stop();
 
-      setTimeout(function () {
+      setTimeout(() => {
         sinon.assert.calledOnce(handleMessage);
         done();
       }, 10);
     });
 
-    it('fires a stopped event when last poll occurs after stopping', function (done) {
-      var handleStop = sinon.stub().returns();
+    it('fires a stopped event when last poll occurs after stopping', (done) => {
+      const handleStop = sinon.stub().returns();
 
       consumer.on('stopped', handleStop);
 
       consumer.start();
       consumer.stop();
 
-      setTimeout(function () {
+      setTimeout(() => {
         sinon.assert.calledOnce(handleStop);
         done();
       }, 10);
     });
 
-    it('fires a stopped event only once when stopped multiple times', function (done) {
-      var handleStop = sinon.stub().returns();
+    it('fires a stopped event only once when stopped multiple times', (done) => {
+      const handleStop = sinon.stub().returns();
 
       consumer.on('stopped', handleStop);
 
@@ -508,14 +508,14 @@ describe('Consumer', function () {
       consumer.stop();
       consumer.stop();
 
-      setTimeout(function () {
+      setTimeout(() => {
         sinon.assert.calledOnce(handleStop);
         done();
       }, 10);
     });
 
-    it('fires a stopped event a second time if started and stopped twice', function (done) {
-      var handleStop = sinon.stub().returns();
+    it('fires a stopped event a second time if started and stopped twice', (done) => {
+      const handleStop = sinon.stub().returns();
 
       consumer.on('stopped', handleStop);
 
@@ -524,7 +524,7 @@ describe('Consumer', function () {
       consumer.start();
       consumer.stop();
 
-      setTimeout(function () {
+      setTimeout(() => {
         sinon.assert.calledTwice(handleStop);
         done();
       }, 10);

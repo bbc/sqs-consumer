@@ -1,13 +1,13 @@
 {
   "name": "sqs-consumer",
-  "version": "3.8.0",
+  "version": "4.0.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
     "test": "mocha",
     "coverage": "istanbul cover _mocha -- -R dot && open coverage/lcov-report/index.html",
     "lcov": "istanbul cover _mocha -- -R dot",
-    "lint": "jshint .",
+    "lint": "eslint .",
     "posttest": "npm run lint"
   },
   "repository": {
@@ -27,27 +27,21 @@
   "devDependencies": {
     "codeclimate-test-reporter": "0.4.1",
     "istanbul": "^0.4.1",
-    "jshint": "^2.9.1",
-    "mocha": "^3.0.2",
+    "eslint": "^2.9.0",
+    "eslint-config-iplayer-es6": "^1.2.0",
+    "mocha": "^2.1.0",
     "sinon": "^1.10.3"
   },
   "dependencies": {
     "async": "^2.0.1",
+    "auto-bind": "^1.1.0",
     "aws-sdk": "^2.100.0",
     "debug": "^2.1.0"
   },
-  "jshintConfig": {
-    "quotmark": "single",
-    "unused": true,
-    "undef": true,
-    "node": true,
-    "globals": {
-      "describe": false,
-      "it": false,
-      "before": false,
-      "beforeEach": false,
-      "after": false,
-      "afterEach": false
+  "eslintConfig": {
+    "extends": "iplayer-es6",
+    "parserOptions": {
+      "ecmaVersion": 2017
     }
   }
 }
