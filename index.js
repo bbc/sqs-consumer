@@ -1,14 +1,14 @@
 'use strict';
 
-var EventEmitter = require('events').EventEmitter;
-var util = require('util');
-var async = require('async');
-var AWS = require('aws-sdk');
-var debug = require('debug')('sqs-consumer');
-var requiredOptions = [
-    'queueUrl',
-    'handleMessage'
-  ];
+const EventEmitter = require('events').EventEmitter;
+const util = require('util');
+const async = require('async');
+const AWS = require('aws-sdk');
+const debug = require('debug')('sqs-consumer');
+const requiredOptions = [
+  'queueUrl',
+  'handleMessage'
+];
 
 /**
  * Construct a new SQSError
@@ -21,7 +21,7 @@ function SQSError(message) {
 util.inherits(SQSError, Error);
 
 function validate(options) {
-  requiredOptions.forEach(function (option) {
+  requiredOptions.forEach((option) => {
     if (!options[option]) {
       throw new Error('Missing SQS consumer option [' + option + '].');
     }
@@ -100,7 +100,7 @@ Consumer.prototype.stop = function () {
 };
 
 Consumer.prototype._poll = function () {
-  var receiveParams = {
+  const receiveParams = {
     QueueUrl: this.queueUrl,
     AttributeNames: this.attributeNames,
     MessageAttributeNames: this.messageAttributeNames,
@@ -118,7 +118,7 @@ Consumer.prototype._poll = function () {
 };
 
 Consumer.prototype._handleSqsResponse = function (err, response) {
-  var consumer = this;
+  const consumer = this;
 
   if (err) {
     this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
@@ -128,7 +128,7 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
   debug(response);
 
   if (response && response.Messages && response.Messages.length > 0) {
-    async.each(response.Messages, this._processMessageBound, function () {
+    async.each(response.Messages, this._processMessageBound, () => {
       // start polling again once all of the messages have been processed
       consumer.emit('response_processed');
       consumer._poll();
@@ -147,7 +147,7 @@ Consumer.prototype._handleSqsResponse = function (err, response) {
 };
 
 Consumer.prototype._processMessage = function (message, cb) {
-  var consumer = this;
+  const consumer = this;
 
   this.emit('message_received', message);
   async.series([
@@ -161,7 +161,7 @@ Consumer.prototype._processMessage = function (message, cb) {
     function deleteMessage(done) {
       consumer._deleteMessage(message, done);
     }
-  ], function (err) {
+  ], (err) => {
     if (err) {
       if (err.name === SQSError.name) {
         consumer.emit('error', err, message);
@@ -174,7 +174,7 @@ Consumer.prototype._processMessage = function (message, cb) {
           QueueUrl: consumer.queueUrl,
           ReceiptHandle: message.ReceiptHandle,
           VisibilityTimeout: 0
-        }, function (err) {
+        }, (err) => {
           if (err) consumer.emit('error', err, message);
           cb();
         });
@@ -188,13 +188,13 @@ Consumer.prototype._processMessage = function (message, cb) {
 };
 
 Consumer.prototype._deleteMessage = function (message, cb) {
-  var deleteParams = {
+  const deleteParams = {
     QueueUrl: this.queueUrl,
     ReceiptHandle: message.ReceiptHandle
   };
 
   debug('Deleting message %s', message.MessageId);
-  this.sqs.deleteMessage(deleteParams, function (err) {
+  this.sqs.deleteMessage(deleteParams, (err) => {
     if (err) return cb(new SQSError('SQS delete message failed: ' + err.message));
 
     cb();
