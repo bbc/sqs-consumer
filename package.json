@@ -26,11 +26,11 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "codeclimate-test-reporter": "0.4.1",
-    "istanbul": "^0.4.1",
     "eslint": "^2.9.0",
     "eslint-config-iplayer-es6": "^1.2.0",
+    "istanbul": "^0.4.1",
     "mocha": "^2.1.0",
-    "sinon": "^1.10.3"
+    "sinon": "^4.4.8"
   },
   "dependencies": {
     "async": "^2.0.1",

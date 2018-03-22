@@ -2,7 +2,7 @@
 
 const Consumer = require('..');
 const assert = require('assert');
-const sinon = require('sinon');
+const sandbox = require('sinon').sandbox.create();
 
 describe('Consumer', () => {
   let consumer;
@@ -17,13 +17,13 @@ describe('Consumer', () => {
   };
 
   beforeEach(() => {
-    handleMessage = sinon.stub().yieldsAsync(null);
-    sqs = sinon.mock();
-    sqs.receiveMessage = sinon.stub().yieldsAsync(null, response);
+    handleMessage = sandbox.stub().yieldsAsync(null);
+    sqs = sandbox.mock();
+    sqs.receiveMessage = sandbox.stub().yieldsAsync(null, response);
     sqs.receiveMessage.onSecondCall().returns();
-    sqs.deleteMessage = sinon.stub().yieldsAsync(null);
-    sqs._deleteMessage = sinon.stub().yieldsAsync(null);
-    sqs.changeMessageVisibility = sinon.stub().yieldsAsync(null);
+    sqs.deleteMessage = sandbox.stub().yieldsAsync(null);
+    sqs._deleteMessage = sandbox.stub().yieldsAsync(null);
+    sqs.changeMessageVisibility = sandbox.stub().yieldsAsync(null);
 
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
@@ -32,6 +32,10 @@ describe('Consumer', () => {
       sqs,
       authenticationErrorTimeout: 20
     });
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   it('requires a queueUrl to be set', () => {
@@ -178,10 +182,10 @@ describe('Consumer', () => {
 
       consumer.on('error', () => {
         setTimeout(() => {
-          sinon.assert.calledOnce(sqs.receiveMessage);
+          sandbox.assert.calledOnce(sqs.receiveMessage);
         }, 10);
         setTimeout(() => {
-          sinon.assert.calledTwice(sqs.receiveMessage);
+          sandbox.assert.calledTwice(sqs.receiveMessage);
           done();
         }, 30);
       });
@@ -199,10 +203,10 @@ describe('Consumer', () => {
 
       consumer.on('error', () => {
         setTimeout(() => {
-          sinon.assert.calledOnce(sqs.receiveMessage);
+          sandbox.assert.calledOnce(sqs.receiveMessage);
         }, 10);
         setTimeout(() => {
-          sinon.assert.calledTwice(sqs.receiveMessage);
+          sandbox.assert.calledTwice(sqs.receiveMessage);
           done();
         }, 30);
       });
@@ -234,7 +238,7 @@ describe('Consumer', () => {
       consumer.start();
 
       consumer.on('message_processed', () => {
-        sinon.assert.calledWith(handleMessage, response.Messages[0]);
+        sandbox.assert.calledWith(handleMessage, response.Messages[0]);
         done();
       });
     });
@@ -245,7 +249,7 @@ describe('Consumer', () => {
       consumer.start();
 
       consumer.on('message_processed', () => {
-        sinon.assert.calledWith(sqs.deleteMessage, {
+        sandbox.assert.calledWith(sqs.deleteMessage, {
           QueueUrl: 'some-queue-url',
           ReceiptHandle: 'receipt-handle'
         });
@@ -262,7 +266,7 @@ describe('Consumer', () => {
 
       consumer.start();
 
-      sinon.assert.notCalled(sqs.deleteMessage);
+      sandbox.assert.notCalled(sqs.deleteMessage);
     });
 
     it('consumes another message once one is processed', (done) => {
@@ -271,20 +275,20 @@ describe('Consumer', () => {
 
       consumer.start();
       setTimeout(() => {
-        sinon.assert.calledTwice(handleMessage);
+        sandbox.assert.calledTwice(handleMessage);
         done();
       }, 10);
     });
 
     it('doesn\'t consume more messages when called multiple times', () => {
-      sqs.receiveMessage = sinon.stub().returns();
+      sqs.receiveMessage = sandbox.stub().returns();
       consumer.start();
       consumer.start();
       consumer.start();
       consumer.start();
       consumer.start();
 
-      sinon.assert.calledOnce(sqs.receiveMessage);
+      sandbox.assert.calledOnce(sqs.receiveMessage);
     });
 
     it('consumes multiple messages when the batchSize is greater than 1', (done) => {
@@ -320,7 +324,7 @@ describe('Consumer', () => {
       consumer.start();
 
       setTimeout(() => {
-        sinon.assert.calledWith(sqs.receiveMessage, {
+        sandbox.assert.calledWith(sqs.receiveMessage, {
           QueueUrl: 'some-queue-url',
           AttributeNames: [],
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
@@ -328,7 +332,7 @@ describe('Consumer', () => {
           WaitTimeSeconds: 20,
           VisibilityTimeout: undefined
         });
-        sinon.assert.callCount(handleMessage, 3);
+        sandbox.assert.callCount(handleMessage, 3);
         done();
       }, 10);
     });
@@ -357,7 +361,7 @@ describe('Consumer', () => {
       });
 
       consumer.on('message_received', (message) => {
-        sinon.assert.calledWith(sqs.receiveMessage, {
+        sandbox.assert.calledWith(sqs.receiveMessage, {
           QueueUrl: 'some-queue-url',
           AttributeNames: ['ApproximateReceiveCount'],
           MessageAttributeNames: [],
@@ -388,7 +392,7 @@ describe('Consumer', () => {
       consumer.terminateVisibilityTimeout = true;
       consumer.on('processing_error', () => {
         setImmediate(() => {
-          sinon.assert.calledWith(sqs.changeMessageVisibility, {
+          sandbox.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
             ReceiptHandle: 'receipt-handle',
             VisibilityTimeout: 0
@@ -406,7 +410,7 @@ describe('Consumer', () => {
       consumer.terminateVisibilityTimeout = false;
       consumer.on('processing_error', () => {
         setImmediate(() => {
-          sinon.assert.notCalled(sqs.changeMessageVisibility);
+          sandbox.assert.notCalled(sqs.changeMessageVisibility);
           done();
         });
       });
@@ -424,7 +428,7 @@ describe('Consumer', () => {
       consumer.terminateVisibilityTimeout = true;
       consumer.on('error', () => {
         setImmediate(() => {
-          sinon.assert.calledWith(sqs.changeMessageVisibility, {
+          sandbox.assert.calledWith(sqs.changeMessageVisibility, {
             QueueUrl: 'some-queue-url',
             ReceiptHandle: 'receipt-handle',
             VisibilityTimeout: 0
@@ -479,13 +483,13 @@ describe('Consumer', () => {
       consumer.stop();
 
       setTimeout(() => {
-        sinon.assert.calledOnce(handleMessage);
+        sandbox.assert.calledOnce(handleMessage);
         done();
       }, 10);
     });
 
     it('fires a stopped event when last poll occurs after stopping', (done) => {
-      const handleStop = sinon.stub().returns();
+      const handleStop = sandbox.stub().returns();
 
       consumer.on('stopped', handleStop);
 
@@ -493,13 +497,13 @@ describe('Consumer', () => {
       consumer.stop();
 
       setTimeout(() => {
-        sinon.assert.calledOnce(handleStop);
+        sandbox.assert.calledOnce(handleStop);
         done();
       }, 10);
     });
 
     it('fires a stopped event only once when stopped multiple times', (done) => {
-      const handleStop = sinon.stub().returns();
+      const handleStop = sandbox.stub().returns();
 
       consumer.on('stopped', handleStop);
 
@@ -509,13 +513,13 @@ describe('Consumer', () => {
       consumer.stop();
 
       setTimeout(() => {
-        sinon.assert.calledOnce(handleStop);
+        sandbox.assert.calledOnce(handleStop);
         done();
       }, 10);
     });
 
     it('fires a stopped event a second time if started and stopped twice', (done) => {
-      const handleStop = sinon.stub().returns();
+      const handleStop = sandbox.stub().returns();
 
       consumer.on('stopped', handleStop);
 
@@ -525,7 +529,7 @@ describe('Consumer', () => {
       consumer.stop();
 
       setTimeout(() => {
-        sinon.assert.calledTwice(handleStop);
+        sandbox.assert.calledTwice(handleStop);
         done();
       }, 10);
     });
