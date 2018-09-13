@@ -39,6 +39,8 @@ class Consumer extends EventEmitter {
     validate(options);
 
     this.queueUrl = options.queueUrl;
+    this.backupQueueUrl = options.backupQueueUrl || options.queueUrl;
+    this.backupQueue = false;
     this.handleMessage = options.handleMessage;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -73,9 +75,10 @@ class Consumer extends EventEmitter {
     this.stopped = true;
   }
 
-  _poll() {
+  _poll(backupQueue = false) {
+    const queueUrl = backupQueue ? this.backupQueueUrl : this.queueUrl
     const receiveParams = {
-      QueueUrl: this.queueUrl,
+      QueueUrl: queueUrl,
       AttributeNames: this.attributeNames,
       MessageAttributeNames: this.messageAttributeNames,
       MaxNumberOfMessages: this.batchSize,
@@ -84,7 +87,7 @@ class Consumer extends EventEmitter {
     };
 
     if (!this.stopped) {
-      debug('Polling for messages');
+      debug(`Polling for messages from ${queueUrl}`);
       this.sqs.receiveMessage(receiveParams, this._handleSqsResponse);
     } else {
       this.emit('stopped');
@@ -109,14 +112,16 @@ class Consumer extends EventEmitter {
       });
     } else if (response && !response.Messages) {
       this.emit('empty');
-      this._poll();
+      this.backupQueue = !this.backupQueue
+      this._poll(this.backupQueue);
     } else if (err && isAuthenticationError(err)) {
       // there was an authentication error, so wait a bit before repolling
       debug('There was an authentication error. Pausing before retrying.');
       setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
     } else {
       // there were no messages, so start polling again
-      this._poll();
+      this.backupQueue = !this.backupQueue
+      this._poll(this.backupQueue);
     }
   }
 
