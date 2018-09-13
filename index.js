@@ -76,7 +76,7 @@ class Consumer extends EventEmitter {
     this.stopped = true;
   }
 
-  _poll(backupQueue = false) {
+  _poll(backupQueue) {
     const queueUrl = backupQueue ? this.backupQueueUrl : this.queueUrl;
     const receiveParams = {
       QueueUrl: queueUrl,
