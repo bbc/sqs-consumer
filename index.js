@@ -76,7 +76,7 @@ class Consumer extends EventEmitter {
   }
 
   _poll(backupQueue = false) {
-    const queueUrl = backupQueue ? this.backupQueueUrl : this.queueUrl
+    const queueUrl = backupQueue ? this.backupQueueUrl : this.queueUrl;
     const receiveParams = {
       QueueUrl: queueUrl,
       AttributeNames: this.attributeNames,
@@ -112,7 +112,7 @@ class Consumer extends EventEmitter {
       });
     } else if (response && !response.Messages) {
       this.emit('empty');
-      this.backupQueue = !this.backupQueue
+      this.backupQueue = !this.backupQueue;
       this._poll(this.backupQueue);
     } else if (err && isAuthenticationError(err)) {
       // there was an authentication error, so wait a bit before repolling
@@ -120,7 +120,7 @@ class Consumer extends EventEmitter {
       setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
     } else {
       // there were no messages, so start polling again
-      this.backupQueue = !this.backupQueue
+      this.backupQueue = !this.backupQueue;
       this._poll(this.backupQueue);
     }
   }
