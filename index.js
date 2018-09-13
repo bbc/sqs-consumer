@@ -41,6 +41,7 @@ class Consumer extends EventEmitter {
     this.queueUrl = options.queueUrl;
     this.backupQueueUrl = options.backupQueueUrl || options.queueUrl;
     this.backupQueue = false;
+    this.activeQueueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -150,7 +151,7 @@ class Consumer extends EventEmitter {
 
         if (consumer.terminateVisibilityTimeout) {
           consumer.sqs.changeMessageVisibility({
-            QueueUrl: consumer.queueUrl,
+            QueueUrl: consumer.activeQueueUrl,
             ReceiptHandle: message.ReceiptHandle,
             VisibilityTimeout: 0
           }, (err) => {
@@ -168,7 +169,7 @@ class Consumer extends EventEmitter {
 
   _deleteMessage(message, cb) {
     const deleteParams = {
-      QueueUrl: this.queueUrl,
+      QueueUrl: this.activeQueueUrl,
       ReceiptHandle: message.ReceiptHandle
     };
 
