@@ -1,7 +1,6 @@
 'use strict';
 
 const EventEmitter = require('events').EventEmitter;
-const async = require('async');
 const auto = require('auto-bind');
 const AWS = require('aws-sdk');
 const debug = require('debug')('sqs-consumer');
@@ -83,26 +82,31 @@ class Consumer extends EventEmitter {
       VisibilityTimeout: this.visibilityTimeout
     };
 
-    if (!this.stopped) {
-      debug('Polling for messages');
-      this.sqs.receiveMessage(receiveParams, this._handleSqsResponse);
-    } else {
+    if (this.stopped) {
       this.emit('stopped');
+      return;
     }
+    debug('Polling for messages');
+    this.sqs.receiveMessage(receiveParams)
+      .promise()
+      .then((data) => this._handleSqsResponse(data))
+      .catch((err) => {
+        this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
+        if (isAuthenticationError(err)) {
+          debug('There was an authentication error. Pausing before retrying.');
+          return setTimeout(() => this._poll(), this.authenticationErrorTimeout);
+        }
+      });
   }
 
-  _handleSqsResponse(err, response) {
+  _handleSqsResponse(response) {
     const consumer = this;
-
-    if (err) {
-      this.emit('error', new SQSError('SQS receive message failed: ' + err.message));
-    }
 
     debug('Received SQS response');
     debug(response);
 
     if (response && response.Messages && response.Messages.length > 0) {
-      async.each(response.Messages, this._processMessage, () => {
+      Promise.all(response.Messages.map(this._processMessage)).then(() => {
         // start polling again once all of the messages have been processed
         consumer.emit('response_processed');
         consumer._poll();
@@ -110,33 +114,24 @@ class Consumer extends EventEmitter {
     } else if (response && !response.Messages) {
       this.emit('empty');
       this._poll();
-    } else if (err && isAuthenticationError(err)) {
-      // there was an authentication error, so wait a bit before repolling
-      debug('There was an authentication error. Pausing before retrying.');
-      setTimeout(this._poll.bind(this), this.authenticationErrorTimeout);
     } else {
       // there were no messages, so start polling again
       this._poll();
     }
   }
 
-  _processMessage(message, cb) {
+  _processMessage(message) {
     const consumer = this;
 
     this.emit('message_received', message);
-    async.series([
-      function handleMessage(done) {
-        try {
-          consumer.handleMessage(message, done);
-        } catch (err) {
-          done(new Error('Unexpected message handler failure: ' + err.message));
-        }
-      },
-      function deleteMessage(done) {
-        consumer._deleteMessage(message, done);
-      }
-    ], (err) => {
-      if (err) {
+    return Promise.resolve()
+      .then(() => consumer.handleMessage(message))
+      .catch(
+        (err) => Promise.reject(new Error('Unexpected message handler failure: ' + err.message))
+      )
+      .then(() => consumer._deleteMessage(message))
+      .then(() => consumer.emit('message_processed', message))
+      .catch((err) => {
         if (err.name === SQSError.name) {
           consumer.emit('error', err, message);
         } else {
@@ -144,35 +139,30 @@ class Consumer extends EventEmitter {
         }
 
         if (consumer.terminateVisibilityTimeout) {
-          consumer.sqs.changeMessageVisibility({
-            QueueUrl: consumer.queueUrl,
-            ReceiptHandle: message.ReceiptHandle,
-            VisibilityTimeout: 0
-          }, (err) => {
-            if (err) consumer.emit('error', err, message);
-            cb();
-          });
-          return;
+          return consumer.sqs
+            .changeMessageVisibility({
+              QueueUrl: consumer.queueUrl,
+              ReceiptHandle: message.ReceiptHandle,
+              VisibilityTimeout: 0
+            })
+            .promise()
+            .catch((err) => consumer.emit('error', err, message));
         }
-      } else {
-        consumer.emit('message_processed', message);
-      }
-      cb();
-    });
+        return;
+      });
   }
 
-  _deleteMessage(message, cb) {
+  _deleteMessage(message) {
     const deleteParams = {
       QueueUrl: this.queueUrl,
       ReceiptHandle: message.ReceiptHandle
     };
 
     debug('Deleting message %s', message.MessageId);
-    this.sqs.deleteMessage(deleteParams, (err) => {
-      if (err) return cb(new SQSError('SQS delete message failed: ' + err.message));
-
-      cb();
-    });
+    return this.sqs
+      .deleteMessage(deleteParams)
+      .promise()
+      .catch((err) => Promise.reject(new SQSError('SQS delete message failed: ' + err.message)));
   }
 }
 

@@ -17,9 +17,8 @@ const Consumer = require('sqs-consumer');
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
-  handleMessage: (message, done) => {
+  handleMessage: async (message) => {
     // do some work with `message`
-    done();
   }
 });
 
@@ -31,8 +30,8 @@ app.start();
 ```
 
 * The queue is polled continuously for messages using [long polling](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html).
-* Messages are deleted from the queue once `done()` is called.
-* Calling `done(err)` with an error object will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
+* Messages are deleted from the queue once the `handler` function is resolved or returned without error
+* `throw`ing in the handler or rejecting will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 * By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
 
 ### Credentials
@@ -59,9 +58,9 @@ AWS.config.update({
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
-  handleMessage: (message, done) => {
+  handleMessage: async (message) => {
     // ...
-    done();
+    return Promise.resolve();
   },
   sqs: new AWS.SQS()
 });
@@ -83,7 +82,7 @@ Creates a new SQS consumer.
 
 * `queueUrl` - _String_ - The SQS queue URL
 * `region` - _String_ - The AWS region (default `eu-west-1`)
-* `handleMessage` - _Function_ - A function to be called whenever a message is received. Receives an SQS message object as its first argument and a function to call when the message has been handled as its second argument (i.e. `handleMessage(message, done)`).
+* `handleMessage` - _Function_ - A function to be called whenever a message is received. Receives an SQS message object as its first argument. Expected to be an `async` function or one that returns a promise. (i.e. `handleMessage(message)`).
 * `attributeNames` - _Array_ - List of queue attributes to retrieve (i.e. `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
 * `messageAttributeNames` - _Array_ - List of message attributes to retrieve (i.e. `['name', 'address']`).
 * `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
@@ -117,4 +116,4 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 
 ### AWS IAM Permissions
 
-Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage` and `sqs:DeleteMessage` access is granted on the queue being consumed.
+Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:ChangeMessageVisibility` and `sqs:DeleteMessage` access is granted on the queue being consumed.
