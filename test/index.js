@@ -7,6 +7,7 @@ const sandbox = require('sinon').sandbox.create();
 describe('Consumer', () => {
   let consumer;
   let handleMessage;
+  let handleMessagesBatch;
   let sqs;
   const response = {
     Messages: [{
@@ -18,12 +19,16 @@ describe('Consumer', () => {
 
   beforeEach(() => {
     handleMessage = sandbox.stub().yieldsAsync(null);
+    handleMessagesBatch = sandbox.stub().yieldsAsync(null);
     sqs = sandbox.mock();
     sqs.receiveMessage = sandbox.stub().yieldsAsync(null, response);
     sqs.receiveMessage.onSecondCall().returns();
     sqs.deleteMessage = sandbox.stub().yieldsAsync(null);
     sqs._deleteMessage = sandbox.stub().yieldsAsync(null);
     sqs.changeMessageVisibility = sandbox.stub().yieldsAsync(null);
+    sqs.deleteMessageBatch = sandbox.stub().yieldsAsync(null);
+    sqs._deleteMessageBatch = sandbox.stub().yieldsAsync(null);
+    sqs.changeMessageVisibilityBatch = sandbox.stub().yieldsAsync(null);
 
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
@@ -47,7 +52,7 @@ describe('Consumer', () => {
     });
   });
 
-  it('requires a handleMessage function to be set', () => {
+  it('requires a handleMessage or handleMessagesBatch function to be set', () => {
     assert.throws(() => {
       new Consumer({
         region: 'some-region',
@@ -470,6 +475,74 @@ describe('Consumer', () => {
       consumer.start();
 
     });
+
+    it('calls the handleMessagesBatch function when a batch of messages is received', (done) => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessagesBatch,
+        batchSize: 2,
+        sqs
+      });
+      consumer.start();
+
+      consumer.on('message_processed', () => {
+        sandbox.assert.calledWith(handleMessagesBatch, response.Messages);
+        done();
+      });
+    });
+
+    it('prefers handleMessagesBatch over handleMessage when both are set', (done) => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessagesBatch,
+        handleMessage,
+        batchSize: 2,
+        sqs
+      });
+      consumer.start();
+
+      consumer.on('message_processed', () => {
+        sandbox.assert.notCalled(handleMessage);
+        sandbox.assert.calledWith(handleMessagesBatch, response.Messages);
+        done();
+      });
+    });
+
+    it('fires response_processed event after a handleMessagesBatch', (done) => {
+      sqs.receiveMessage.yieldsAsync(null, {
+        Messages: [
+          {
+            ReceiptHandle: 'receipt-handle-1',
+            MessageId: '1',
+            Body: 'body-1'
+          },
+          {
+            ReceiptHandle: 'receipt-handle-2',
+            MessageId: '2',
+            Body: 'body-2'
+          }
+        ]
+      });
+      handleMessagesBatch.yields(null);
+
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessagesBatch,
+        batchSize: 2,
+        sqs
+      });
+
+      consumer.on('response_processed', done);
+      consumer.start();
+
+    });
+
   });
 
   describe('.stop', () => {

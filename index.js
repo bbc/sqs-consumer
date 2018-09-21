@@ -7,7 +7,8 @@ const AWS = require('aws-sdk');
 const debug = require('debug')('sqs-consumer');
 const requiredOptions = [
   'queueUrl',
-  'handleMessage'
+  // only one of handleMessage / handleMessagesBatch is required
+  'handleMessage|handleMessagesBatch'
 ];
 
 class SQSError extends Error {
@@ -19,8 +20,9 @@ class SQSError extends Error {
 
 function validate(options) {
   requiredOptions.forEach((option) => {
-    if (!options[option]) {
-      throw new Error('Missing SQS consumer option [' + option + '].');
+    const possibilities = option.split('|');
+    if (!possibilities.find((p) => options[p])) {
+      throw new Error('Missing SQS consumer option [' + possibilities.join(' or ') + '].');
     }
   });
 
@@ -40,6 +42,7 @@ class Consumer extends EventEmitter {
 
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
+    this.handleMessagesBatch = options.handleMessagesBatch;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.stopped = true;
@@ -102,11 +105,12 @@ class Consumer extends EventEmitter {
     debug(response);
 
     if (response && response.Messages && response.Messages.length > 0) {
-      async.each(response.Messages, this._processMessage, () => {
-        // start polling again once all of the messages have been processed
-        consumer.emit('response_processed');
-        consumer._poll();
-      });
+      if (consumer.handleMessagesBatch) {
+        // prefer handling messages in batch when available
+        this._processMessagesBatch(response.Messages, this._endProcessing);
+      } else {
+        async.each(response.Messages, this._processMessage, this._endProcessing);
+      }
     } else if (response && !response.Messages) {
       this.emit('empty');
       this._poll();
@@ -161,6 +165,54 @@ class Consumer extends EventEmitter {
     });
   }
 
+  _processMessagesBatch(messages, cb) {
+    const consumer = this;
+
+    messages.forEach((message) => {
+      this.emit('message_received', message);
+    });
+
+    async.series([
+      function handleMessagesBatch(done) {
+        try {
+          consumer.handleMessagesBatch(messages, done);
+        } catch (err) {
+          done(new Error('Unexpected message handler failure: ' + err.message));
+        }
+      },
+      function deleteMessagesBatch(done) {
+        consumer._deleteMessagesBatch(messages, done);
+      }
+    ], (err) => {
+      if (err) {
+        if (err.name === SQSError.name) {
+          consumer.emit('error', err, messages);
+        } else {
+          consumer.emit('processing_error', err, messages);
+        }
+
+        if (consumer.terminateVisibilityTimeout) {
+          consumer.sqs.changeMessageVisibilityBatch({
+            QueueUrl: consumer.queueUrl,
+            Entries: messages.map((message) => ({
+              ReceiptHandle: message.ReceiptHandle,
+              VisibilityTimeout: 0
+            }))
+          }, (err) => {
+            if (err) consumer.emit('error', err, messages);
+            cb();
+          });
+          return;
+        }
+      } else {
+        messages.map((message) => {
+          consumer.emit('message_processed', message);
+        });
+      }
+      cb();
+    });
+  }
+
   _deleteMessage(message, cb) {
     const deleteParams = {
       QueueUrl: this.queueUrl,
@@ -174,6 +226,30 @@ class Consumer extends EventEmitter {
       cb();
     });
   }
+
+  _deleteMessagesBatch(messages, cb) {
+    const deleteParams = {
+      QueueUrl: this.queueUrl,
+      Entries: messages.map((message) => ({
+        Id: message.MessageId,
+        ReceiptHandle: message.ReceiptHandle
+      }))
+    };
+
+    debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
+    this.sqs.deleteMessageBatch(deleteParams, (err) => {
+      if (err) return cb(new SQSError('SQS delete message batch failed: ' + err.message));
+
+      cb();
+    });
+  }
+
+  _endProcessing() {
+    // start polling again once all of the messages have been processed
+    this.emit('response_processed');
+    this._poll();
+  }
+
 }
 
 module.exports = Consumer;
