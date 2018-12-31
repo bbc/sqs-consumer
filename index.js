@@ -2,7 +2,7 @@
 
 const EventEmitter = require('events').EventEmitter;
 const async = require('async');
-const auto = require('auto-bind');
+const auto = require('./bind');
 const AWS = require('aws-sdk');
 const debug = require('debug')('sqs-consumer');
 const requiredOptions = [
