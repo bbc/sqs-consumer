@@ -4,6 +4,8 @@ const Consumer = require('..');
 const assert = require('assert');
 const sandbox = require('sinon').sandbox.create();
 
+const MockSQS = require('./mockSQS');
+
 describe('Consumer', () => {
   let consumer;
   let handleMessage;
@@ -17,13 +19,31 @@ describe('Consumer', () => {
   };
 
   beforeEach(() => {
-    handleMessage = sandbox.stub().yieldsAsync(null);
-    sqs = sandbox.mock();
-    sqs.receiveMessage = sandbox.stub().yieldsAsync(null, response);
-    sqs.receiveMessage.onSecondCall().returns();
-    sqs.deleteMessage = sandbox.stub().yieldsAsync(null);
-    sqs._deleteMessage = sandbox.stub().yieldsAsync(null);
-    sqs.changeMessageVisibility = sandbox.stub().yieldsAsync(null);
+    handleMessage = sandbox.stub().resolves(null);
+    sqs = new MockSQS();
+
+    sqs.receiveMessage = sandbox.stub(sqs, 'receiveMessage').returns({
+      promise: async () => {
+        return response;
+      }
+    });
+    sqs.receiveMessage = sqs.receiveMessage.onSecondCall().returns({
+      promise: async () => {
+        return;
+      }
+    });
+
+    sqs.deleteMessage = sandbox.stub(sqs, 'deleteMessage').returns({
+      promise: async () => {
+        return;
+      }
+    });
+
+    sqs.changeMessageVisibility = sandbox.stub(sqs, 'changeMessageVisibility').returns({
+      promise: async () => {
+        return;
+      }
+    });
 
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
@@ -234,12 +254,11 @@ describe('Consumer', () => {
       consumer.start();
     });
 
-    it('calls the handleMessage function when a message is received', (done) => {
+    it.only('calls the handleMessage function when a message is received', () => {
       consumer.start();
 
       consumer.on('message_processed', () => {
         sandbox.assert.calledWith(handleMessage, response.Messages[0]);
-        done();
       });
     });
 
