@@ -1,10 +1,25 @@
 'use strict';
 
+const { assert } = require('chai');
+const pEvent = require('p-event');
+
 const Consumer = require('..');
-const assert = require('assert');
+
 const sandbox = require('sinon').sandbox.create();
 
-const MockSQS = require('./mockSQS');
+const AUTHENTICATION_ERROR_TIMEOUT = 20;
+
+function stubResolve(value) {
+  return sandbox
+    .stub()
+    .returns({ promise: sandbox.stub().resolves(value) });
+}
+
+function stubReject(value) {
+  return sandbox
+    .stub()
+    .returns({ promise: sandbox.stub().rejects(value) });
+}
 
 describe('Consumer', () => {
   let consumer;
@@ -20,30 +35,10 @@ describe('Consumer', () => {
 
   beforeEach(() => {
     handleMessage = sandbox.stub().resolves(null);
-    sqs = new MockSQS();
-
-    sqs.receiveMessage = sandbox.stub(sqs, 'receiveMessage').returns({
-      promise: async () => {
-        return response;
-      }
-    });
-    sqs.receiveMessage = sqs.receiveMessage.onSecondCall().returns({
-      promise: async () => {
-        return;
-      }
-    });
-
-    sqs.deleteMessage = sandbox.stub(sqs, 'deleteMessage').returns({
-      promise: async () => {
-        return;
-      }
-    });
-
-    sqs.changeMessageVisibility = sandbox.stub(sqs, 'changeMessageVisibility').returns({
-      promise: async () => {
-        return;
-      }
-    });
+    sqs = sandbox.mock();
+    sqs.receiveMessage = stubResolve(response);
+    sqs.deleteMessage = stubResolve();
+    sqs.changeMessageVisibility = stubResolve();
 
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
@@ -109,26 +104,26 @@ describe('Consumer', () => {
         handleMessage
       });
 
-      assert(consumer instanceof Consumer);
+      assert.instanceOf(consumer, Consumer);
     });
   });
 
   describe('.start', () => {
-    it('fires an error event when an error occurs receiving a message', (done) => {
+    it('fires an error event when an error occurs receiving a message', async () => {
       const receiveErr = new Error('Receive error');
 
-      sqs.receiveMessage.yields(receiveErr);
-
-      consumer.on('error', (err) => {
-        assert.ok(err);
-        assert.equal(err.message, 'SQS receive message failed: Receive error');
-        done();
-      });
+      sqs.receiveMessage = stubReject(receiveErr);
 
       consumer.start();
+
+      const err = await pEvent(consumer, 'error');
+
+      consumer.stop();
+      assert.ok(err);
+      assert.equal(err.message, 'SQS receive message failed: Receive error');
     });
 
-    it('handles unexpected exceptions thrown by the handler function', (done) => {
+    it('handles unexpected exceptions thrown by the handler function', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         region: 'some-region',
@@ -139,179 +134,177 @@ describe('Consumer', () => {
         authenticationErrorTimeout: 20
       });
 
-      consumer.on('processing_error', (err) => {
-        assert.ok(err);
-        assert.equal(err.message, 'Unexpected message handler failure: unexpected parsing error');
-        done();
-      });
-
       consumer.start();
+      const err = await pEvent(consumer, 'processing_error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'Unexpected message handler failure: unexpected parsing error');
     });
 
-    it('fires an error event when an error occurs deleting a message', (done) => {
+    it('fires an error event when an error occurs deleting a message', async () => {
       const deleteErr = new Error('Delete error');
 
-      handleMessage.yields(null);
-      sqs.deleteMessage.yields(deleteErr);
-
-      consumer.on('error', (err) => {
-        assert.ok(err);
-        assert.equal(err.message, 'SQS delete message failed: Delete error');
-        done();
-      });
+      handleMessage.resolves(null);
+      sqs.deleteMessage = stubReject(deleteErr);
 
       consumer.start();
+      const err = await pEvent(consumer, 'error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'SQS delete message failed: Delete error');
     });
 
-    it('fires a `processing_error` event when a non-`SQSError` error occurs processing a message', (done) => {
+    it('fires a `processing_error` event when a non-`SQSError` error occurs processing a message', async () => {
       const processingErr = new Error('Processing error');
 
-      handleMessage.yields(processingErr);
-
-      consumer.on('processing_error', (err, message) => {
-        assert.equal(err, processingErr);
-        assert.equal(message.MessageId, '123');
-        done();
-      });
+      handleMessage.rejects(processingErr);
 
       consumer.start();
+      const [err, message] = await pEvent(consumer, 'processing_error', { multiArgs: true });
+      consumer.stop();
+
+      assert.equal(err.message, 'Unexpected message handler failure: Processing error');
+      assert.equal(message.MessageId, '123');
     });
 
-    it('fires an `error` event when an `SQSError` occurs processing a message', (done) => {
+    it('fires an `error` event when an `SQSError` occurs processing a message', async () => {
       const sqsError = new Error('Processing error');
       sqsError.name = 'SQSError';
 
-      handleMessage.yields(sqsError);
-
-      consumer.on('error', (err, message) => {
-        assert.equal(err, sqsError);
-        assert.equal(message.MessageId, '123');
-        done();
-      });
+      handleMessage.resolves(sqsError);
+      sqs.deleteMessage = stubReject(sqsError);
 
       consumer.start();
+      const [err, message] = await pEvent(consumer, 'error', { multiArgs: true });
+      consumer.stop();
+
+      assert.equal(err.message, 'SQS delete message failed: Processing error');
+      assert.equal(message.MessageId, '123');
     });
 
-    it('waits before repolling when a credentials error occurs', (done) => {
+    it('waits before repolling when a credentials error occurs', async () => {
       const credentialsErr = {
         code: 'CredentialsError',
         message: 'Missing credentials in config'
       };
+      sqs.receiveMessage = stubReject(credentialsErr);
 
-      sqs.receiveMessage.yields(credentialsErr);
+      return new Promise((resolve) => {
+        const timings = [];
+        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
 
-      consumer.on('error', () => {
-        setTimeout(() => {
-          sandbox.assert.calledOnce(sqs.receiveMessage);
-        }, 10);
-        setTimeout(() => {
-          sandbox.assert.calledTwice(sqs.receiveMessage);
-          done();
-        }, 30);
+        errorListener.onThirdCall().callsFake(() => {
+          consumer.stop();
+          sandbox.assert.calledThrice(sqs.receiveMessage);
+          assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
+          resolve();
+        });
+
+        consumer.on('error', errorListener);
+        consumer.start();
       });
-
-      consumer.start();
     });
 
-    it('waits before repolling when a 403 error occurs', (done) => {
+    it('waits before repolling when a 403 error occurs', async () => {
       const invalidSignatureErr = {
         statusCode: 403,
         message: 'The security token included in the request is invalid'
       };
+      sqs.receiveMessage = stubReject(invalidSignatureErr);
 
-      sqs.receiveMessage.yields(invalidSignatureErr);
+      return new Promise((resolve) => {
+        const timings = [];
+        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
 
-      consumer.on('error', () => {
-        setTimeout(() => {
-          sandbox.assert.calledOnce(sqs.receiveMessage);
-        }, 10);
-        setTimeout(() => {
-          sandbox.assert.calledTwice(sqs.receiveMessage);
-          done();
-        }, 30);
-      });
-
-      consumer.start();
-    });
-
-    it('fires a message_received event when a message is received', (done) => {
-      consumer.on('message_received', (message) => {
-        assert.equal(message, response.Messages[0]);
-        done();
-      });
-
-      consumer.start();
-    });
-
-    it('fires a message_processed event when a message is successfully deleted', (done) => {
-      handleMessage.yields(null);
-
-      consumer.on('message_processed', (message) => {
-        assert.equal(message, response.Messages[0]);
-        done();
-      });
-
-      consumer.start();
-    });
-
-    it.only('calls the handleMessage function when a message is received', () => {
-      consumer.start();
-
-      consumer.on('message_processed', () => {
-        sandbox.assert.calledWith(handleMessage, response.Messages[0]);
-      });
-    });
-
-    it('deletes the message when the handleMessage callback is called', (done) => {
-      handleMessage.yields(null);
-
-      consumer.start();
-
-      consumer.on('message_processed', () => {
-        sandbox.assert.calledWith(sqs.deleteMessage, {
-          QueueUrl: 'some-queue-url',
-          ReceiptHandle: 'receipt-handle'
+        errorListener.onThirdCall().callsFake(() => {
+          consumer.stop();
+          sandbox.assert.calledThrice(sqs.receiveMessage);
+          assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
+          resolve();
         });
-        done();
+
+        consumer.on('error', errorListener);
+        consumer.start();
       });
     });
 
-    it('doesn\'t delete the message when a processing error is reported', () => {
-      handleMessage.yields(new Error('Processing error'));
+    it('fires a message_received event when a message is received', async () => {
+      consumer.start();
+      const message = await pEvent(consumer, 'message_received');
+      consumer.stop();
 
-      consumer.on('processing_error', () => {
-        // ignore the error
-      });
+      assert.equal(message, response.Messages[0]);
+    });
+
+    it('fires a message_processed event when a message is successfully deleted', async () => {
+      handleMessage.resolves();
 
       consumer.start();
+      const message = await pEvent(consumer, 'message_received');
+      consumer.stop();
+
+      assert.equal(message, response.Messages[0]);
+    });
+
+    it('calls the handleMessage function when a message is received', async () => {
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.calledWith(handleMessage, response.Messages[0]);
+    });
+
+    it('deletes the message when the handleMessage function is called', async () => {
+      handleMessage.resolves();
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.deleteMessage, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle'
+      });
+    });
+
+    it('doesn\'t delete the message when a processing error is reported', async () => {
+      handleMessage.rejects(new Error('Processing error'));
+
+      consumer.start();
+      await pEvent(consumer, 'processing_error');
+      consumer.stop();
 
       sandbox.assert.notCalled(sqs.deleteMessage);
     });
 
-    it('consumes another message once one is processed', (done) => {
-      sqs.receiveMessage.onSecondCall().yields(null, response);
-      sqs.receiveMessage.onThirdCall().returns();
+    it('consumes another message once one is processed', async () => {
+      handleMessage.resolves();
 
-      consumer.start();
-      setTimeout(() => {
-        sandbox.assert.calledTwice(handleMessage);
-        done();
-      }, 10);
+      return new Promise((resolve) => {
+        handleMessage.onSecondCall().callsFake(() => {
+          consumer.stop();
+          resolve();
+        });
+        consumer.start();
+      });
     });
 
     it('doesn\'t consume more messages when called multiple times', () => {
-      sqs.receiveMessage = sandbox.stub().returns();
+      sqs.receiveMessage = stubResolve(new Promise((res) => setTimeout(res, 100)));
       consumer.start();
       consumer.start();
       consumer.start();
       consumer.start();
       consumer.start();
+      consumer.stop();
 
       sandbox.assert.calledOnce(sqs.receiveMessage);
     });
 
-    it('consumes multiple messages when the batchSize is greater than 1', (done) => {
-      sqs.receiveMessage.yieldsAsync(null, {
+    it('consumes multiple messages when the batchSize is greater than 1', async () => {
+      sqs.receiveMessage = stubResolve({
         Messages: [
           {
             ReceiptHandle: 'receipt-handle-1',
@@ -342,22 +335,24 @@ describe('Consumer', () => {
 
       consumer.start();
 
-      setTimeout(() => {
-        sandbox.assert.calledWith(sqs.receiveMessage, {
-          QueueUrl: 'some-queue-url',
-          AttributeNames: [],
-          MessageAttributeNames: ['attribute-1', 'attribute-2'],
-          MaxNumberOfMessages: 3,
-          WaitTimeSeconds: 20,
-          VisibilityTimeout: undefined
+      return new Promise((resolve) => {
+        handleMessage.onThirdCall().callsFake(() => {
+          sandbox.assert.calledWith(sqs.receiveMessage, {
+            QueueUrl: 'some-queue-url',
+            AttributeNames: [],
+            MessageAttributeNames: ['attribute-1', 'attribute-2'],
+            MaxNumberOfMessages: 3,
+            WaitTimeSeconds: 20,
+            VisibilityTimeout: undefined
+          });
+          sandbox.assert.callCount(handleMessage, 3);
+          consumer.stop();
+          resolve();
         });
-        sandbox.assert.callCount(handleMessage, 3);
-        done();
-      }, 10);
+      });
     });
 
-    it('consumes messages with message attibute \'ApproximateReceiveCount\'', (done) => {
-
+    it('consumes messages with message attribute \'ApproximateReceiveCount\'', async () => {
       const messageWithAttr = {
         ReceiptHandle: 'receipt-handle-1',
         MessageId: '1',
@@ -367,7 +362,7 @@ describe('Consumer', () => {
         }
       };
 
-      sqs.receiveMessage.yieldsAsync(null, {
+      sqs.receiveMessage = stubResolve({
         Messages: [messageWithAttr]
       });
 
@@ -379,88 +374,78 @@ describe('Consumer', () => {
         sqs
       });
 
-      consumer.on('message_received', (message) => {
-        sandbox.assert.calledWith(sqs.receiveMessage, {
-          QueueUrl: 'some-queue-url',
-          AttributeNames: ['ApproximateReceiveCount'],
-          MessageAttributeNames: [],
-          MaxNumberOfMessages: 1,
-          WaitTimeSeconds: 20,
-          VisibilityTimeout: undefined
-        });
-        assert.equal(message, messageWithAttr);
-        done();
+      consumer.start();
+      const message = await pEvent(consumer, 'message_received');
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.receiveMessage, {
+        QueueUrl: 'some-queue-url',
+        AttributeNames: ['ApproximateReceiveCount'],
+        MessageAttributeNames: [],
+        MaxNumberOfMessages: 1,
+        WaitTimeSeconds: 20,
+        VisibilityTimeout: undefined
       });
 
-      consumer.start();
+      assert.equal(message, messageWithAttr);
     });
 
-    it('fires a emptyQueue event when all messages have been consumed', (done) => {
-      sqs.receiveMessage.yieldsAsync(null, {});
-
-      consumer.on('empty', () => {
-        done();
-      });
+    it('fires an emptyQueue event when all messages have been consumed', async () => {
+      sqs.receiveMessage = stubResolve({});
 
       consumer.start();
+      await pEvent(consumer, 'empty');
+      consumer.stop();
     });
 
-    it('terminate message visibility timeout on processing error', (done) => {
-      handleMessage.yields(new Error('Processing error'));
+    it('terminate message visibility timeout on processing error', async () => {
+      handleMessage.rejects(new Error('Processing error'));
 
       consumer.terminateVisibilityTimeout = true;
-      consumer.on('processing_error', () => {
-        setImmediate(() => {
-          sandbox.assert.calledWith(sqs.changeMessageVisibility, {
-            QueueUrl: 'some-queue-url',
-            ReceiptHandle: 'receipt-handle',
-            VisibilityTimeout: 0
-          });
-          done();
-        });
-      });
 
       consumer.start();
+      await pEvent(consumer, 'processing_error');
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.changeMessageVisibility, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle',
+        VisibilityTimeout: 0
+      });
     });
 
-    it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', (done) => {
-      handleMessage.yields(new Error('Processing error'));
-
+    it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', async () => {
+      handleMessage.rejects(new Error('Processing error'));
       consumer.terminateVisibilityTimeout = false;
-      consumer.on('processing_error', () => {
-        setImmediate(() => {
-          sandbox.assert.notCalled(sqs.changeMessageVisibility);
-          done();
-        });
-      });
 
       consumer.start();
+      await pEvent(consumer, 'processing_error');
+      consumer.stop();
+
+      sandbox.assert.notCalled(sqs.changeMessageVisibility);
     });
 
-    it('fires error event when failed to terminate visibility timeout on processing error', (done) => {
-      handleMessage.yields(new Error('Processing error'));
+    it('fires error event when failed to terminate visibility timeout on processing error', async () => {
+      handleMessage.rejects(new Error('Processing error'));
 
       const sqsError = new Error('Processing error');
       sqsError.name = 'SQSError';
-      sqs.changeMessageVisibility.yields(sqsError);
-
+      sqs.changeMessageVisibility = stubReject(sqsError);
       consumer.terminateVisibilityTimeout = true;
-      consumer.on('error', () => {
-        setImmediate(() => {
-          sandbox.assert.calledWith(sqs.changeMessageVisibility, {
-            QueueUrl: 'some-queue-url',
-            ReceiptHandle: 'receipt-handle',
-            VisibilityTimeout: 0
-          });
-          done();
-        });
-      });
 
       consumer.start();
+      await pEvent(consumer, 'error');
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.changeMessageVisibility, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle',
+        VisibilityTimeout: 0
+      });
     });
 
-    it('fires response_processed event for each batch', (done) => {
-      sqs.receiveMessage.yieldsAsync(null, {
+    it('fires response_processed event for each batch', async () => {
+      sqs.receiveMessage = stubResolve({
         Messages: [
           {
             ReceiptHandle: 'receipt-handle-1',
@@ -474,7 +459,7 @@ describe('Consumer', () => {
           }
         ]
       });
-      handleMessage.yields(null);
+      handleMessage.resolves(null);
 
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
@@ -485,72 +470,62 @@ describe('Consumer', () => {
         sqs
       });
 
-      consumer.on('response_processed', done);
       consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
 
+      sandbox.assert.callCount(handleMessage, 2);
     });
   });
 
   describe('.stop', () => {
-    beforeEach(() => {
-      sqs.receiveMessage.onSecondCall().yieldsAsync(null, response);
-      sqs.receiveMessage.onThirdCall().returns();
-    });
-
-    it('stops the consumer polling for messages', (done) => {
+    it('stops the consumer polling for messages', async () => {
       consumer.start();
       consumer.stop();
 
-      setTimeout(() => {
-        sandbox.assert.calledOnce(handleMessage);
-        done();
-      }, 10);
+      await pEvent(consumer, 'stopped');
+
+      sandbox.assert.calledOnce(handleMessage);
     });
 
-    it('fires a stopped event when last poll occurs after stopping', (done) => {
+    it('fires a stopped event when last poll occurs after stopping', async () => {
+      consumer.start();
+      consumer.stop();
+      await pEvent(consumer, 'stopped');
+    });
+
+    it('fires a stopped event only once when stopped multiple times', async () => {
       const handleStop = sandbox.stub().returns();
 
       consumer.on('stopped', handleStop);
 
-      consumer.start();
-      consumer.stop();
+      return new Promise((resolve) => {
+        consumer.start();
+        consumer.stop();
+        consumer.stop();
+        consumer.stop();
 
-      setTimeout(() => {
-        sandbox.assert.calledOnce(handleStop);
-        done();
-      }, 10);
+        setTimeout(() => {
+          sandbox.assert.calledOnce(handleStop);
+          resolve();
+        }, 10);
+      });
     });
 
-    it('fires a stopped event only once when stopped multiple times', (done) => {
-      const handleStop = sandbox.stub().returns();
+    it('fires a stopped event a second time if started and stopped twice', async () => {
+      return new Promise((resolve) => {
+        const handleStop = sandbox.stub().returns().onSecondCall().callsFake(() => {
+          sandbox.assert.calledTwice(handleStop);
+          resolve();
+        });
 
-      consumer.on('stopped', handleStop);
+        consumer.on('stopped', handleStop);
 
-      consumer.start();
-      consumer.stop();
-      consumer.stop();
-      consumer.stop();
-
-      setTimeout(() => {
-        sandbox.assert.calledOnce(handleStop);
-        done();
-      }, 10);
-    });
-
-    it('fires a stopped event a second time if started and stopped twice', (done) => {
-      const handleStop = sandbox.stub().returns();
-
-      consumer.on('stopped', handleStop);
-
-      consumer.start();
-      consumer.stop();
-      consumer.start();
-      consumer.stop();
-
-      setTimeout(() => {
-        sandbox.assert.calledTwice(handleStop);
-        done();
-      }, 10);
+        consumer.start();
+        consumer.stop();
+        consumer.start();
+        consumer.stop();
+      });
     });
   });
 });
