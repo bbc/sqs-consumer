@@ -123,6 +123,31 @@ describe('Consumer', () => {
       assert.equal(err.message, 'SQS receive message failed: Receive error');
     });
 
+    it('retains sqs error information', async () => {
+      const receiveErr = new Error('Receive error');
+      receiveErr.code = 'short code';
+      receiveErr.retryable = false;
+      receiveErr.statusCode = 403;
+      receiveErr.time = 'original message';
+      receiveErr.hostname = 'hostname';
+      receiveErr.region = 'eu-west-1';
+
+      sqs.receiveMessage = stubReject(receiveErr);
+
+      consumer.start();
+      const err = await pEvent(consumer, 'error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'SQS receive message failed: Receive error');
+      assert.equal(err.code, receiveErr.code);
+      assert.equal(err.retryable, receiveErr.retryable);
+      assert.equal(err.statusCode, receiveErr.statusCode);
+      assert.equal(err.time, receiveErr.time);
+      assert.equal(err.hostname, receiveErr.hostname);
+      assert.equal(err.region, receiveErr.region);
+    });
+
     it('handles unexpected exceptions thrown by the handler function', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
