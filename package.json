@@ -6,7 +6,7 @@
   "scripts": {
     "test": "mocha",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
-    "lcov": "istanbul cover _mocha -- -R dot",
+    "lcov": "nyc mocha && nyc report --reporter=lcov",
     "lint": "eslint .",
     "posttest": "npm run lint"
   },
