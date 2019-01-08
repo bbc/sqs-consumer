@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
@@ -25,16 +25,16 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
+    "chai": "^4.2.0",
     "codeclimate-test-reporter": "0.4.1",
-    "eslint": "^2.9.0",
-    "eslint-config-iplayer-es6": "^1.2.0",
+    "eslint": "^4.1.1",
+    "eslint-config-iplayer-es6": "^3.1.0",
     "istanbul": "^0.4.1",
     "mocha": "^2.1.0",
+    "p-event": "^2.1.0",
     "sinon": "^4.4.8"
   },
   "dependencies": {
-    "async": "^2.0.1",
-    "auto-bind": "^1.1.0",
     "aws-sdk": "^2.100.0",
     "debug": "^2.1.0"
   },
