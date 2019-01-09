@@ -1,26 +1,41 @@
 'use strict';
 
-const { assert } = require('chai');
-const pEvent = require('p-event');
+import { assert } from 'chai';
+import * as pEvent from 'p-event';
 
-const Consumer = require('..');
+import * as sinon from 'sinon';
+import { Consumer } from '../src/index';
 
-const sandbox = require('sinon').sandbox.create();
+const sandbox = sinon.sandbox.create();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
 
-function stubResolve(value) {
+function stubResolve(value?: any): any {
   return sandbox
     .stub()
     .returns({ promise: sandbox.stub().resolves(value) });
 }
 
-function stubReject(value) {
+function stubReject(value?: any): any {
   return sandbox
     .stub()
     .returns({ promise: sandbox.stub().rejects(value) });
 }
 
+class MockSQSError extends Error {
+  code: string;
+  statusCode: number;
+  region: string;
+  hostname: string;
+  time: Date;
+  retryable: boolean;
+
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+// tslint:disable:no-unused-expression
 describe('Consumer', () => {
   let consumer;
   let handleMessage;
@@ -95,7 +110,7 @@ describe('Consumer', () => {
 
   describe('.create', () => {
     it('creates a new instance of a Consumer object', () => {
-      const consumer = Consumer.create({
+      const instance = Consumer.create({
         region: 'some-region',
         queueUrl: 'some-queue-url',
         batchSize: 1,
@@ -104,7 +119,7 @@ describe('Consumer', () => {
         handleMessage
       });
 
-      assert.instanceOf(consumer, Consumer);
+      assert.instanceOf(instance, Consumer);
     });
   });
 
@@ -124,11 +139,11 @@ describe('Consumer', () => {
     });
 
     it('retains sqs error information', async () => {
-      const receiveErr = new Error('Receive error');
+      const receiveErr = new MockSQSError('Receive error');
       receiveErr.code = 'short code';
       receiveErr.retryable = false;
       receiveErr.statusCode = 403;
-      receiveErr.time = 'original message';
+      receiveErr.time = new Date();
       receiveErr.hostname = 'hostname';
       receiveErr.region = 'eu-west-1';
 
@@ -520,7 +535,7 @@ describe('Consumer', () => {
     });
 
     it('fires a stopped event only once when stopped multiple times', async () => {
-      const handleStop = sandbox.stub().returns();
+      const handleStop = sandbox.stub().returns(null);
 
       consumer.on('stopped', handleStop);
 
@@ -539,7 +554,7 @@ describe('Consumer', () => {
 
     it('fires a stopped event a second time if started and stopped twice', async () => {
       return new Promise((resolve) => {
-        const handleStop = sandbox.stub().returns().onSecondCall().callsFake(() => {
+        const handleStop = sandbox.stub().returns(null).onSecondCall().callsFake(() => {
           sandbox.assert.calledTwice(handleStop);
           resolve();
         });

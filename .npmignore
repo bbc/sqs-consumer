@@ -1,3 +1,5 @@
 node_modules
-test.js
 coverage
+*.log
+dist
+.vscode

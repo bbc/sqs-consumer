@@ -2,13 +2,19 @@
   "name": "sqs-consumer",
   "version": "5.0.0",
   "description": "Build SQS-based Node applications without the boilerplate",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "npm run clean && tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -fr dist/*",
+    "prepublish": "npm run build",
+    "pretest": "npm run build",
     "test": "mocha",
-    "coverage": "istanbul cover _mocha -- -R dot && open coverage/lcov-report/index.html",
-    "lcov": "istanbul cover _mocha -- -R dot",
-    "lint": "eslint .",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "lint": "tslint --project tsconfig.json --format stylish",
+    "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
+    "badge": "ibl-repo-badges ibl-bundles-api coverage/coverage-summary.json"
   },
   "repository": {
     "type": "git",
@@ -25,23 +31,44 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
+    "@bbc/ibl-repo-badges": "^1.0.1",
+    "@types/aws-sdk": "^2.7.0",
+    "@types/chai": "^4.1.4",
+    "@types/mocha": "^2.2.43",
+    "@types/node": "^10.12.18",
+    "@types/sinon": "^4.0.0",
+    "@types/typescript": "^2.0.0",
+    "babel-eslint": "^8.2.2",
     "chai": "^4.2.0",
     "codeclimate-test-reporter": "0.4.1",
     "eslint": "^4.1.1",
     "eslint-config-iplayer-es6": "^3.1.0",
     "istanbul": "^0.4.1",
     "mocha": "^2.1.0",
+    "nyc": "^11.2.1",
     "p-event": "^2.1.0",
-    "sinon": "^4.4.8"
+    "sinon": "^4.4.8",
+    "ts-node": "^3.3.0",
+    "tslint": "^5.8.0",
+    "tslint-config-airbnb": "^5.3.1",
+    "tslint-microsoft-contrib": "^5.0.3",
+    "typescript": "^2.6.1"
   },
   "dependencies": {
     "aws-sdk": "^2.100.0",
     "debug": "^2.1.0"
   },
-  "eslintConfig": {
-    "extends": "iplayer-es6",
-    "parserOptions": {
-      "ecmaVersion": 2017
-    }
+  "nyc": {
+    "include": [
+      "src/**/*.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "sourceMap": true,
+    "instrument": true
   }
 }

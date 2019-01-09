@@ -1,0 +1,5 @@
+--exit
+--recursive
+--require ts-node/register
+--full-trace
+test/**/**/*.ts
