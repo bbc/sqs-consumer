@@ -25,11 +25,11 @@ const app = Consumer.create({
 });
 
 app.on('error', (err) => {
-  console.log(err.message);
+  console.error(err.message);
 });
 
 app.on('processing_error', (err) => {
-  console.log(err.message);
+  console.error(err.message);
 });
 
 app.start();
@@ -37,7 +37,7 @@ app.start();
 
 * The queue is polled continuously for messages using [long polling](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html).
 * Messages are deleted from the queue once the handler function has completed successfully.
-* Throwing an error (or rejecting) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
+* Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 * By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
 
 ### Credentials
@@ -71,11 +71,11 @@ const app = Consumer.create({
 });
 
 app.on('error', (err) => {
-  console.log(err.message);
+  console.error(err.message);
 });
 
 app.on('processing_error', (err) => {
-  console.log(err.message);
+  console.error(err.message);
 });
 
 app.start();
@@ -91,7 +91,7 @@ Creates a new SQS consumer.
 
 * `queueUrl` - _String_ - The SQS queue URL
 * `region` - _String_ - The AWS region (default `eu-west-1`)
-* `handleMessage` - _Function_ - An `async` function (or function that returns a `Promise`) to be called whenever a message is received. Receives an SQS message object as its first argument.
+* `handleMessage` - _Function_ - An `async` function (or function that returns a `Promise`) to be called whenever a message is received. Receives an SQS message object as it's first argument.
 * `attributeNames` - _Array_ - List of queue attributes to retrieve (i.e. `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
 * `messageAttributeNames` - _Array_ - List of message attributes to retrieve (i.e. `['name', 'address']`).
 * `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
