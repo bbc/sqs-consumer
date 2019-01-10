@@ -1,5 +1,4 @@
 node_modules
 test.js
 coverage
-package-lock.json
 .nyc_output
