@@ -39,6 +39,11 @@ describe('Consumer', () => {
     sqs.receiveMessage = stubResolve(response);
     sqs.deleteMessage = stubResolve();
     sqs.changeMessageVisibility = stubResolve();
+    sqs.getQueueAttributes = stubResolve({
+      Attributes: {
+        VisibilityTimeout: 5
+      }
+    });
 
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
@@ -317,7 +322,7 @@ describe('Consumer', () => {
     });
 
     it('doesn\'t consume more messages when called multiple times', () => {
-      sqs.receiveMessage = stubResolve(new Promise((res) => setTimeout(res, 100)));
+      sqs.receiveMessage = stubResolve(new Promise((res) => setTimeout(res, 500)));
       consumer.start();
       consumer.start();
       consumer.start();
@@ -437,6 +442,24 @@ describe('Consumer', () => {
         ReceiptHandle: 'receipt-handle',
         VisibilityTimeout: 0
       });
+    });
+
+    it('extends the visibility timeout of a message while it\'s still processing', async () => {
+      handleMessage.callsFake(new Promise((res) => setTimeout(res, 5000)));
+
+      consumer.extendVisibilityTimeout = true;
+      consumer.visibilityTimeout = 1;
+
+      consumer.start();
+      await pEvent(consumer, 'message_received');
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.changeMessageVisibility, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle',
+        VisibilityTimeout: 10
+      });
+
     });
 
     it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', async () => {
