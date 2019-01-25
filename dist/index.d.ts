@@ -1,1 +1,0 @@
-export { Consumer } from './consumer';
