@@ -148,7 +148,7 @@ describe('Consumer', () => {
       assert.equal(err.region, receiveErr.region);
     });
 
-    it.only('fires a timeout event if handler function takes too long', async () => {
+    it('fires a timeout event if handler function takes too long', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         region: 'some-region',
@@ -160,11 +160,10 @@ describe('Consumer', () => {
 
       consumer.start();
       const err = await pEvent(consumer, 'timeout_error');
-      console.log('​err', err.message);
       consumer.stop();
 
       assert.ok(err);
-      assert.equal(err.message, 'Operation timed out.');
+      assert.equal(err.message, 'Unexpected message handler failure: Operation timed out.');
     });
 
     it('handles unexpected exceptions thrown by the handler function', async () => {
