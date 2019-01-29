@@ -4,7 +4,7 @@ import { AWSError, SQS } from 'aws-sdk';
 // tslint:disable-next-line:no-submodule-imports
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { EventEmitter } from 'events';
-import { auto } from './bind';
+import { autoBind } from './bind';
 import { SQSError } from './sqsError';
 
 type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
@@ -15,7 +15,7 @@ const requiredOptions = [
   'handleMessage'
 ];
 
-function validate(options: any): void {
+function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
     if (!options[option]) {
       throw new Error(`Missing SQS consumer option ['${option}'].`);
@@ -47,6 +47,21 @@ function hasMessages(response: any): any {
   return response.Messages && response.Messages.length > 0;
 }
 
+export interface ConsumerOptions {
+  queueUrl?: string;
+  attributeNames?: string[];
+  messageAttributeNames?: string[];
+  stopped?: boolean;
+  batchSize?: number;
+  visibilityTimeout?: boolean;
+  waitTimeSeconds?: number;
+  authenticationErrorTimeout?: number;
+  terminateVisibilityTimeout?: boolean;
+  sqs?: SQS;
+  region?: string;
+  handleMessage(message: any): Promise<void>;
+}
+
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: any) => Promise<void>;
@@ -60,10 +75,9 @@ export class Consumer extends EventEmitter {
   private terminateVisibilityTimeout: boolean;
   private sqs: SQS;
 
-  constructor(options: any) {
-
+  constructor(options: ConsumerOptions) {
     super();
-    validate(options);
+    assertOptions(options);
 
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
@@ -80,27 +94,117 @@ export class Consumer extends EventEmitter {
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
     });
 
-    auto(this);
+    autoBind(this);
   }
 
-  static create(options: any): Consumer {
+  public static create(options: any): Consumer {
     return new Consumer(options);
   }
 
-  start(): void {
+  public start(): void {
     if (this.stopped) {
       debug('Starting consumer');
       this.stopped = false;
-      this._poll();
+      this.poll();
     }
   }
 
-  stop(): void {
+  public stop(): void {
     debug('Stopping consumer');
     this.stopped = true;
   }
 
-  async _poll(): Promise<void> {
+  private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
+    debug('Received SQS response');
+    debug(response);
+
+    if (response) {
+      if (hasMessages(response)) {
+        await Promise.all(response.Messages.map(this.processMessage));
+        this.emit('response_processed');
+      } else {
+        this.emit('empty');
+      }
+    }
+
+    this.poll();
+  }
+
+  private async processMessage(message: SQSMessage): Promise<void> {
+    this.emit('message_received', message);
+
+    try {
+      await this.executeHandler(message);
+      await this.deleteMessage(message);
+      this.emit('message_processed', message);
+    } catch (err) {
+      this.emitError(err, message);
+
+      if (this.terminateVisibilityTimeout) {
+        try {
+          await this.terminateVisabilityTimeout(message);
+        } catch (err) {
+          this.emit('error', err, message);
+        }
+      }
+    }
+  }
+
+  private async receiveMessage(params: any): Promise<ReceieveMessageResponse> {
+    try {
+      return await this.sqs
+        .receiveMessage(params)
+        .promise();
+    } catch (err) {
+      throw toSQSError(err, `SQS receive message failed: ${err.message}`);
+    }
+  }
+
+  private async deleteMessage(message: SQSMessage): Promise<void> {
+    debug('Deleting message %s', message.MessageId);
+
+    const deleteParams = {
+      QueueUrl: this.queueUrl,
+      ReceiptHandle: message.ReceiptHandle
+    };
+
+    try {
+      await this.sqs
+        .deleteMessage(deleteParams)
+        .promise();
+    } catch (err) {
+      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
+    }
+  }
+
+  private async executeHandler(message: any): Promise<any> {
+    try {
+      await this.handleMessage(message);
+    } catch (err) {
+      err.message = `Unexpected message handler failure: ${err.message}`;
+      throw err;
+    }
+  }
+
+  private async terminateVisabilityTimeout(message: SQSMessage): Promise<PromiseResult<any, AWSError>> {
+    return this.sqs
+      .changeMessageVisibility({
+        QueueUrl: this.queueUrl,
+        ReceiptHandle: message.ReceiptHandle,
+        VisibilityTimeout: 0
+      })
+      .promise();
+  }
+
+  private emitError(err: Error, message: SQSMessage): void {
+    if (err.name === SQSError.name) {
+      this.emit('error', err, message);
+    } else {
+      this.emit('processing_error', err, message);
+    }
+  }
+
+  private async poll(): Promise<void> {
     if (this.stopped) {
       this.emit('stopped');
       return;
@@ -117,98 +221,15 @@ export class Consumer extends EventEmitter {
         VisibilityTimeout: this.visibilityTimeout
       };
 
-      const response = await this._receiveMessage(receiveParams);
-      this._handleSqsResponse(response);
+      const response = await this.receiveMessage(receiveParams);
+      this.handleSqsResponse(response);
 
     } catch (err) {
       this.emit('error', err);
       if (isAuthenticationError(err)) {
         debug('There was an authentication error. Pausing before retrying.');
-        setTimeout(() => this._poll(), this.authenticationErrorTimeout);
-        return;
+        setTimeout(() => this.poll(), this.authenticationErrorTimeout);
       }
-    }
-  }
-
-  async _handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
-    debug('Received SQS response');
-    debug(response);
-
-    if (response) {
-      if (hasMessages(response)) {
-        await Promise.all(response.Messages.map(this._processMessage));
-        this.emit('response_processed');
-      } else {
-        this.emit('empty');
-      }
-    }
-
-    this._poll();
-  }
-
-  async _processMessage(message: SQSMessage): Promise<void> {
-    this.emit('message_received', message);
-
-    try {
-      await this._executeHandler(message);
-      await this._deleteMessage(message);
-      this.emit('message_processed', message);
-    } catch (err) {
-      if (err.name === SQSError.name) {
-        this.emit('error', err, message);
-      } else {
-        this.emit('processing_error', err, message);
-      }
-
-      if (this.terminateVisibilityTimeout) {
-        try {
-          await this._terminateVisabilityTimeout(message);
-        } catch (err) {
-          this.emit('error', err, message);
-        }
-      }
-    }
-  }
-
-  async _receiveMessage(params: any): Promise<ReceieveMessageResponse> {
-    try {
-      return await this.sqs.receiveMessage(params).promise();
-    } catch (err) {
-      throw toSQSError(err, `SQS receive message failed: ${err.message}`);
-    }
-  }
-
-  async _terminateVisabilityTimeout(message: SQSMessage): Promise<PromiseResult<any, AWSError>> {
-    return this.sqs
-      .changeMessageVisibility({
-        QueueUrl: this.queueUrl,
-        ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: 0
-      })
-      .promise();
-  }
-
-  async _deleteMessage(message: SQSMessage): Promise<void> {
-    debug('Deleting message %s', message.MessageId);
-
-    const deleteParams = {
-      QueueUrl: this.queueUrl,
-      ReceiptHandle: message.ReceiptHandle
-    };
-
-    try {
-      await this.sqs.deleteMessage(deleteParams).promise();
-    } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
-    }
-  }
-
-  async _executeHandler(message: any): Promise<any> {
-    try {
-      await this.handleMessage(message);
-    } catch (err) {
-      err.message = `Unexpected message handler failure: ${err.message}`;
-      throw err;
     }
   }
 }

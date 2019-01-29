@@ -1,5 +1,3 @@
-'use strict';
-
 import { assert } from 'chai';
 import * as pEvent from 'p-event';
 
@@ -80,6 +78,7 @@ describe('Consumer', () => {
   it('requires a handleMessage function to be set', () => {
     assert.throws(() => {
       new Consumer({
+        handleMessage: undefined,
         region: 'some-region',
         queueUrl: 'some-queue-url'
       });
