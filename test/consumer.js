@@ -163,7 +163,7 @@ describe('Consumer', () => {
       consumer.stop();
 
       assert.ok(err);
-      assert.equal(err.message, 'Operation timed out.');
+      assert.equal(err.message, 'Unexpected message handler failure: Operation timed out.');
     });
 
     it('handles unexpected exceptions thrown by the handler function', async () => {
