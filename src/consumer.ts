@@ -1,7 +1,8 @@
 const debug = require('debug')('sqs-consumer');
 
-import { AWSError, SQS } from 'aws-sdk';
-// tslint:disable-next-line:no-submodule-imports
+// tslint:disable:no-submodule-imports
+import { AWSError } from 'aws-sdk';
+import * as SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
@@ -43,7 +44,7 @@ function toSQSError(err: AWSError, message: string): SQSError {
   return sqsError;
 }
 
-function hasMessages(response: any): any {
+function hasMessages(response: ReceieveMessageResponse): boolean {
   return response.Messages && response.Messages.length > 0;
 }
 
