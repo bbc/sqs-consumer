@@ -10,6 +10,7 @@ import { SQSError } from './sqsError';
 
 type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
 type SQSMessage = SQS.Types.Message;
+type ReceiveMessageRequest = SQS.Types.ReceiveMessageRequest;
 
 const requiredOptions = [
   'queueUrl',
@@ -28,8 +29,11 @@ function assertOptions(options: ConsumerOptions): void {
   }
 }
 
-function isAuthenticationError(err: any): Boolean {
-  return (err.statusCode === 403 || err.code === 'CredentialsError');
+function isAuthenticationError(err: Error): Boolean {
+  if (err instanceof SQSError) {
+    return (err.statusCode === 403 || err.code === 'CredentialsError');
+  }
+  return false;
 }
 
 function toSQSError(err: AWSError, message: string): SQSError {
@@ -54,23 +58,23 @@ export interface ConsumerOptions {
   messageAttributeNames?: string[];
   stopped?: boolean;
   batchSize?: number;
-  visibilityTimeout?: boolean;
+  visibilityTimeout?: number;
   waitTimeSeconds?: number;
   authenticationErrorTimeout?: number;
   terminateVisibilityTimeout?: boolean;
   sqs?: SQS;
   region?: string;
-  handleMessage(message: any): Promise<void>;
+  handleMessage(message: SQSMessage): Promise<void>;
 }
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;
-  private handleMessage: (message: any) => Promise<void>;
+  private handleMessage: (message: SQSMessage) => Promise<void>;
   private attributeNames: string[];
   private messageAttributeNames: string[];
   private stopped: boolean;
   private batchSize: number;
-  private visibilityTimeout: boolean;
+  private visibilityTimeout: number;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private terminateVisibilityTimeout: boolean;
@@ -98,7 +102,7 @@ export class Consumer extends EventEmitter {
     autoBind(this);
   }
 
-  public static create(options: any): Consumer {
+  public static create(options: ConsumerOptions): Consumer {
     return new Consumer(options);
   }
 
@@ -151,7 +155,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async receiveMessage(params: any): Promise<ReceieveMessageResponse> {
+  private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceieveMessageResponse> {
     try {
       return await this.sqs
         .receiveMessage(params)
@@ -178,7 +182,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async executeHandler(message: any): Promise<any> {
+  private async executeHandler(message: SQSMessage): Promise<void> {
     try {
       await this.handleMessage(message);
     } catch (err) {
