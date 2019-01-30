@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "index.js",
   "scripts": {
@@ -35,7 +35,7 @@
     "sinon": "^7.2.2"
   },
   "dependencies": {
-    "aws-sdk": "^2.100.0",
+    "aws-sdk": "^2.393.0",
     "debug": "^4.1.1"
   },
   "eslintConfig": {
