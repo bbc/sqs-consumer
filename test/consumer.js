@@ -476,7 +476,7 @@ describe('Consumer', () => {
       sandbox.assert.calledWith(sqs.changeMessageVisibility, {
         QueueUrl: 'some-queue-url',
         ReceiptHandle: 'receipt-handle',
-        VisibilityTimeout: 10
+        VisibilityTimeout: 2
       });
 
     });
