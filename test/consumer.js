@@ -153,6 +153,25 @@ describe('Consumer', () => {
       assert.equal(err.region, receiveErr.region);
     });
 
+    it('fires a timeout event if handler function takes too long', async () => {
+      const handleMessageTimeout = 500;
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: () => new Promise((resolve) => setTimeout(() => resolve(), 1000)),
+        handleMessageTimeout,
+        sqs,
+        authenticationErrorTimeout: 20
+      });
+
+      consumer.start();
+      const err = await pEvent(consumer, 'timeout_error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, `Message handler timed out after ${handleMessageTimeout}ms: Operation timed out.`);
+    });
+
     it('handles unexpected exceptions thrown by the handler function', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
