@@ -6,7 +6,7 @@ import * as SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
-import { SQSError } from './sqsError';
+import { SQSError, TimeoutError } from './errors';
 
 type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
 type SQSMessage = SQS.Types.Message;
@@ -16,6 +16,21 @@ const requiredOptions = [
   'queueUrl',
   'handleMessage'
 ];
+
+interface TimeoutResonse {
+  timeout: NodeJS.Timeout;
+  pending: Promise<void>;
+}
+
+function createTimeout(duration: number): TimeoutResonse[] {
+  let timeout;
+  const pending = new Promise((_, reject) => {
+    timeout = setTimeout((): void => {
+      reject(new TimeoutError());
+    }, duration);
+  });
+  return [timeout, pending];
+}
 
 function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
@@ -64,12 +79,14 @@ export interface ConsumerOptions {
   terminateVisibilityTimeout?: boolean;
   sqs?: SQS;
   region?: string;
+  handleMessageTimeout?: number;
   handleMessage(message: SQSMessage): Promise<void>;
 }
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
+  private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
   private stopped: boolean;
@@ -86,6 +103,7 @@ export class Consumer extends EventEmitter {
 
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
+    this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.stopped = true;
@@ -183,11 +201,23 @@ export class Consumer extends EventEmitter {
   }
 
   private async executeHandler(message: SQSMessage): Promise<void> {
+    let timeout;
+    let pending;
     try {
-      await this.handleMessage(message);
+      if (this.handleMessageTimeout) {
+        [timeout, pending] = createTimeout(this.handleMessageTimeout);
+        await Promise.race([
+          this.handleMessage(message),
+          pending
+        ]);
+      } else {
+        await this.handleMessage(message);
+      }
     } catch (err) {
       err.message = `Unexpected message handler failure: ${err.message}`;
       throw err;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -204,6 +234,8 @@ export class Consumer extends EventEmitter {
   private emitError(err: Error, message: SQSMessage): void {
     if (err.name === SQSError.name) {
       this.emit('error', err, message);
+    } else if (err instanceof TimeoutError) {
+      this.emit('timeout_error', err, message);
     } else {
       this.emit('processing_error', err, message);
     }
