@@ -31,7 +31,6 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
-    "@bbc/ibl-repo-badges": "^1.0.1",
     "@types/aws-sdk": "^2.7.0",
     "@types/chai": "^4.1.4",
     "@types/mocha": "^2.2.43",
