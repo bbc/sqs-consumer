@@ -124,11 +124,11 @@ export class Consumer extends EventEmitter {
     return new Consumer(options);
   }
 
-  public start(): void {
+  public async start(): Promise<void> {
     if (this.stopped) {
       debug('Starting consumer');
       this.stopped = false;
-      this.poll();
+      await this.poll();
     }
   }
 
@@ -150,7 +150,7 @@ export class Consumer extends EventEmitter {
       }
     }
 
-    this.poll();
+    await this.poll();
   }
 
   private async processMessage(message: SQSMessage): Promise<void> {
@@ -259,13 +259,13 @@ export class Consumer extends EventEmitter {
       };
 
       const response = await this.receiveMessage(receiveParams);
-      this.handleSqsResponse(response);
+      await this.handleSqsResponse(response);
 
     } catch (err) {
       this.emit('error', err);
       if (isAuthenticationError(err)) {
         debug('There was an authentication error. Pausing before retrying.');
-        setTimeout(() => this.poll(), this.authenticationErrorTimeout);
+        setTimeout(async () => this.poll(), await this.authenticationErrorTimeout);
       }
     }
   }
