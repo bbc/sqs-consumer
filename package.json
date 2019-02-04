@@ -12,7 +12,7 @@
     "pretest": "npm run build",
     "test": "mocha",
     "posttest": "npm run lint",
-    "lint": "tslint --project tsconfig.json --format stylish",
+    "lint": "tslint --project tsconfig.json",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "badge": "ibl-repo-badges ibl-bundles-api coverage/coverage-summary.json"
   },
@@ -48,7 +48,7 @@
     "p-event": "^2.1.0",
     "sinon": "^4.4.8",
     "ts-node": "^3.3.0",
-    "tslint": "^5.8.0",
+    "tslint": "^5.12.1",
     "tslint-config-airbnb": "^5.3.1",
     "tslint-microsoft-contrib": "^5.0.3",
     "typescript": "^2.6.1"
