@@ -13,7 +13,6 @@
     "test": "mocha",
     "lint": "tslint --project tsconfig.json",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
-    "badge": "ibl-repo-badges ibl-bundles-api coverage/coverage-summary.json",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
     "posttest": "npm run lint"
   },
@@ -38,9 +37,7 @@
     "@types/node": "^10.12.18",
     "@types/sinon": "^4.0.0",
     "@types/typescript": "^2.0.0",
-    "babel-eslint": "^8.2.2",
     "chai": "^4.2.0",
-    "istanbul": "^0.4.1",
     "ts-node": "^3.3.0",
     "tslint": "^5.12.1",
     "tslint-config-airbnb": "^5.3.1",

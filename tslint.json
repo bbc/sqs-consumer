@@ -29,6 +29,7 @@
       "member-variable-declaration"
     ],
     "function-name": false,
+    "no-submodule-imports": false,
     "prefer-type-cast": false,
     "match-default-export-name": false,
     "export-name": false,

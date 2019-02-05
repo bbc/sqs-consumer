@@ -1,6 +1,5 @@
 const debug = require('debug')('sqs-consumer');
 
-// tslint:disable:no-submodule-imports
 import { AWSError } from 'aws-sdk';
 import * as SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
