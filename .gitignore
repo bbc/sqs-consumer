@@ -3,3 +3,4 @@ test.js
 coverage
 package-lock.json
 dist
+.nyc_output

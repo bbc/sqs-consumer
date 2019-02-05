@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,10 +11,11 @@
     "prepublish": "npm run build",
     "pretest": "npm run build",
     "test": "mocha",
-    "posttest": "npm run lint",
     "lint": "tslint --project tsconfig.json",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
-    "badge": "ibl-repo-badges ibl-bundles-api coverage/coverage-summary.json"
+    "badge": "ibl-repo-badges ibl-bundles-api coverage/coverage-summary.json",
+    "lcov": "nyc mocha && nyc report --reporter=lcov",
+    "posttest": "npm run lint"
   },
   "repository": {
     "type": "git",
@@ -39,23 +40,21 @@
     "@types/typescript": "^2.0.0",
     "babel-eslint": "^8.2.2",
     "chai": "^4.2.0",
-    "codeclimate-test-reporter": "0.4.1",
-    "eslint": "^4.1.1",
-    "eslint-config-iplayer-es6": "^3.1.0",
     "istanbul": "^0.4.1",
-    "mocha": "^2.1.0",
-    "nyc": "^11.2.1",
-    "p-event": "^2.1.0",
-    "sinon": "^4.4.8",
     "ts-node": "^3.3.0",
     "tslint": "^5.12.1",
     "tslint-config-airbnb": "^5.3.1",
     "tslint-microsoft-contrib": "^5.0.3",
-    "typescript": "^2.6.1"
+    "typescript": "^2.6.1",
+    "codeclimate-test-reporter": "^0.5.1",
+    "mocha": "^5.2.0",
+    "nyc": "^13.1.0",
+    "p-event": "^2.1.0",
+    "sinon": "^7.2.2"
   },
   "dependencies": {
-    "aws-sdk": "^2.100.0",
-    "debug": "^2.1.0"
+    "aws-sdk": "^2.393.0",
+    "debug": "^4.1.1"
   },
   "nyc": {
     "include": [
