@@ -1,10 +1,10 @@
 'use strict';
 
-function isMethod(propertyName, value) {
+function isMethod(propertyName: string, value: any): boolean {
   return propertyName !== 'constructor' && typeof value === 'function';
 }
 
-module.exports = (obj) => {
+export function autoBind(obj: object): void {
   const propertyNames = Object.getOwnPropertyNames(obj.constructor.prototype);
   propertyNames.forEach((propertyName) => {
     const value = obj[propertyName];
@@ -12,4 +12,4 @@ module.exports = (obj) => {
       obj[propertyName] = value.bind(obj);
     }
   });
-};
+}
