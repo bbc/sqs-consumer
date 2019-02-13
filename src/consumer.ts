@@ -88,7 +88,7 @@ export interface ConsumerOptions {
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
-  private handleMessageBatch: (message: SQSMessage) => Promise<void>;
+  private handleMessageBatch: (message: SQSMessage[]) => Promise<void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
