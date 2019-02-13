@@ -16,7 +16,7 @@ npm install sqs-consumer --save
 ## Usage
 
 ```js
-const Consumer = require('sqs-consumer');
+const { Consumer } = require('sqs-consumer');
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',

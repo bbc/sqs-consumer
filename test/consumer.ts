@@ -68,7 +68,7 @@ describe('Consumer', () => {
 
   it('requires a queueUrl to be set', () => {
     assert.throws(() => {
-      new Consumer({
+      Consumer.create({
         region: 'some-region',
         handleMessage
       });
