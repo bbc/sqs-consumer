@@ -123,11 +123,11 @@ export class Consumer extends EventEmitter {
     return new Consumer(options);
   }
 
-  public async start(): Promise<void> {
+  public start(): void {
     if (this.stopped) {
       debug('Starting consumer');
       this.stopped = false;
-      await this.poll();
+      this.poll();
     }
   }
 
@@ -148,8 +148,6 @@ export class Consumer extends EventEmitter {
         this.emit('empty');
       }
     }
-
-    await this.poll();
   }
 
   private async processMessage(message: SQSMessage): Promise<void> {
@@ -244,32 +242,32 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async poll(): Promise<void> {
+  private poll(): void {
     if (this.stopped) {
       this.emit('stopped');
       return;
     }
 
     debug('Polling for messages');
-    try {
-      const receiveParams = {
-        QueueUrl: this.queueUrl,
-        AttributeNames: this.attributeNames,
-        MessageAttributeNames: this.messageAttributeNames,
-        MaxNumberOfMessages: this.batchSize,
-        WaitTimeSeconds: this.waitTimeSeconds,
-        VisibilityTimeout: this.visibilityTimeout
-      };
+    const receiveParams = {
+      QueueUrl: this.queueUrl,
+      AttributeNames: this.attributeNames,
+      MessageAttributeNames: this.messageAttributeNames,
+      MaxNumberOfMessages: this.batchSize,
+      WaitTimeSeconds: this.waitTimeSeconds,
+      VisibilityTimeout: this.visibilityTimeout
+    };
 
-      const response = await this.receiveMessage(receiveParams);
-      await this.handleSqsResponse(response);
-
-    } catch (err) {
-      this.emit('error', err);
-      if (isAuthenticationError(err)) {
-        debug('There was an authentication error. Pausing before retrying.');
-        setTimeout(async () => this.poll(), await this.authenticationErrorTimeout);
-      }
-    }
+    this.receiveMessage(receiveParams)
+      .then(this.handleSqsResponse)
+      .catch((err) => {
+        this.emit('error', err);
+        if (isAuthenticationError(err)) {
+          debug('There was an authentication error. Pausing before retrying.');
+          setTimeout(this.poll, this.authenticationErrorTimeout);
+        }
+        return;
+      });
+    this.poll();
   }
 }

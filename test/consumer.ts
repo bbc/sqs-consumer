@@ -4,7 +4,7 @@ import * as pEvent from 'p-event';
 import * as sinon from 'sinon';
 import { Consumer } from '../src/index';
 
-const sandbox = sinon.sandbox.create();
+const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
 
