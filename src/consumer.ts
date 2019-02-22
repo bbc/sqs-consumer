@@ -260,6 +260,9 @@ export class Consumer extends EventEmitter {
 
     this.receiveMessage(receiveParams)
       .then(this.handleSqsResponse)
+      .then(() => {
+        this.poll();
+      })
       .catch((err) => {
         this.emit('error', err);
         if (isAuthenticationError(err)) {
@@ -268,6 +271,5 @@ export class Consumer extends EventEmitter {
         }
         return;
       });
-    this.poll();
   }
 }
