@@ -43,9 +43,9 @@ function assertOptions(options: ConsumerOptions): void {
   }
 }
 
-function isAuthenticationError(err: Error): Boolean {
+function isConnectionError(err: Error): Boolean {
   if (err instanceof SQSError) {
-    return (err.statusCode === 403 || err.code === 'CredentialsError');
+    return (err.statusCode === 403 || err.code === 'CredentialsError' || err.code === 'UnknownEndpoint');
   }
   return false;
 }
@@ -265,7 +265,7 @@ export class Consumer extends EventEmitter {
       })
       .catch((err) => {
         this.emit('error', err);
-        if (isAuthenticationError(err)) {
+        if (isConnectionError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
           setTimeout(this.poll, this.authenticationErrorTimeout);
         }

@@ -288,6 +288,29 @@ describe('Consumer', () => {
       });
     });
 
+    it('waits before repolling when a UnknownEndpoint error occurs', async () => {
+      const unknownEndpointErr = {
+        code: 'UnknownEndpoint',
+        message: 'Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.'
+      };
+      sqs.receiveMessage = stubReject(unknownEndpointErr);
+
+      return new Promise((resolve) => {
+        const timings = [];
+        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
+
+        errorListener.onThirdCall().callsFake(() => {
+          consumer.stop();
+          sandbox.assert.calledThrice(sqs.receiveMessage);
+          assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
+          resolve();
+        });
+
+        consumer.on('error', errorListener);
+        consumer.start();
+      });
+    });
+
     it('fires a message_received event when a message is received', async () => {
       consumer.start();
       const message = await pEvent(consumer, 'message_received');
