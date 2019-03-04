@@ -1,26 +1,39 @@
-'use strict';
+import { assert } from 'chai';
+import * as pEvent from 'p-event';
 
-const { assert } = require('chai');
-const pEvent = require('p-event');
+import * as sinon from 'sinon';
+import { Consumer } from '../src/index';
 
-const Consumer = require('..');
-
-const sandbox = require('sinon').sandbox.create();
+const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
 
-function stubResolve(value) {
+function stubResolve(value?: any): any {
   return sandbox
     .stub()
     .returns({ promise: sandbox.stub().resolves(value) });
 }
 
-function stubReject(value) {
+function stubReject(value?: any): any {
   return sandbox
     .stub()
     .returns({ promise: sandbox.stub().rejects(value) });
 }
 
+class MockSQSError extends Error {
+  code: string;
+  statusCode: number;
+  region: string;
+  hostname: string;
+  time: Date;
+  retryable: boolean;
+
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+// tslint:disable:no-unused-expression
 describe('Consumer', () => {
   let consumer;
   let handleMessage;
@@ -55,7 +68,7 @@ describe('Consumer', () => {
 
   it('requires a queueUrl to be set', () => {
     assert.throws(() => {
-      new Consumer({
+      Consumer.create({
         region: 'some-region',
         handleMessage
       });
@@ -65,6 +78,7 @@ describe('Consumer', () => {
   it('requires a handleMessage function to be set', () => {
     assert.throws(() => {
       new Consumer({
+        handleMessage: undefined,
         region: 'some-region',
         queueUrl: 'some-queue-url'
       });
@@ -95,7 +109,7 @@ describe('Consumer', () => {
 
   describe('.create', () => {
     it('creates a new instance of a Consumer object', () => {
-      const consumer = Consumer.create({
+      const instance = Consumer.create({
         region: 'some-region',
         queueUrl: 'some-queue-url',
         batchSize: 1,
@@ -104,7 +118,7 @@ describe('Consumer', () => {
         handleMessage
       });
 
-      assert.instanceOf(consumer, Consumer);
+      assert.instanceOf(instance, Consumer);
     });
   });
 
@@ -124,11 +138,11 @@ describe('Consumer', () => {
     });
 
     it('retains sqs error information', async () => {
-      const receiveErr = new Error('Receive error');
+      const receiveErr = new MockSQSError('Receive error');
       receiveErr.code = 'short code';
       receiveErr.retryable = false;
       receiveErr.statusCode = 403;
-      receiveErr.time = 'original message';
+      receiveErr.time = new Date();
       receiveErr.hostname = 'hostname';
       receiveErr.region = 'eu-west-1';
 
@@ -146,6 +160,25 @@ describe('Consumer', () => {
       assert.equal(err.time, receiveErr.time);
       assert.equal(err.hostname, receiveErr.hostname);
       assert.equal(err.region, receiveErr.region);
+    });
+
+    it('fires a timeout event if handler function takes too long', async () => {
+      const handleMessageTimeout = 500;
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 1000)),
+        handleMessageTimeout,
+        sqs,
+        authenticationErrorTimeout: 20
+      });
+
+      consumer.start();
+      const err = await pEvent(consumer, 'timeout_error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, `Message handler timed out after ${handleMessageTimeout}ms: Operation timed out.`);
     });
 
     it('handles unexpected exceptions thrown by the handler function', async () => {
@@ -520,7 +553,7 @@ describe('Consumer', () => {
     });
 
     it('fires a stopped event only once when stopped multiple times', async () => {
-      const handleStop = sandbox.stub().returns();
+      const handleStop = sandbox.stub().returns(null);
 
       consumer.on('stopped', handleStop);
 
@@ -539,7 +572,7 @@ describe('Consumer', () => {
 
     it('fires a stopped event a second time if started and stopped twice', async () => {
       return new Promise((resolve) => {
-        const handleStop = sandbox.stub().returns().onSecondCall().callsFake(() => {
+        const handleStop = sandbox.stub().returns(null).onSecondCall().callsFake(() => {
           sandbox.assert.calledTwice(handleStop);
           resolve();
         });

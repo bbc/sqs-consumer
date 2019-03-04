@@ -1,13 +1,19 @@
 {
   "name": "sqs-consumer",
-  "version": "4.0.0",
+  "version": "5.0.1",
   "description": "Build SQS-based Node applications without the boilerplate",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "npm run clean && tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -fr dist/*",
+    "prepublish": "npm run build",
+    "pretest": "npm run build",
     "test": "mocha",
+    "lint": "tslint --project tsconfig.json",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
-    "lint": "eslint .",
     "posttest": "npm run lint"
   },
   "repository": {
@@ -25,23 +31,39 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
+    "@types/aws-sdk": "^2.7.0",
+    "@types/chai": "^4.1.4",
+    "@types/mocha": "^2.2.43",
+    "@types/node": "^10.12.18",
+    "@types/sinon": "^4.0.0",
+    "@types/typescript": "^2.0.0",
     "chai": "^4.2.0",
+    "ts-node": "^3.3.0",
+    "tslint": "^5.12.1",
+    "tslint-config-airbnb": "^5.3.1",
+    "tslint-microsoft-contrib": "^5.0.3",
+    "typescript": "^2.6.1",
     "codeclimate-test-reporter": "^0.5.1",
-    "eslint": "^4.19.1",
-    "eslint-config-iplayer": "^6.2.1",
     "mocha": "^5.2.0",
     "nyc": "^13.1.0",
     "p-event": "^2.1.0",
     "sinon": "^7.2.2"
   },
   "dependencies": {
-    "aws-sdk": "^2.100.0",
+    "aws-sdk": "^2.393.0",
     "debug": "^4.1.1"
   },
-  "eslintConfig": {
-    "extends": "iplayer",
-    "parserOptions": {
-      "ecmaVersion": 2017
-    }
+  "nyc": {
+    "include": [
+      "src/**/*.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "sourceMap": true,
+    "instrument": true
   }
 }
