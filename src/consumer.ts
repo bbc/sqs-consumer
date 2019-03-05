@@ -258,18 +258,20 @@ export class Consumer extends EventEmitter {
       VisibilityTimeout: this.visibilityTimeout
     };
 
+    let pollingTimeout = 0;
     this.receiveMessage(receiveParams)
       .then(this.handleSqsResponse)
-      .then(() => {
-        this.poll();
-      })
       .catch((err) => {
         this.emit('error', err);
         if (isConnectionError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
-          setTimeout(this.poll, this.authenticationErrorTimeout);
+          pollingTimeout = this.authenticationErrorTimeout;
         }
         return;
+      }).then(() => {
+        setTimeout(this.poll, pollingTimeout);
+      }).catch((err) => {
+        this.emit('error', err);
       });
   }
 }
