@@ -54,7 +54,7 @@ If you need to specify your credentials manually, you can use a pre-configured i
 
 
 ```js
-const Consumer = require('sqs-consumer');
+const { Consumer } = require('sqs-consumer');
 const AWS = require('aws-sdk');
 
 AWS.config.update({
