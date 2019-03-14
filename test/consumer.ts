@@ -288,6 +288,25 @@ describe('Consumer', () => {
       });
     });
 
+    it('waits before repolling when a 403 error occurs', async () => {
+      const invalidSignatureErr = {
+        statusCode: 503,
+        message: 'Service Unavailable'
+      };
+      sqs.receiveMessage = stubReject(invalidSignatureErr);
+
+      return new Promise((resolve) => {
+        const errorListener = sandbox.stub();
+        errorListener.onFirstCall().callsFake(() => {
+          assert.equal(consumer.stopped, true);
+          resolve();
+        });
+
+        consumer.on('error', errorListener);
+        consumer.start();
+      });
+    });
+
     it('fires a message_received event when a message is received', async () => {
       consumer.start();
       const message = await pEvent(consumer, 'message_received');

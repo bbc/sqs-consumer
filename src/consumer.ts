@@ -264,14 +264,14 @@ export class Consumer extends EventEmitter {
         this.poll();
       })
       .catch((err) => {
-        this.emit('error', err);
         if (isAuthenticationError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
           setTimeout(this.poll, this.authenticationErrorTimeout);
         } else {
-          debug('Stopped consumer due to polling error.')
+          debug('Stopped consumer due to polling error.');
           this.stopped = true;
         }
+        this.emit('error', err);
         return;
       });
   }
