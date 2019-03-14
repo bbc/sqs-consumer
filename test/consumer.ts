@@ -288,7 +288,7 @@ describe('Consumer', () => {
       });
     });
 
-    it('waits before repolling when a 403 error occurs', async () => {
+    it('accurately sets consumer.stopped to true after failing due to an unhandled error', async () => {
       const invalidSignatureErr = {
         statusCode: 503,
         message: 'Service Unavailable'
