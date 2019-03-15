@@ -119,6 +119,10 @@ export class Consumer extends EventEmitter {
     autoBind(this);
   }
 
+  public get isRunning(): boolean {
+      return this.stopped !== true;
+  }
+
   public static create(options: ConsumerOptions): Consumer {
     return new Consumer(options);
   }
