@@ -120,7 +120,7 @@ export class Consumer extends EventEmitter {
   }
 
   public get isRunning(): boolean {
-      return this.stopped !== true;
+      return !this.stopped;
   }
 
   public static create(options: ConsumerOptions): Consumer {
