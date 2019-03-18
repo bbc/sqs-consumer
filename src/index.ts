@@ -1,1 +1,1 @@
-export { Consumer } from './consumer';
+export { Consumer, ConsumerOptions } from './consumer';
