@@ -115,6 +115,10 @@ Start polling the queue for messages.
 
 Stop polling the queue for messages.
 
+### `consumer.isRunning`  
+
+Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
+
 ### Events
 
 Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emits the following events:

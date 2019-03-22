@@ -609,4 +609,18 @@ describe('Consumer', () => {
       });
     });
   });
+
+  describe('isRunning', async () => {
+    it('returns true if the consumer is polling', () => {
+      consumer.start();
+      assert.isTrue(consumer.isRunning);
+      consumer.stop();
+    });
+
+    it('returns false if the consumer is not polling', () => {
+      consumer.start();
+      consumer.stop();
+      assert.isFalse(consumer.isRunning);
+    });
+  });
 });
