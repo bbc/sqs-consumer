@@ -1,11 +1,12 @@
-const debug = require('debug')('sqs-consumer');
-
 import { AWSError } from 'aws-sdk';
 import * as SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
+import debug from 'debug';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
+
+const log = debug('sqs-consumer');
 
 type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
 type SQSMessage = SQS.Types.Message;
@@ -129,20 +130,20 @@ export class Consumer extends EventEmitter {
 
   public start(): void {
     if (this.stopped) {
-      debug('Starting consumer');
+      log('Starting consumer');
       this.stopped = false;
       this.poll();
     }
   }
 
   public stop(): void {
-    debug('Stopping consumer');
+    log('Stopping consumer');
     this.stopped = true;
   }
 
   private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
-    debug('Received SQS response');
-    debug(response);
+    log('Received SQS response');
+    log(response);
 
     if (response) {
       if (hasMessages(response)) {
@@ -185,7 +186,7 @@ export class Consumer extends EventEmitter {
   }
 
   private async deleteMessage(message: SQSMessage): Promise<void> {
-    debug('Deleting message %s', message.MessageId);
+    log('Deleting message %s', message.MessageId);
 
     const deleteParams = {
       QueueUrl: this.queueUrl,
@@ -252,7 +253,7 @@ export class Consumer extends EventEmitter {
       return;
     }
 
-    debug('Polling for messages');
+    log('Polling for messages');
     const receiveParams = {
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
@@ -268,7 +269,7 @@ export class Consumer extends EventEmitter {
       .catch((err) => {
         this.emit('error', err);
         if (isConnectionError(err)) {
-          debug('There was an authentication error. Pausing before retrying.');
+          log('There was an authentication error. Pausing before retrying.');
           pollingTimeout = this.authenticationErrorTimeout;
         }
         return;
