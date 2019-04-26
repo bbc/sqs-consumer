@@ -36,7 +36,7 @@ function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
     const possibilities = option.split('|');
     if (!possibilities.find((p) => options[p])) {
-      throw new Error('Missing SQS consumer option [' + possibilities.join(' or ') + '].');
+      throw new Error(`Missing SQS consumer option [ ${possibilities.join(' or ')} ].`);
     }
   });
 
