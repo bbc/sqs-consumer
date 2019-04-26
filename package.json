@@ -31,26 +31,25 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/aws-sdk": "^2.7.0",
     "@types/chai": "^4.1.4",
     "@types/mocha": "^2.2.43",
     "@types/node": "^10.12.18",
     "@types/sinon": "^4.0.0",
     "@types/typescript": "^2.0.0",
     "chai": "^4.2.0",
-    "ts-node": "^3.3.0",
-    "tslint": "^5.12.1",
-    "tslint-config-airbnb": "^5.3.1",
-    "tslint-microsoft-contrib": "^5.0.3",
-    "typescript": "^2.6.1",
     "codeclimate-test-reporter": "^0.5.1",
     "mocha": "^5.2.0",
     "nyc": "^13.1.0",
     "p-event": "^2.1.0",
-    "sinon": "^7.2.2"
+    "sinon": "^7.2.2",
+    "ts-node": "^3.3.0",
+    "tslint": "^5.12.1",
+    "tslint-config-airbnb": "^5.3.1",
+    "tslint-microsoft-contrib": "^5.0.3",
+    "typescript": "^2.6.1"
   },
   "dependencies": {
-    "aws-sdk": "^2.393.0",
+    "aws-sdk": "^2.443.0",
     "debug": "^4.1.1"
   },
   "nyc": {
