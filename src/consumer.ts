@@ -13,7 +13,8 @@ type ReceiveMessageRequest = SQS.Types.ReceiveMessageRequest;
 
 const requiredOptions = [
   'queueUrl',
-  'handleMessage'
+  // only one of handleMessage / handleMessagesBatch is required
+  'handleMessage|handleMessageBatch'
 ];
 
 interface TimeoutResonse {
@@ -33,8 +34,9 @@ function createTimeout(duration: number): TimeoutResonse[] {
 
 function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
-    if (!options[option]) {
-      throw new Error(`Missing SQS consumer option ['${option}'].`);
+    const possibilities = option.split('|');
+    if (!possibilities.find((p) => options[p])) {
+      throw new Error(`Missing SQS consumer option [ ${possibilities.join(' or ')} ].`);
     }
   });
 
@@ -79,12 +81,14 @@ export interface ConsumerOptions {
   sqs?: SQS;
   region?: string;
   handleMessageTimeout?: number;
-  handleMessage(message: SQSMessage): Promise<void>;
+  handleMessage?(message: SQSMessage): Promise<void>;
+  handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
 }
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
+  private handleMessageBatch: (message: SQSMessage[]) => Promise<void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
@@ -99,9 +103,9 @@ export class Consumer extends EventEmitter {
   constructor(options: ConsumerOptions) {
     super();
     assertOptions(options);
-
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
+    this.handleMessageBatch = options.handleMessageBatch;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -120,7 +124,7 @@ export class Consumer extends EventEmitter {
   }
 
   public get isRunning(): boolean {
-      return !this.stopped;
+    return !this.stopped;
   }
 
   public static create(options: ConsumerOptions): Consumer {
@@ -146,7 +150,12 @@ export class Consumer extends EventEmitter {
 
     if (response) {
       if (hasMessages(response)) {
-        await Promise.all(response.Messages.map(this.processMessage));
+        if (this.handleMessageBatch) {
+          // prefer handling messages in batch when available
+          await this.processMessageBatch(response.Messages);
+        } else {
+          await Promise.all(response.Messages.map(this.processMessage));
+        }
         this.emit('response_processed');
       } else {
         this.emit('empty');
@@ -278,4 +287,72 @@ export class Consumer extends EventEmitter {
         this.emit('error', err);
       });
   }
+
+  private async processMessageBatch(messages: SQSMessage[]): Promise<void> {
+    messages.forEach((message) => {
+      this.emit('message_received', message);
+    });
+
+    try {
+      await this.executeBatchHandler(messages);
+      await this.deleteMessageBatch(messages);
+      messages.forEach((message) => {
+        this.emit('message_processed', message);
+      });
+    } catch (err) {
+      this.emit('error', err, messages);
+
+      if (this.terminateVisibilityTimeout) {
+        try {
+          await this.terminateVisabilityTimeoutBatch(messages);
+        } catch (err) {
+          this.emit('error', err, messages);
+        }
+      }
+    }
+  }
+
+  private async deleteMessageBatch(messages: SQSMessage[]): Promise<void> {
+    debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
+
+    const deleteParams = {
+      QueueUrl: this.queueUrl,
+      Entries: messages.map(message => ({
+        Id: message.MessageId,
+        ReceiptHandle: message.ReceiptHandle
+      }))
+    };
+
+    try {
+      await this.sqs
+        .deleteMessageBatch(deleteParams)
+        .promise();
+    } catch (err) {
+      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
+    }
+  }
+
+  private async executeBatchHandler(messages: SQSMessage[]): Promise<void> {
+    try {
+      await this.handleMessageBatch(messages);
+    } catch (err) {
+      err.message = `Unexpected message handler failure: ${err.message}`;
+      throw err;
+    }
+  }
+
+  private async terminateVisabilityTimeoutBatch(messages: SQSMessage[]): Promise<PromiseResult<any, AWSError>> {
+    const params = {
+      QueueUrl: this.queueUrl,
+      Entries: messages.map((message) => ({
+        Id: message.MessageId,
+        ReceiptHandle: message.ReceiptHandle,
+        VisibilityTimeout: 0
+      }))
+    };
+    return this.sqs
+      .changeMessageVisibilityBatch(params)
+      .promise();
+  }
+
 }

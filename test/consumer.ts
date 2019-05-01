@@ -37,6 +37,7 @@ class MockSQSError extends Error {
 describe('Consumer', () => {
   let consumer;
   let handleMessage;
+  let handleMessageBatch;
   let sqs;
   const response = {
     Messages: [{
@@ -48,9 +49,11 @@ describe('Consumer', () => {
 
   beforeEach(() => {
     handleMessage = sandbox.stub().resolves(null);
+    handleMessageBatch = sandbox.stub().resolves(null);
     sqs = sandbox.mock();
     sqs.receiveMessage = stubResolve(response);
     sqs.deleteMessage = stubResolve();
+    sqs.deleteMessageBatch = stubResolve();
     sqs.changeMessageVisibility = stubResolve();
 
     consumer = new Consumer({
@@ -75,7 +78,7 @@ describe('Consumer', () => {
     });
   });
 
-  it('requires a handleMessage function to be set', () => {
+  it('requires a handleMessage or handleMessagesBatch function to be set', () => {
     assert.throws(() => {
       new Consumer({
         handleMessage: undefined,
@@ -556,6 +559,43 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.callCount(handleMessage, 2);
+    });
+
+    it('calls the handleMessagesBatch function when a batch of messages is received', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessageBatch,
+        batchSize: 2,
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(handleMessageBatch, 1);
+    });
+
+    it('prefers handleMessagesBatch over handleMessage when both are set', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessageBatch,
+        handleMessage,
+        batchSize: 2,
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(handleMessageBatch, 1);
+      sandbox.assert.callCount(handleMessage, 0);
+
     });
   });
 
