@@ -1,5 +1,4 @@
 node_modules
 test.js
 coverage
-dist
 .nyc_output
