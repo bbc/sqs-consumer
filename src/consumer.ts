@@ -70,7 +70,7 @@ function hasMessages(response: ReceieveMessageResponse): boolean {
 }
 
 export interface ConsumerOptions {
-  queueUrl?: string;
+  queueUrl: string;
   attributeNames?: string[];
   messageAttributeNames?: string[];
   stopped?: boolean;
