@@ -7,6 +7,7 @@ import { Consumer } from '../src/index';
 const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
+const POLLING_TIMEOUT = 100;
 
 function stubResolve(value?: any): any {
   return sandbox
@@ -310,6 +311,31 @@ describe('Consumer', () => {
         });
 
         consumer.on('error', errorListener);
+        consumer.start();
+      });
+    });
+
+    it('waits before repolling when a polling timeout is set', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: 20,
+        pollingWaitTimeMs: 100
+      });
+      return new Promise((resolve) => {
+        const timings = [];
+        const timeListener = sandbox.stub().callsFake(() => timings.push(new Date()));
+
+        timeListener.onThirdCall().callsFake(() => {
+          consumer.stop();
+          sandbox.assert.calledThrice(sqs.receiveMessage);
+          assert.isAtLeast(timings[1] - timings[0], POLLING_TIMEOUT);
+          resolve();
+        });
+
+        consumer.on('message_received', timeListener);
         consumer.start();
       });
     });
