@@ -78,6 +78,7 @@ export interface ConsumerOptions {
   visibilityTimeout?: number;
   waitTimeSeconds?: number;
   authenticationErrorTimeout?: number;
+  pollingWaitTimeMs?: number;
   terminateVisibilityTimeout?: boolean;
   sqs?: SQS;
   region?: string;
@@ -98,6 +99,7 @@ export class Consumer extends EventEmitter {
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
+  private pollingWaitTimeMs: number;
   private terminateVisibilityTimeout: boolean;
   private sqs: SQS;
 
@@ -116,6 +118,7 @@ export class Consumer extends EventEmitter {
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
+    this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
 
     this.sqs = options.sqs || new SQS({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
@@ -272,18 +275,18 @@ export class Consumer extends EventEmitter {
       VisibilityTimeout: this.visibilityTimeout
     };
 
-    let pollingTimeout = 0;
+    let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage(receiveParams)
       .then(this.handleSqsResponse)
       .catch((err) => {
         this.emit('error', err);
         if (isConnectionError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
-          pollingTimeout = this.authenticationErrorTimeout;
+          currentPollingTimeout = this.authenticationErrorTimeout;
         }
         return;
       }).then(() => {
-        setTimeout(this.poll, pollingTimeout);
+      setTimeout(this.poll, currentPollingTimeout);
       }).catch((err) => {
         this.emit('error', err);
       });
