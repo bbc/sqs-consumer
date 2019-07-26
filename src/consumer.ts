@@ -77,6 +77,7 @@ export interface ConsumerOptions {
   batchSize?: number;
   visibilityTimeout?: number;
   waitTimeSeconds?: number;
+  pollingTimeout?:number;
   authenticationErrorTimeout?: number;
   terminateVisibilityTimeout?: boolean;
   sqs?: SQS;
@@ -97,6 +98,7 @@ export class Consumer extends EventEmitter {
   private batchSize: number;
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
+  private pollingTimeout:number;
   private authenticationErrorTimeout: number;
   private terminateVisibilityTimeout: boolean;
   private sqs: SQS;
@@ -115,8 +117,8 @@ export class Consumer extends EventEmitter {
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
+    this.pollingTimeout = options.pollingTimeout || 0;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
-
     this.sqs = options.sqs || new SQS({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
     });
@@ -272,7 +274,7 @@ export class Consumer extends EventEmitter {
       VisibilityTimeout: this.visibilityTimeout
     };
 
-    let pollingTimeout = 0;
+    let pollingTimeout = this.pollingTimeout;
     this.receiveMessage(receiveParams)
       .then(this.handleSqsResponse)
       .catch((err) => {
