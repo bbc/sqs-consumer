@@ -18,12 +18,12 @@ const requiredOptions = [
   'handleMessage|handleMessageBatch'
 ];
 
-interface TimeoutResonse {
+interface TimeoutResponse {
   timeout: NodeJS.Timeout;
   pending: Promise<void>;
 }
 
-function createTimeout(duration: number): TimeoutResonse[] {
+function createTimeout(duration: number): TimeoutResponse[] {
   let timeout;
   const pending = new Promise((_, reject) => {
     timeout = setTimeout((): void => {
