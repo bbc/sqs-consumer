@@ -142,4 +142,4 @@ Consumer will receive and delete messages from the SQS queue. Ensure `sqs:Receiv
 
 
 ### Contributing 
-See contributing [guildlines](https://github.com/bbc/sqs-consumer/blob/master/CONTRIBUTING.md)
+See contributing [guidelines](https://github.com/bbc/sqs-consumer/blob/master/CONTRIBUTING.md)
