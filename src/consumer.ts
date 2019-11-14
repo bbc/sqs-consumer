@@ -34,9 +34,9 @@ function createTimeout(duration: number): TimeoutResponse[] {
 }
 
 function assertOptions(options: ConsumerOptions): void {
-  requiredOptions.forEach((option) => {
+  requiredOptions.forEach(option => {
     const possibilities = option.split('|');
-    if (!possibilities.find((p) => options[p])) {
+    if (!possibilities.find(p => options[p])) {
       throw new Error(`Missing SQS consumer option [ ${possibilities.join(' or ')} ].`);
     }
   });
@@ -48,7 +48,7 @@ function assertOptions(options: ConsumerOptions): void {
 
 function isConnectionError(err: Error): Boolean {
   if (err instanceof SQSError) {
-    return (err.statusCode === 403 || err.code === 'CredentialsError' || err.code === 'UnknownEndpoint');
+    return err.statusCode === 403 || err.code === 'CredentialsError' || err.code === 'UnknownEndpoint';
   }
   return false;
 }
@@ -85,12 +85,16 @@ export interface ConsumerOptions {
   handleMessageTimeout?: number;
   handleMessage?(message: SQSMessage): Promise<void>;
   handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+  pollingStartedInstrumentCallback?(eventData: object): void;
+  pollingFinishedInstrumentCallback?(eventData: object): void;
 }
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
   private handleMessageBatch: (message: SQSMessage[]) => Promise<void>;
+  private pollingStartedInstrumentCallback?: (eventData: object) => void;
+  private pollingFinishedInstrumentCallback?: (eventData: object) => void;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
@@ -109,6 +113,8 @@ export class Consumer extends EventEmitter {
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
     this.handleMessageBatch = options.handleMessageBatch;
+    this.pollingStartedInstrumentCallback = options.pollingStartedInstrumentCallback;
+    this.pollingFinishedInstrumentCallback = options.pollingFinishedInstrumentCallback;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -120,9 +126,11 @@ export class Consumer extends EventEmitter {
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
 
-    this.sqs = options.sqs || new SQS({
-      region: options.region || process.env.AWS_REGION || 'eu-west-1'
-    });
+    this.sqs =
+      options.sqs ||
+      new SQS({
+        region: options.region || process.env.AWS_REGION || 'eu-west-1'
+      });
 
     autoBind(this);
   }
@@ -151,6 +159,10 @@ export class Consumer extends EventEmitter {
   private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
     debug('Received SQS response');
     debug(response);
+    this.pollingFinishedInstrumentCallback({
+      instanceId: process.env.HOSTNAME,
+      queueUrl: this.queueUrl
+    });
 
     if (response) {
       if (hasMessages(response)) {
@@ -189,9 +201,7 @@ export class Consumer extends EventEmitter {
 
   private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceieveMessageResponse> {
     try {
-      return await this.sqs
-        .receiveMessage(params)
-        .promise();
+      return await this.sqs.receiveMessage(params).promise();
     } catch (err) {
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
@@ -206,9 +216,7 @@ export class Consumer extends EventEmitter {
     };
 
     try {
-      await this.sqs
-        .deleteMessage(deleteParams)
-        .promise();
+      await this.sqs.deleteMessage(deleteParams).promise();
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
@@ -220,10 +228,7 @@ export class Consumer extends EventEmitter {
     try {
       if (this.handleMessageTimeout) {
         [timeout, pending] = createTimeout(this.handleMessageTimeout);
-        await Promise.race([
-          this.handleMessage(message),
-          pending
-        ]);
+        await Promise.race([this.handleMessage(message), pending]);
       } else {
         await this.handleMessage(message);
       }
@@ -266,6 +271,10 @@ export class Consumer extends EventEmitter {
     }
 
     debug('Polling for messages');
+    this.pollingStartedInstrumentCallback({
+      instanceId: process.env.HOSTNAME,
+      queueUrl: this.queueUrl
+    });
     const receiveParams = {
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
@@ -278,29 +287,31 @@ export class Consumer extends EventEmitter {
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage(receiveParams)
       .then(this.handleSqsResponse)
-      .catch((err) => {
+      .catch(err => {
         this.emit('error', err);
         if (isConnectionError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
         return;
-      }).then(() => {
-      setTimeout(this.poll, currentPollingTimeout);
-      }).catch((err) => {
+      })
+      .then(() => {
+        setTimeout(this.poll, currentPollingTimeout);
+      })
+      .catch(err => {
         this.emit('error', err);
       });
   }
 
   private async processMessageBatch(messages: SQSMessage[]): Promise<void> {
-    messages.forEach((message) => {
+    messages.forEach(message => {
       this.emit('message_received', message);
     });
 
     try {
       await this.executeBatchHandler(messages);
       await this.deleteMessageBatch(messages);
-      messages.forEach((message) => {
+      messages.forEach(message => {
         this.emit('message_processed', message);
       });
     } catch (err) {
@@ -317,7 +328,7 @@ export class Consumer extends EventEmitter {
   }
 
   private async deleteMessageBatch(messages: SQSMessage[]): Promise<void> {
-    debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
+    debug('Deleting messages %s', messages.map(msg => msg.MessageId).join(' ,'));
 
     const deleteParams = {
       QueueUrl: this.queueUrl,
@@ -328,9 +339,7 @@ export class Consumer extends EventEmitter {
     };
 
     try {
-      await this.sqs
-        .deleteMessageBatch(deleteParams)
-        .promise();
+      await this.sqs.deleteMessageBatch(deleteParams).promise();
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
@@ -348,15 +357,12 @@ export class Consumer extends EventEmitter {
   private async terminateVisabilityTimeoutBatch(messages: SQSMessage[]): Promise<PromiseResult<any, AWSError>> {
     const params = {
       QueueUrl: this.queueUrl,
-      Entries: messages.map((message) => ({
+      Entries: messages.map(message => ({
         Id: message.MessageId,
         ReceiptHandle: message.ReceiptHandle,
         VisibilityTimeout: 0
       }))
     };
-    return this.sqs
-      .changeMessageVisibilityBatch(params)
-      .promise();
+    return this.sqs.changeMessageVisibilityBatch(params).promise();
   }
-
 }
