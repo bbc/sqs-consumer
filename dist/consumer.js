@@ -96,10 +96,12 @@ class Consumer extends events_1.EventEmitter {
     async handleSqsResponse(response) {
         debug('Received SQS response');
         debug(response);
-        this.pollingFinishedInstrumentCallback({
-            instanceId: process.env.HOSTNAME,
-            queueUrl: this.queueUrl
-        });
+        if (this.pollingFinishedInstrumentCallback) {
+            this.pollingFinishedInstrumentCallback({
+                instanceId: process.env.HOSTNAME,
+                queueUrl: this.queueUrl
+            });
+        }
         if (response) {
             if (hasMessages(response)) {
                 if (this.handleMessageBatch) {
@@ -207,10 +209,12 @@ class Consumer extends events_1.EventEmitter {
             return;
         }
         debug('Polling for messages');
-        this.pollingStartedInstrumentCallback({
-            instanceId: process.env.HOSTNAME,
-            queueUrl: this.queueUrl
-        });
+        if (this.pollingStartedInstrumentCallback) {
+            this.pollingStartedInstrumentCallback({
+                instanceId: process.env.HOSTNAME,
+                queueUrl: this.queueUrl
+            });
+        }
         const receiveParams = {
             QueueUrl: this.queueUrl,
             AttributeNames: this.attributeNames,
