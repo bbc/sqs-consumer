@@ -51,8 +51,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.443.0",
-    "debug": "^4.1.1",
-    "lodash": "^4.17.15"
+    "debug": "^4.1.1"
   },
   "nyc": {
     "include": [

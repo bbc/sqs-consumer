@@ -5,7 +5,6 @@ import * as Debug from 'debug';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
-import _ from 'lodash';
 
 const debug = Debug('sqs-consumer');
 
@@ -73,7 +72,7 @@ function hasMessages(response: ReceieveMessageResponse): boolean {
 function addMessageUuidToError(error, message): void {
   try {
     const messageBody = JSON.parse(message.Body);
-    const messageUuid = _.get(messageBody, 'payload.uuid', '');
+    const messageUuid = messageBody && messageBody.payload && messageBody.payload.uuid;
 
     error.messageUuid = messageUuid;
   } catch (err) {}
