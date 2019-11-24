@@ -5,6 +5,7 @@ const Debug = require("debug");
 const events_1 = require("events");
 const bind_1 = require("./bind");
 const errors_1 = require("./errors");
+const lodash_1 = require("lodash");
 const debug = Debug('sqs-consumer');
 const requiredOptions = [
     'queueUrl',
@@ -49,6 +50,14 @@ function toSQSError(err, message) {
 }
 function hasMessages(response) {
     return response.Messages && response.Messages.length > 0;
+}
+function addMessageUuidToError(error, message) {
+    try {
+        const messageBody = JSON.parse(message.Body);
+        const messageUuid = lodash_1.default.get(messageBody, 'payload.uuid', '');
+        error.messageUuid = messageUuid;
+    }
+    catch (err) { }
 }
 class Consumer extends events_1.EventEmitter {
     constructor(options) {
@@ -171,6 +180,7 @@ class Consumer extends events_1.EventEmitter {
             }
         }
         catch (err) {
+            addMessageUuidToError(err, message);
             if (err instanceof errors_1.TimeoutError) {
                 err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
             }

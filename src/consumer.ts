@@ -5,6 +5,7 @@ import * as Debug from 'debug';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
+import _ from 'lodash';
 
 const debug = Debug('sqs-consumer');
 
@@ -67,6 +68,15 @@ function toSQSError(err: AWSError, message: string): SQSError {
 
 function hasMessages(response: ReceieveMessageResponse): boolean {
   return response.Messages && response.Messages.length > 0;
+}
+
+function addMessageUuidToError(error, message): void {
+  try {
+    const messageBody = JSON.parse(message.Body);
+    const messageUuid = _.get(messageBody, 'payload.uuid', '');
+
+    error.messageUuid = messageUuid;
+  } catch (err) {}
 }
 
 export interface ConsumerOptions {
@@ -236,6 +246,7 @@ export class Consumer extends EventEmitter {
         await this.handleMessage(message);
       }
     } catch (err) {
+      addMessageUuidToError(err, message);
       if (err instanceof TimeoutError) {
         err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
       } else {
