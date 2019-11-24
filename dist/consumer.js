@@ -5,7 +5,6 @@ const Debug = require("debug");
 const events_1 = require("events");
 const bind_1 = require("./bind");
 const errors_1 = require("./errors");
-const lodash_1 = require("lodash");
 const debug = Debug('sqs-consumer');
 const requiredOptions = [
     'queueUrl',
@@ -54,7 +53,7 @@ function hasMessages(response) {
 function addMessageUuidToError(error, message) {
     try {
         const messageBody = JSON.parse(message.Body);
-        const messageUuid = lodash_1.default.get(messageBody, 'payload.uuid', '');
+        const messageUuid = messageBody && messageBody.payload && messageBody.payload.uuid;
         error.messageUuid = messageUuid;
     }
     catch (err) { }
