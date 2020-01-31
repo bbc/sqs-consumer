@@ -304,7 +304,7 @@ export class Consumer extends EventEmitter {
         this.emit('message_processed', message);
       });
     } catch (err) {
-      this.emitError(err, messages);
+      this.emit('processing_error', err, message);
 
       if (this.terminateVisibilityTimeout) {
         try {
