@@ -358,6 +358,44 @@ describe('Consumer', () => {
       assert.equal(message, response.Messages[0]);
     });
 
+    it('handles deleteBeforeHandling', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: 20,
+        deleteBeforeHandling: true
+      });
+
+      handleMessage.resolves();
+
+      consumer.start();
+      const message = await pEvent(consumer, 'message_received');
+      consumer.stop();
+
+      assert.equal(message, response.Messages[0]);
+    });
+
+    it('handles deleteBeforeHandling in batch mode', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessageBatch,
+        sqs,
+        authenticationErrorTimeout: 20,
+        deleteBeforeHandling: true
+      });
+
+      handleMessage.resolves();
+
+      consumer.start();
+      const message = await pEvent(consumer, 'message_received');
+      consumer.stop();
+
+      assert.equal(message, response.Messages[0]);
+    });
+
     it('calls the handleMessage function when a message is received', async () => {
       consumer.start();
       await pEvent(consumer, 'message_processed');

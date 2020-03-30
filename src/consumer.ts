@@ -83,6 +83,7 @@ export interface ConsumerOptions {
   sqs?: SQS;
   region?: string;
   handleMessageTimeout?: number;
+  deleteBeforeHandling?: boolean;
   handleMessage?(message: SQSMessage): Promise<void>;
   handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
 }
@@ -101,6 +102,7 @@ export class Consumer extends EventEmitter {
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private terminateVisibilityTimeout: boolean;
+  private deleteBeforeHandling: boolean;
   private sqs: SQS;
 
   constructor(options: ConsumerOptions) {
@@ -119,6 +121,7 @@ export class Consumer extends EventEmitter {
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+    this.deleteBeforeHandling = options.deleteBeforeHandling || false;
 
     this.sqs = options.sqs || new SQS({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
@@ -171,8 +174,16 @@ export class Consumer extends EventEmitter {
     this.emit('message_received', message);
 
     try {
+      if (this.deleteBeforeHandling) {
+        await this.deleteMessage(message);
+      }
+
       await this.executeHandler(message);
-      await this.deleteMessage(message);
+
+      if (!this.deleteBeforeHandling) {
+        await this.deleteMessage(message);
+      }
+
       this.emit('message_processed', message);
     } catch (err) {
       this.emitError(err, message);
@@ -298,8 +309,16 @@ export class Consumer extends EventEmitter {
     });
 
     try {
+      if (this.deleteBeforeHandling) {
+        await this.deleteMessageBatch(messages);
+      }
+
       await this.executeBatchHandler(messages);
-      await this.deleteMessageBatch(messages);
+
+      if (!this.deleteBeforeHandling) {
+        await this.deleteMessageBatch(messages);
+      }
+
       messages.forEach((message) => {
         this.emit('message_processed', message);
       });
