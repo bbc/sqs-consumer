@@ -179,7 +179,7 @@ export class Consumer extends EventEmitter {
 
       if (this.terminateVisibilityTimeout) {
         try {
-          await this.terminateVisabilityTimeout(message);
+          await this.terminateVisibilityTimeout(message);
         } catch (err) {
           this.emit('error', err, message);
         }
@@ -239,7 +239,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async terminateVisabilityTimeout(message: SQSMessage): Promise<PromiseResult<any, AWSError>> {
+  private async terminateVisibilityTimeout(message: SQSMessage): Promise<PromiseResult<any, AWSError>> {
     return this.sqs
       .changeMessageVisibility({
         QueueUrl: this.queueUrl,
