@@ -308,7 +308,7 @@ export class Consumer extends EventEmitter {
 
       if (this.terminateVisibilityTimeout) {
         try {
-          await this.terminateVisabilityTimeoutBatch(messages);
+          await this.terminateVisibilityTimeoutBatch(messages);
         } catch (err) {
           this.emit('error', err, messages);
         }
@@ -345,7 +345,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async terminateVisabilityTimeoutBatch(messages: SQSMessage[]): Promise<PromiseResult<any, AWSError>> {
+  private async terminateVisibilityTimeoutBatch(messages: SQSMessage[]): Promise<PromiseResult<any, AWSError>> {
     const params = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
