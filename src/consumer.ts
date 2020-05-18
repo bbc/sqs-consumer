@@ -83,6 +83,7 @@ export interface ConsumerOptions {
   attributeNames?: string[];
   messageAttributeNames?: string[];
   stopped?: boolean;
+  concurencyLimit?: number;
   batchSize?: number;
   visibilityTimeout?: number;
   waitTimeSeconds?: number;
@@ -93,21 +94,24 @@ export interface ConsumerOptions {
   region?: string;
   handleMessageTimeout?: number;
   handleMessage?(message: SQSMessage): Promise<void>;
-  handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+  handleMessageBatch?(messages: SQSMessage[], consumer: Consumer): Promise<void>;
   pollingStartedInstrumentCallback?(eventData: object): void;
   pollingFinishedInstrumentCallback?(eventData: object): void;
+  batchSizeUpdatedInstrument?(eventData: object): void;
 }
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
-  private handleMessageBatch: (message: SQSMessage[]) => Promise<void>;
+  private handleMessageBatch: (message: SQSMessage[], consumer: Consumer) => Promise<void>;
   private pollingStartedInstrumentCallback?: (eventData: object) => void;
   private pollingFinishedInstrumentCallback?: (eventData: object) => void;
+  private batchSizeUpdatedInstrument?: (eventData: object) => void;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
   private stopped: boolean;
+  private concurencyLimit: number;
   private batchSize: number;
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
@@ -124,11 +128,13 @@ export class Consumer extends EventEmitter {
     this.handleMessageBatch = options.handleMessageBatch;
     this.pollingStartedInstrumentCallback = options.pollingStartedInstrumentCallback;
     this.pollingFinishedInstrumentCallback = options.pollingFinishedInstrumentCallback;
+    this.batchSizeUpdatedInstrument = options.batchSizeUpdatedInstrument;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.stopped = true;
     this.batchSize = options.batchSize || 1;
+    this.concurencyLimit = options.concurencyLimit || 30;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
@@ -165,14 +171,57 @@ export class Consumer extends EventEmitter {
     this.stopped = true;
   }
 
+  public async reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void> {
+    debug('Message from batch has finised');
+
+    this.concurencyLimit++;
+    this.updateBatchSize();
+
+    try {
+      if (error) throw error;
+
+      await this.deleteMessage(message);
+      this.emit('message_processed', message);
+    } catch (err) {
+      this.emitError(err, message);
+    }
+  }
+
+  private reportNumberOfMessagesReceived(numberOfMessages: number): void {
+    debug('decrementing next batch size');
+    this.concurencyLimit = this.concurencyLimit - numberOfMessages;
+    this.updateBatchSize();
+  }
+
+  private updateBatchSize(): void {
+    debug('Updating next batch size');
+
+    this.batchSize = Math.min(10, this.concurencyLimit);
+
+    // instrument current batch size
+    if (this.batchSizeUpdatedInstrument) {
+      this.batchSizeUpdatedInstrument({
+        instanceId: process.env.HOSTNAME,
+        queueUrl: this.queueUrl,
+        currentConcurencyLimit: this.concurencyLimit,
+        batchSize: this.batchSize
+      });
+    }
+  }
+
   private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
     debug('Received SQS response');
     debug(response);
 
+    const hasResponseWithMessages = !!response && hasMessages(response);
+    const numberOfMessages = hasResponseWithMessages ? response.Messages.length : 0;
+
     if (this.pollingFinishedInstrumentCallback) {
+      // instrument pod how many messages received
       this.pollingFinishedInstrumentCallback({
         instanceId: process.env.HOSTNAME,
-        queueUrl: this.queueUrl
+        queueUrl: this.queueUrl,
+        messagesReceived: numberOfMessages
       });
     }
 
@@ -287,35 +336,43 @@ export class Consumer extends EventEmitter {
     if (this.pollingStartedInstrumentCallback) {
       this.pollingStartedInstrumentCallback({
         instanceId: process.env.HOSTNAME,
-        queueUrl: this.queueUrl
+        queueUrl: this.queueUrl,
+        // instrument i am about to request this.batchSize messages
+        batchSize: this.batchSize
       });
     }
-    const receiveParams = {
-      QueueUrl: this.queueUrl,
-      AttributeNames: this.attributeNames,
-      MessageAttributeNames: this.messageAttributeNames,
-      MaxNumberOfMessages: this.batchSize,
-      WaitTimeSeconds: this.waitTimeSeconds,
-      VisibilityTimeout: this.visibilityTimeout
-    };
 
     let currentPollingTimeout = this.pollingWaitTimeMs;
-    this.receiveMessage(receiveParams)
-      .then(this.handleSqsResponse)
-      .catch(err => {
-        this.emit('error', err);
-        if (isConnectionError(err)) {
-          debug('There was an authentication error. Pausing before retrying.');
-          currentPollingTimeout = this.authenticationErrorTimeout;
-        }
-        return;
-      })
-      .then(() => {
-        setTimeout(this.poll, currentPollingTimeout);
-      })
-      .catch(err => {
-        this.emit('error', err);
-      });
+
+    if (this.batchSize > 0) {
+      const receiveParams = {
+        QueueUrl: this.queueUrl,
+        AttributeNames: this.attributeNames,
+        MessageAttributeNames: this.messageAttributeNames,
+        MaxNumberOfMessages: this.batchSize,
+        WaitTimeSeconds: this.waitTimeSeconds,
+        VisibilityTimeout: this.visibilityTimeout
+      };
+
+      this.receiveMessage(receiveParams)
+        .then(this.handleSqsResponse)
+        .catch(err => {
+          this.emit('error', err);
+          if (isConnectionError(err)) {
+            debug('There was an authentication error. Pausing before retrying.');
+            currentPollingTimeout = this.authenticationErrorTimeout;
+          }
+          return;
+        })
+        .then(() => {
+          setTimeout(this.poll, currentPollingTimeout);
+        })
+        .catch(err => {
+          this.emit('error', err);
+        });
+    } else {
+      setTimeout(this.poll, currentPollingTimeout);
+    }
   }
 
   private async processMessageBatch(messages: SQSMessage[]): Promise<void> {
@@ -323,61 +380,7 @@ export class Consumer extends EventEmitter {
       this.emit('message_received', message);
     });
 
-    try {
-      await this.executeBatchHandler(messages);
-      await this.deleteMessageBatch(messages);
-      messages.forEach(message => {
-        this.emit('message_processed', message);
-      });
-    } catch (err) {
-      this.emit('error', err, messages);
-
-      if (this.terminateVisibilityTimeout) {
-        try {
-          await this.terminateVisabilityTimeoutBatch(messages);
-        } catch (err) {
-          this.emit('error', err, messages);
-        }
-      }
-    }
-  }
-
-  private async deleteMessageBatch(messages: SQSMessage[]): Promise<void> {
-    debug('Deleting messages %s', messages.map(msg => msg.MessageId).join(' ,'));
-
-    const deleteParams = {
-      QueueUrl: this.queueUrl,
-      Entries: messages.map(message => ({
-        Id: message.MessageId,
-        ReceiptHandle: message.ReceiptHandle
-      }))
-    };
-
-    try {
-      await this.sqs.deleteMessageBatch(deleteParams).promise();
-    } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
-    }
-  }
-
-  private async executeBatchHandler(messages: SQSMessage[]): Promise<void> {
-    try {
-      await this.handleMessageBatch(messages);
-    } catch (err) {
-      err.message = `Unexpected message handler failure: ${err.message}`;
-      throw err;
-    }
-  }
-
-  private async terminateVisabilityTimeoutBatch(messages: SQSMessage[]): Promise<PromiseResult<any, AWSError>> {
-    const params = {
-      QueueUrl: this.queueUrl,
-      Entries: messages.map(message => ({
-        Id: message.MessageId,
-        ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: 0
-      }))
-    };
-    return this.sqs.changeMessageVisibilityBatch(params).promise();
+    this.reportNumberOfMessagesReceived(messages.length);
+    this.handleMessageBatch(messages, this);
   }
 }
