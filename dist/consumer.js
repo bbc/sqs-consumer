@@ -67,11 +67,13 @@ class Consumer extends events_1.EventEmitter {
         this.handleMessageBatch = options.handleMessageBatch;
         this.pollingStartedInstrumentCallback = options.pollingStartedInstrumentCallback;
         this.pollingFinishedInstrumentCallback = options.pollingFinishedInstrumentCallback;
+        this.batchSizeUpdatedInstrument = options.batchSizeUpdatedInstrument;
         this.handleMessageTimeout = options.handleMessageTimeout;
         this.attributeNames = options.attributeNames || [];
         this.messageAttributeNames = options.messageAttributeNames || [];
         this.stopped = true;
         this.batchSize = options.batchSize || 1;
+        this.concurencyLimit = options.concurencyLimit || 30;
         this.visibilityTimeout = options.visibilityTimeout;
         this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
         this.waitTimeSeconds = options.waitTimeSeconds || 20;
@@ -101,13 +103,49 @@ class Consumer extends events_1.EventEmitter {
         debug('Stopping consumer');
         this.stopped = true;
     }
+    async reportMessageFromBatchFinished(message, error) {
+        debug('Message from batch has finised');
+        this.concurencyLimit++;
+        this.updateBatchSize();
+        try {
+            if (error)
+                throw error;
+            await this.deleteMessage(message);
+            this.emit('message_processed', message);
+        }
+        catch (err) {
+            this.emitError(err, message);
+        }
+    }
+    reportNumberOfMessagesReceived(numberOfMessages) {
+        debug('decrementing next batch size');
+        this.concurencyLimit = this.concurencyLimit - numberOfMessages;
+        this.updateBatchSize();
+    }
+    updateBatchSize() {
+        debug('Updating next batch size');
+        this.batchSize = Math.min(10, this.concurencyLimit);
+        // instrument current batch size
+        if (this.batchSizeUpdatedInstrument) {
+            this.batchSizeUpdatedInstrument({
+                instanceId: process.env.HOSTNAME,
+                queueUrl: this.queueUrl,
+                currentConcurencyLimit: this.concurencyLimit,
+                batchSize: this.batchSize
+            });
+        }
+    }
     async handleSqsResponse(response) {
         debug('Received SQS response');
         debug(response);
+        const hasResponseWithMessages = !!response && hasMessages(response);
+        const numberOfMessages = hasResponseWithMessages ? response.Messages.length : 0;
         if (this.pollingFinishedInstrumentCallback) {
+            // instrument pod how many messages received
             this.pollingFinishedInstrumentCallback({
                 instanceId: process.env.HOSTNAME,
-                queueUrl: this.queueUrl
+                queueUrl: this.queueUrl,
+                messagesReceived: numberOfMessages
             });
         }
         if (response) {
@@ -221,93 +259,48 @@ class Consumer extends events_1.EventEmitter {
         if (this.pollingStartedInstrumentCallback) {
             this.pollingStartedInstrumentCallback({
                 instanceId: process.env.HOSTNAME,
-                queueUrl: this.queueUrl
+                queueUrl: this.queueUrl,
+                // instrument i am about to request this.batchSize messages
+                batchSize: this.batchSize
             });
         }
-        const receiveParams = {
-            QueueUrl: this.queueUrl,
-            AttributeNames: this.attributeNames,
-            MessageAttributeNames: this.messageAttributeNames,
-            MaxNumberOfMessages: this.batchSize,
-            WaitTimeSeconds: this.waitTimeSeconds,
-            VisibilityTimeout: this.visibilityTimeout
-        };
         let currentPollingTimeout = this.pollingWaitTimeMs;
-        this.receiveMessage(receiveParams)
-            .then(this.handleSqsResponse)
-            .catch(err => {
-            this.emit('error', err);
-            if (isConnectionError(err)) {
-                debug('There was an authentication error. Pausing before retrying.');
-                currentPollingTimeout = this.authenticationErrorTimeout;
-            }
-            return;
-        })
-            .then(() => {
+        if (this.batchSize > 0) {
+            const receiveParams = {
+                QueueUrl: this.queueUrl,
+                AttributeNames: this.attributeNames,
+                MessageAttributeNames: this.messageAttributeNames,
+                MaxNumberOfMessages: this.batchSize,
+                WaitTimeSeconds: this.waitTimeSeconds,
+                VisibilityTimeout: this.visibilityTimeout
+            };
+            this.receiveMessage(receiveParams)
+                .then(this.handleSqsResponse)
+                .catch(err => {
+                this.emit('error', err);
+                if (isConnectionError(err)) {
+                    debug('There was an authentication error. Pausing before retrying.');
+                    currentPollingTimeout = this.authenticationErrorTimeout;
+                }
+                return;
+            })
+                .then(() => {
+                setTimeout(this.poll, currentPollingTimeout);
+            })
+                .catch(err => {
+                this.emit('error', err);
+            });
+        }
+        else {
             setTimeout(this.poll, currentPollingTimeout);
-        })
-            .catch(err => {
-            this.emit('error', err);
-        });
+        }
     }
     async processMessageBatch(messages) {
         messages.forEach(message => {
             this.emit('message_received', message);
         });
-        try {
-            await this.executeBatchHandler(messages);
-            await this.deleteMessageBatch(messages);
-            messages.forEach(message => {
-                this.emit('message_processed', message);
-            });
-        }
-        catch (err) {
-            this.emit('error', err, messages);
-            if (this.terminateVisibilityTimeout) {
-                try {
-                    await this.terminateVisabilityTimeoutBatch(messages);
-                }
-                catch (err) {
-                    this.emit('error', err, messages);
-                }
-            }
-        }
-    }
-    async deleteMessageBatch(messages) {
-        debug('Deleting messages %s', messages.map(msg => msg.MessageId).join(' ,'));
-        const deleteParams = {
-            QueueUrl: this.queueUrl,
-            Entries: messages.map(message => ({
-                Id: message.MessageId,
-                ReceiptHandle: message.ReceiptHandle
-            }))
-        };
-        try {
-            await this.sqs.deleteMessageBatch(deleteParams).promise();
-        }
-        catch (err) {
-            throw toSQSError(err, `SQS delete message failed: ${err.message}`);
-        }
-    }
-    async executeBatchHandler(messages) {
-        try {
-            await this.handleMessageBatch(messages);
-        }
-        catch (err) {
-            err.message = `Unexpected message handler failure: ${err.message}`;
-            throw err;
-        }
-    }
-    async terminateVisabilityTimeoutBatch(messages) {
-        const params = {
-            QueueUrl: this.queueUrl,
-            Entries: messages.map(message => ({
-                Id: message.MessageId,
-                ReceiptHandle: message.ReceiptHandle,
-                VisibilityTimeout: 0
-            }))
-        };
-        return this.sqs.changeMessageVisibilityBatch(params).promise();
+        this.reportNumberOfMessagesReceived(messages.length);
+        this.handleMessageBatch(messages, this);
     }
 }
 exports.Consumer = Consumer;
