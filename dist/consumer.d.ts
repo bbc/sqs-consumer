@@ -6,6 +6,7 @@ export interface ConsumerOptions {
     attributeNames?: string[];
     messageAttributeNames?: string[];
     stopped?: boolean;
+    concurencyLimit?: number;
     batchSize?: number;
     visibilityTimeout?: number;
     waitTimeSeconds?: number;
@@ -16,9 +17,10 @@ export interface ConsumerOptions {
     region?: string;
     handleMessageTimeout?: number;
     handleMessage?(message: SQSMessage): Promise<void>;
-    handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+    handleMessageBatch?(messages: SQSMessage[], consumer: Consumer): Promise<void>;
     pollingStartedInstrumentCallback?(eventData: object): void;
     pollingFinishedInstrumentCallback?(eventData: object): void;
+    batchSizeUpdatedInstrument?(eventData: object): void;
 }
 export declare class Consumer extends EventEmitter {
     private queueUrl;
@@ -26,10 +28,12 @@ export declare class Consumer extends EventEmitter {
     private handleMessageBatch;
     private pollingStartedInstrumentCallback?;
     private pollingFinishedInstrumentCallback?;
+    private batchSizeUpdatedInstrument?;
     private handleMessageTimeout;
     private attributeNames;
     private messageAttributeNames;
     private stopped;
+    private concurencyLimit;
     private batchSize;
     private visibilityTimeout;
     private waitTimeSeconds;
@@ -42,6 +46,9 @@ export declare class Consumer extends EventEmitter {
     static create(options: ConsumerOptions): Consumer;
     start(): void;
     stop(): void;
+    reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void>;
+    private reportNumberOfMessagesReceived;
+    private updateBatchSize;
     private handleSqsResponse;
     private processMessage;
     private receiveMessage;
@@ -51,8 +58,5 @@ export declare class Consumer extends EventEmitter {
     private emitError;
     private poll;
     private processMessageBatch;
-    private deleteMessageBatch;
-    private executeBatchHandler;
-    private terminateVisabilityTimeoutBatch;
 }
 export {};
