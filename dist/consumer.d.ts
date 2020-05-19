@@ -12,6 +12,7 @@ export interface ConsumerOptions {
     waitTimeSeconds?: number;
     authenticationErrorTimeout?: number;
     pollingWaitTimeMs?: number;
+    pollingWaitTimeMsBatchSizeZero?: number;
     terminateVisibilityTimeout?: boolean;
     sqs?: SQS;
     region?: string;
@@ -39,6 +40,7 @@ export declare class Consumer extends EventEmitter {
     private waitTimeSeconds;
     private authenticationErrorTimeout;
     private pollingWaitTimeMs;
+    private pollingWaitTimeMsBatchSizeZero;
     private terminateVisibilityTimeout;
     private sqs;
     constructor(options: ConsumerOptions);
