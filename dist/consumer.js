@@ -79,6 +79,7 @@ class Consumer extends events_1.EventEmitter {
         this.waitTimeSeconds = options.waitTimeSeconds || 20;
         this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
         this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+        this.pollingWaitTimeMsBatchSizeZero = options.pollingWaitTimeMsBatchSizeZero || 5;
         this.sqs =
             options.sqs ||
                 new SQS({
@@ -292,7 +293,7 @@ class Consumer extends events_1.EventEmitter {
             });
         }
         else {
-            setTimeout(this.poll, currentPollingTimeout);
+            setTimeout(this.poll, this.pollingWaitTimeMsBatchSizeZero);
         }
     }
     async processMessageBatch(messages) {

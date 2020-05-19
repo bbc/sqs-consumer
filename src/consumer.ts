@@ -89,6 +89,7 @@ export interface ConsumerOptions {
   waitTimeSeconds?: number;
   authenticationErrorTimeout?: number;
   pollingWaitTimeMs?: number;
+  pollingWaitTimeMsBatchSizeZero?: number;
   terminateVisibilityTimeout?: boolean;
   sqs?: SQS;
   region?: string;
@@ -117,6 +118,7 @@ export class Consumer extends EventEmitter {
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
+  private pollingWaitTimeMsBatchSizeZero: number;
   private terminateVisibilityTimeout: boolean;
   private sqs: SQS;
 
@@ -140,6 +142,7 @@ export class Consumer extends EventEmitter {
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+    this.pollingWaitTimeMsBatchSizeZero = options.pollingWaitTimeMsBatchSizeZero || 5;
 
     this.sqs =
       options.sqs ||
@@ -371,7 +374,7 @@ export class Consumer extends EventEmitter {
           this.emit('error', err);
         });
     } else {
-      setTimeout(this.poll, currentPollingTimeout);
+      setTimeout(this.poll, this.pollingWaitTimeMsBatchSizeZero);
     }
   }
 
