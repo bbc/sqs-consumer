@@ -298,21 +298,19 @@ describe('Consumer', () => {
         message: 'Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.'
       };
       sqs.receiveMessage = stubReject(unknownEndpointErr);
+      const timings = [];
+      const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
 
-      return new Promise((resolve) => {
-        const timings = [];
-        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
-
-        errorListener.onThirdCall().callsFake(() => {
+      try {
+        await errorListener.onThirdCall().callsFake(() => {
           consumer.stop();
           sandbox.assert.calledThrice(sqs.receiveMessage);
           assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
-          resolve();
         });
-
+      } catch (error) {
         consumer.on('error', errorListener);
         consumer.start();
-      });
+      }
     });
 
     it('waits before repolling when a polling timeout is set', async () => {
