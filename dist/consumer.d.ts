@@ -6,13 +6,13 @@ export interface ConsumerOptions {
     attributeNames?: string[];
     messageAttributeNames?: string[];
     stopped?: boolean;
-    concurencyLimit?: number;
+    concurrencyLimit?: number;
     batchSize?: number;
     visibilityTimeout?: number;
     waitTimeSeconds?: number;
     authenticationErrorTimeout?: number;
     pollingWaitTimeMs?: number;
-    pollingWaitTimeMsBatchSizeZero?: number;
+    msDelayOnEmptyBatchSize?: number;
     terminateVisibilityTimeout?: boolean;
     sqs?: SQS;
     region?: string;
@@ -21,7 +21,9 @@ export interface ConsumerOptions {
     handleMessageBatch?(messages: SQSMessage[], consumer: Consumer): Promise<void>;
     pollingStartedInstrumentCallback?(eventData: object): void;
     pollingFinishedInstrumentCallback?(eventData: object): void;
-    batchSizeUpdatedInstrument?(eventData: object): void;
+    batchStartedInstrumentCallBack?(eventData: object): void;
+    batchFinishedInstrumentCallBack?(eventData: object): void;
+    batchFailedInstrumentCallBack?(eventData: object): void;
 }
 export declare class Consumer extends EventEmitter {
     private queueUrl;
@@ -29,18 +31,21 @@ export declare class Consumer extends EventEmitter {
     private handleMessageBatch;
     private pollingStartedInstrumentCallback?;
     private pollingFinishedInstrumentCallback?;
-    private batchSizeUpdatedInstrument?;
+    private batchStartedInstrumentCallBack?;
+    private batchFinishedInstrumentCallBack?;
+    private batchFailedInstrumentCallBack?;
     private handleMessageTimeout;
     private attributeNames;
     private messageAttributeNames;
     private stopped;
-    private concurencyLimit;
+    private concurrencyLimit;
+    private freeConcurrentSlots;
     private batchSize;
     private visibilityTimeout;
     private waitTimeSeconds;
     private authenticationErrorTimeout;
     private pollingWaitTimeMs;
-    private pollingWaitTimeMsBatchSizeZero;
+    private msDelayOnEmptyBatchSize;
     private terminateVisibilityTimeout;
     private sqs;
     constructor(options: ConsumerOptions);
@@ -50,7 +55,6 @@ export declare class Consumer extends EventEmitter {
     stop(): void;
     reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void>;
     private reportNumberOfMessagesReceived;
-    private updateBatchSize;
     private handleSqsResponse;
     private processMessage;
     private receiveMessage;
