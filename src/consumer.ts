@@ -2,6 +2,7 @@ import { AWSError } from 'aws-sdk';
 import * as SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import * as Debug from 'debug';
+import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
@@ -21,6 +22,10 @@ const requiredOptions = [
 interface TimeoutResponse {
   timeout: NodeJS.Timeout;
   pending: Promise<void>;
+}
+
+function generateUuid(): string {
+  return crypto.randomBytes(16).toString('hex');
 }
 
 function createTimeout(duration: number): TimeoutResponse[] {
@@ -83,13 +88,13 @@ export interface ConsumerOptions {
   attributeNames?: string[];
   messageAttributeNames?: string[];
   stopped?: boolean;
-  concurencyLimit?: number;
+  concurrencyLimit?: number;
   batchSize?: number;
   visibilityTimeout?: number;
   waitTimeSeconds?: number;
   authenticationErrorTimeout?: number;
   pollingWaitTimeMs?: number;
-  pollingWaitTimeMsBatchSizeZero?: number;
+  msDelayOnEmptyBatchSize?: number;
   terminateVisibilityTimeout?: boolean;
   sqs?: SQS;
   region?: string;
@@ -98,7 +103,9 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: SQSMessage[], consumer: Consumer): Promise<void>;
   pollingStartedInstrumentCallback?(eventData: object): void;
   pollingFinishedInstrumentCallback?(eventData: object): void;
-  batchSizeUpdatedInstrument?(eventData: object): void;
+  batchStartedInstrumentCallBack?(eventData: object): void;
+  batchFinishedInstrumentCallBack?(eventData: object): void;
+  batchFailedInstrumentCallBack?(eventData: object): void;
 }
 
 export class Consumer extends EventEmitter {
@@ -107,18 +114,21 @@ export class Consumer extends EventEmitter {
   private handleMessageBatch: (message: SQSMessage[], consumer: Consumer) => Promise<void>;
   private pollingStartedInstrumentCallback?: (eventData: object) => void;
   private pollingFinishedInstrumentCallback?: (eventData: object) => void;
-  private batchSizeUpdatedInstrument?: (eventData: object) => void;
+  private batchStartedInstrumentCallBack?: (eventData: object) => void;
+  private batchFinishedInstrumentCallBack?: (eventData: object) => void;
+  private batchFailedInstrumentCallBack?: (eventData: object) => void;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
   private stopped: boolean;
-  private concurencyLimit: number;
+  private concurrencyLimit: number;
+  private freeConcurrentSlots: number;
   private batchSize: number;
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
-  private pollingWaitTimeMsBatchSizeZero: number;
+  private msDelayOnEmptyBatchSize: number;
   private terminateVisibilityTimeout: boolean;
   private sqs: SQS;
 
@@ -130,19 +140,19 @@ export class Consumer extends EventEmitter {
     this.handleMessageBatch = options.handleMessageBatch;
     this.pollingStartedInstrumentCallback = options.pollingStartedInstrumentCallback;
     this.pollingFinishedInstrumentCallback = options.pollingFinishedInstrumentCallback;
-    this.batchSizeUpdatedInstrument = options.batchSizeUpdatedInstrument;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.stopped = true;
     this.batchSize = options.batchSize || 1;
-    this.concurencyLimit = options.concurencyLimit || 30;
+    this.concurrencyLimit = options.concurrencyLimit || 30;
+    this.freeConcurrentSlots = this.concurrencyLimit;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
-    this.pollingWaitTimeMsBatchSizeZero = options.pollingWaitTimeMsBatchSizeZero || 5;
+    this.msDelayOnEmptyBatchSize = options.msDelayOnEmptyBatchSize || 5;
 
     this.sqs =
       options.sqs ||
@@ -177,8 +187,7 @@ export class Consumer extends EventEmitter {
   public async reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void> {
     debug('Message from batch has finised');
 
-    this.concurencyLimit++;
-    this.updateBatchSize();
+    this.freeConcurrentSlots++;
 
     try {
       if (error) throw error;
@@ -191,25 +200,8 @@ export class Consumer extends EventEmitter {
   }
 
   private reportNumberOfMessagesReceived(numberOfMessages: number): void {
-    debug('decrementing next batch size');
-    this.concurencyLimit = this.concurencyLimit - numberOfMessages;
-    this.updateBatchSize();
-  }
-
-  private updateBatchSize(): void {
-    debug('Updating next batch size');
-
-    this.batchSize = Math.min(10, this.concurencyLimit);
-
-    // instrument current batch size
-    if (this.batchSizeUpdatedInstrument) {
-      this.batchSizeUpdatedInstrument({
-        instanceId: process.env.HOSTNAME,
-        queueUrl: this.queueUrl,
-        currentConcurencyLimit: this.concurencyLimit,
-        batchSize: this.batchSize
-      });
-    }
+    debug('Reducing number of messages received from freeConcurrentSlots');
+    this.freeConcurrentSlots = this.freeConcurrentSlots - numberOfMessages;
   }
 
   private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
@@ -335,24 +327,25 @@ export class Consumer extends EventEmitter {
       return;
     }
 
+    const pollBatchSize = Math.min(this.batchSize, this.freeConcurrentSlots);
+
     debug('Polling for messages');
     if (this.pollingStartedInstrumentCallback) {
       this.pollingStartedInstrumentCallback({
         instanceId: process.env.HOSTNAME,
         queueUrl: this.queueUrl,
-        // instrument i am about to request this.batchSize messages
-        batchSize: this.batchSize
+        pollBatchSize
       });
     }
 
     let currentPollingTimeout = this.pollingWaitTimeMs;
 
-    if (this.batchSize > 0) {
+    if (pollBatchSize > 0) {
       const receiveParams = {
         QueueUrl: this.queueUrl,
         AttributeNames: this.attributeNames,
         MessageAttributeNames: this.messageAttributeNames,
-        MaxNumberOfMessages: this.batchSize,
+        MaxNumberOfMessages: pollBatchSize,
         WaitTimeSeconds: this.waitTimeSeconds,
         VisibilityTimeout: this.visibilityTimeout
       };
@@ -374,7 +367,7 @@ export class Consumer extends EventEmitter {
           this.emit('error', err);
         });
     } else {
-      setTimeout(this.poll, this.pollingWaitTimeMsBatchSizeZero);
+      setTimeout(this.poll, this.msDelayOnEmptyBatchSize);
     }
   }
 
@@ -384,6 +377,39 @@ export class Consumer extends EventEmitter {
     });
 
     this.reportNumberOfMessagesReceived(messages.length);
-    this.handleMessageBatch(messages, this);
+    const batchUuid = generateUuid();
+
+    if (this.batchStartedInstrumentCallBack) {
+      this.batchStartedInstrumentCallBack({
+        instanceId: process.env.HOSTNAME,
+        queueUrl: this.queueUrl,
+        batchUuid,
+        numberOfMessages: messages.length
+      });
+    }
+
+    try {
+      await this.handleMessageBatch(messages, this);
+
+      if (this.batchFinishedInstrumentCallBack) {
+        this.batchFinishedInstrumentCallBack({
+          instanceId: process.env.HOSTNAME,
+          queueUrl: this.queueUrl,
+          batchUuid,
+          numberOfMessages: messages.length
+        });
+      }
+    } catch (err) {
+      if (this.batchFailedInstrumentCallBack) {
+        this.batchFailedInstrumentCallBack({
+          instanceId: process.env.HOSTNAME,
+          queueUrl: this.queueUrl,
+          batchUuid,
+          numberOfMessages: messages.length
+        });
+      }
+
+      throw err;
+    }
   }
 }
