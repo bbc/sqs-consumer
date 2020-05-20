@@ -140,6 +140,9 @@ export class Consumer extends EventEmitter {
     this.handleMessageBatch = options.handleMessageBatch;
     this.pollingStartedInstrumentCallback = options.pollingStartedInstrumentCallback;
     this.pollingFinishedInstrumentCallback = options.pollingFinishedInstrumentCallback;
+    this.batchStartedInstrumentCallBack = options.batchStartedInstrumentCallBack;
+    this.batchFinishedInstrumentCallBack = options.batchFinishedInstrumentCallBack;
+    this.batchFailedInstrumentCallBack = options.batchFailedInstrumentCallBack;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -216,7 +219,8 @@ export class Consumer extends EventEmitter {
       this.pollingFinishedInstrumentCallback({
         instanceId: process.env.HOSTNAME,
         queueUrl: this.queueUrl,
-        messagesReceived: numberOfMessages
+        messagesReceived: numberOfMessages,
+        freeConcurrentSlots: this.freeConcurrentSlots
       });
     }
 
@@ -334,7 +338,8 @@ export class Consumer extends EventEmitter {
       this.pollingStartedInstrumentCallback({
         instanceId: process.env.HOSTNAME,
         queueUrl: this.queueUrl,
-        pollBatchSize
+        pollBatchSize,
+        freeConcurrentSlots: this.freeConcurrentSlots
       });
     }
 
@@ -384,32 +389,34 @@ export class Consumer extends EventEmitter {
         instanceId: process.env.HOSTNAME,
         queueUrl: this.queueUrl,
         batchUuid,
-        numberOfMessages: messages.length
+        numberOfMessages: messages.length,
+        freeConcurrentSlots: this.freeConcurrentSlots
       });
     }
 
-    try {
-      await this.handleMessageBatch(messages, this);
-
-      if (this.batchFinishedInstrumentCallBack) {
-        this.batchFinishedInstrumentCallBack({
-          instanceId: process.env.HOSTNAME,
-          queueUrl: this.queueUrl,
-          batchUuid,
-          numberOfMessages: messages.length
-        });
-      }
-    } catch (err) {
-      if (this.batchFailedInstrumentCallBack) {
-        this.batchFailedInstrumentCallBack({
-          instanceId: process.env.HOSTNAME,
-          queueUrl: this.queueUrl,
-          batchUuid,
-          numberOfMessages: messages.length
-        });
-      }
-
-      throw err;
-    }
+    this.handleMessageBatch(messages, this)
+      .then(() => {
+        if (this.batchFinishedInstrumentCallBack) {
+          this.batchFinishedInstrumentCallBack({
+            instanceId: process.env.HOSTNAME,
+            queueUrl: this.queueUrl,
+            batchUuid,
+            numberOfMessages: messages.length,
+            freeConcurrentSlots: this.freeConcurrentSlots
+          });
+        }
+      })
+      .catch(err => {
+        if (this.batchFailedInstrumentCallBack) {
+          this.batchFailedInstrumentCallBack({
+            instanceId: process.env.HOSTNAME,
+            queueUrl: this.queueUrl,
+            batchUuid,
+            numberOfMessages: messages.length,
+            freeConcurrentSlots: this.freeConcurrentSlots,
+            error: err
+          });
+        }
+      });
   }
 }

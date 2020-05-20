@@ -71,6 +71,9 @@ class Consumer extends events_1.EventEmitter {
         this.handleMessageBatch = options.handleMessageBatch;
         this.pollingStartedInstrumentCallback = options.pollingStartedInstrumentCallback;
         this.pollingFinishedInstrumentCallback = options.pollingFinishedInstrumentCallback;
+        this.batchStartedInstrumentCallBack = options.batchStartedInstrumentCallBack;
+        this.batchFinishedInstrumentCallBack = options.batchFinishedInstrumentCallBack;
+        this.batchFailedInstrumentCallBack = options.batchFailedInstrumentCallBack;
         this.handleMessageTimeout = options.handleMessageTimeout;
         this.attributeNames = options.attributeNames || [];
         this.messageAttributeNames = options.messageAttributeNames || [];
@@ -135,7 +138,8 @@ class Consumer extends events_1.EventEmitter {
             this.pollingFinishedInstrumentCallback({
                 instanceId: process.env.HOSTNAME,
                 queueUrl: this.queueUrl,
-                messagesReceived: numberOfMessages
+                messagesReceived: numberOfMessages,
+                freeConcurrentSlots: this.freeConcurrentSlots
             });
         }
         if (response) {
@@ -251,7 +255,8 @@ class Consumer extends events_1.EventEmitter {
             this.pollingStartedInstrumentCallback({
                 instanceId: process.env.HOSTNAME,
                 queueUrl: this.queueUrl,
-                pollBatchSize
+                pollBatchSize,
+                freeConcurrentSlots: this.freeConcurrentSlots
             });
         }
         let currentPollingTimeout = this.pollingWaitTimeMs;
@@ -296,31 +301,34 @@ class Consumer extends events_1.EventEmitter {
                 instanceId: process.env.HOSTNAME,
                 queueUrl: this.queueUrl,
                 batchUuid,
-                numberOfMessages: messages.length
+                numberOfMessages: messages.length,
+                freeConcurrentSlots: this.freeConcurrentSlots
             });
         }
-        try {
-            await this.handleMessageBatch(messages, this);
+        this.handleMessageBatch(messages, this)
+            .then(() => {
             if (this.batchFinishedInstrumentCallBack) {
                 this.batchFinishedInstrumentCallBack({
                     instanceId: process.env.HOSTNAME,
                     queueUrl: this.queueUrl,
                     batchUuid,
-                    numberOfMessages: messages.length
+                    numberOfMessages: messages.length,
+                    freeConcurrentSlots: this.freeConcurrentSlots
                 });
             }
-        }
-        catch (err) {
+        })
+            .catch(err => {
             if (this.batchFailedInstrumentCallBack) {
                 this.batchFailedInstrumentCallBack({
                     instanceId: process.env.HOSTNAME,
                     queueUrl: this.queueUrl,
                     batchUuid,
-                    numberOfMessages: messages.length
+                    numberOfMessages: messages.length,
+                    freeConcurrentSlots: this.freeConcurrentSlots,
+                    error: err
                 });
             }
-            throw err;
-        }
+        });
     }
 }
 exports.Consumer = Consumer;
