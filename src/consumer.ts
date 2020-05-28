@@ -9,8 +9,8 @@ import { SQSError, TimeoutError } from './errors';
 const debug = Debug('sqs-consumer');
 
 type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
-type SQSMessage = SQS.Types.Message;
 type ReceiveMessageRequest = SQS.Types.ReceiveMessageRequest;
+export type SQSMessage = SQS.Types.Message;
 
 const requiredOptions = [
   'queueUrl',
