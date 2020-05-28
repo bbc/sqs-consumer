@@ -11,7 +11,8 @@
     "prepublish": "npm run build",
     "pretest": "npm run build",
     "test": "mocha",
-    "lint": "tslint --project tsconfig.json",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --fix",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
     "posttest": "npm run lint"
@@ -39,12 +40,13 @@
     "@types/typescript": "^2.0.0",
     "chai": "^4.2.0",
     "codeclimate-test-reporter": "^0.5.1",
+    "eslint": "^7.1.0",
+    "eslint-config-iplayer-ts": "^2.0.0",
     "mocha": "^5.2.0",
     "nyc": "^14.1.1",
     "p-event": "^2.1.0",
     "sinon": "^7.2.2",
     "ts-node": "^3.3.0",
-    "tslint": "^5.17.0",
     "tslint-config-airbnb": "^5.3.1",
     "tslint-microsoft-contrib": "^5.0.3",
     "typescript": "^2.6.1"
@@ -65,5 +67,12 @@
     ],
     "sourceMap": true,
     "instrument": true
+  },
+  "eslintConfig": {
+    "extends": "iplayer-ts",
+    "parserOptions": {
+      "ecmaVersion": 2017,
+      "sourceType": "module"
+    }
   }
 }
