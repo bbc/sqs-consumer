@@ -46,7 +46,7 @@ function assertOptions(options: ConsumerOptions): void {
   }
 }
 
-function isConnectionError(err: Error): Boolean {
+function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
     return (err.statusCode === 403 || err.code === 'CredentialsError' || err.code === 'UnknownEndpoint');
   }
@@ -286,7 +286,7 @@ export class Consumer extends EventEmitter {
         }
         return;
       }).then(() => {
-      setTimeout(this.poll, currentPollingTimeout);
+        setTimeout(this.poll, currentPollingTimeout);
       }).catch((err) => {
         this.emit('error', err);
       });
@@ -321,7 +321,7 @@ export class Consumer extends EventEmitter {
 
     const deleteParams = {
       QueueUrl: this.queueUrl,
-      Entries: messages.map(message => ({
+      Entries: messages.map((message) => ({
         Id: message.MessageId,
         ReceiptHandle: message.ReceiptHandle
       }))

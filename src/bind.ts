@@ -1,5 +1,3 @@
-'use strict';
-
 function isMethod(propertyName: string, value: any): boolean {
   return propertyName !== 'constructor' && typeof value === 'function';
 }
