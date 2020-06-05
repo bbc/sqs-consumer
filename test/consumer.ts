@@ -134,7 +134,7 @@ describe('Consumer', () => {
 
       consumer.start();
 
-      const err = await pEvent(consumer, 'error');
+      const err: any = await pEvent(consumer, 'error');
 
       consumer.stop();
       assert.ok(err);
@@ -153,7 +153,7 @@ describe('Consumer', () => {
       sqs.receiveMessage = stubReject(receiveErr);
 
       consumer.start();
-      const err = await pEvent(consumer, 'error');
+      const err: any = await pEvent(consumer, 'error');
       consumer.stop();
 
       assert.ok(err);
@@ -178,7 +178,7 @@ describe('Consumer', () => {
       });
 
       consumer.start();
-      const err = await pEvent(consumer, 'timeout_error');
+      const err: any = await pEvent(consumer, 'timeout_error');
       consumer.stop();
 
       assert.ok(err);
@@ -197,7 +197,7 @@ describe('Consumer', () => {
       });
 
       consumer.start();
-      const err = await pEvent(consumer, 'processing_error');
+      const err: any = await pEvent(consumer, 'processing_error');
       consumer.stop();
 
       assert.ok(err);
@@ -211,7 +211,7 @@ describe('Consumer', () => {
       sqs.deleteMessage = stubReject(deleteErr);
 
       consumer.start();
-      const err = await pEvent(consumer, 'error');
+      const err: any = await pEvent(consumer, 'error');
       consumer.stop();
 
       assert.ok(err);
