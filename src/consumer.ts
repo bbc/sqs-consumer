@@ -87,6 +87,17 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
 }
 
+interface Events {
+  'response_processed': [];
+  'empty': [];
+  'message_received': [SQSMessage];
+  'message_processed': [SQSMessage];
+  'error': [Error, void | SQSMessage | SQSMessage[]];
+  'timeout_error': [Error, SQSMessage];
+  'processing_error': [Error, SQSMessage];
+  'stopped': [];
+}
+
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
@@ -125,6 +136,18 @@ export class Consumer extends EventEmitter {
     });
 
     autoBind(this);
+  }
+
+  emit<T extends keyof Events>(event: T, ...args: Events[T]) {
+    return super.emit(event, ...args);
+  }
+
+  on<T extends keyof Events>(event: T, listener: (...args: Events[T]) => void): this {
+    return super.on(event, listener);
+  }
+
+  once<T extends keyof Events>(event: T, listener: (...args: Events[T]) => void): this {
+    return super.once(event, listener);
   }
 
   public get isRunning(): boolean {
