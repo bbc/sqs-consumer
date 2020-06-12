@@ -38,6 +38,7 @@ class MockSQSError extends Error {
 // tslint:disable:no-unused-expression
 describe('Consumer', () => {
   let consumer;
+  let clock;
   let handleMessage;
   let handleMessageBatch;
   let sqs;
@@ -50,6 +51,7 @@ describe('Consumer', () => {
   };
 
   beforeEach(() => {
+    clock = sinon.useFakeTimers();
     handleMessage = sandbox.stub().resolves(null);
     handleMessageBatch = sandbox.stub().resolves(null);
     sqs = sandbox.mock();
@@ -179,7 +181,7 @@ describe('Consumer', () => {
       });
 
       consumer.start();
-      const err: any = await pEvent(consumer, 'timeout_error');
+      const [err]: any = await Promise.all([pEvent(consumer, 'timeout_error'), clock.tickAsync(handleMessageTimeout)]);
       consumer.stop();
 
       assert.ok(err);
@@ -253,21 +255,15 @@ describe('Consumer', () => {
         message: 'Missing credentials in config'
       };
       sqs.receiveMessage = stubReject(credentialsErr);
+      const errorListener = sandbox.stub();
+      consumer.on('error', errorListener);
 
-      return new Promise((resolve) => {
-        const timings = [];
-        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
 
-        errorListener.onThirdCall().callsFake(() => {
-          consumer.stop();
-          sandbox.assert.calledThrice(sqs.receiveMessage);
-          assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
-          resolve();
-        });
-
-        consumer.on('error', errorListener);
-        consumer.start();
-      });
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.receiveMessage);
     });
 
     it('waits before repolling when a 403 error occurs', async () => {
@@ -276,21 +272,15 @@ describe('Consumer', () => {
         message: 'The security token included in the request is invalid'
       };
       sqs.receiveMessage = stubReject(invalidSignatureErr);
+      const errorListener = sandbox.stub();
+      consumer.on('error', errorListener);
 
-      return new Promise((resolve) => {
-        const timings = [];
-        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
 
-        errorListener.onThirdCall().callsFake(() => {
-          consumer.stop();
-          sandbox.assert.calledThrice(sqs.receiveMessage);
-          assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
-          resolve();
-        });
-
-        consumer.on('error', errorListener);
-        consumer.start();
-      });
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.receiveMessage);
     });
 
     it('waits before repolling when a UnknownEndpoint error occurs', async () => {
@@ -299,21 +289,15 @@ describe('Consumer', () => {
         message: 'Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.'
       };
       sqs.receiveMessage = stubReject(unknownEndpointErr);
+      const errorListener = sandbox.stub();
+      consumer.on('error', errorListener);
 
-      return new Promise((resolve) => {
-        const timings = [];
-        const errorListener = sandbox.stub().callsFake(() => timings.push(new Date()));
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
 
-        errorListener.onThirdCall().callsFake(() => {
-          consumer.stop();
-          sandbox.assert.calledThrice(sqs.receiveMessage);
-          assert.isAtLeast(timings[1] - timings[0], AUTHENTICATION_ERROR_TIMEOUT);
-          resolve();
-        });
-
-        consumer.on('error', errorListener);
-        consumer.start();
-      });
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.receiveMessage);
     });
 
     it('waits before repolling when a polling timeout is set', async () => {
@@ -325,20 +309,12 @@ describe('Consumer', () => {
         authenticationErrorTimeout: 20,
         pollingWaitTimeMs: 100
       });
-      return new Promise((resolve) => {
-        const timings = [];
-        const timeListener = sandbox.stub().callsFake(() => timings.push(new Date()));
 
-        timeListener.onThirdCall().callsFake(() => {
-          consumer.stop();
-          sandbox.assert.calledThrice(sqs.receiveMessage);
-          assert.isAtLeast(timings[1] - timings[0], POLLING_TIMEOUT);
-          resolve();
-        });
+      consumer.start();
+      await clock.tickAsync(POLLING_TIMEOUT);
+      consumer.stop();
 
-        consumer.on('message_received', timeListener);
-        consumer.start();
-      });
+      sandbox.assert.calledTwice(sqs.receiveMessage);
     });
 
     it('fires a message_received event when a message is received', async () => {
@@ -393,13 +369,11 @@ describe('Consumer', () => {
     it('consumes another message once one is processed', async () => {
       handleMessage.resolves();
 
-      return new Promise((resolve) => {
-        handleMessage.onSecondCall().callsFake(() => {
-          consumer.stop();
-          resolve();
-        });
-        consumer.start();
-      });
+      consumer.start();
+      await clock.runToLastAsync();
+      consumer.stop();
+
+      sandbox.assert.calledTwice(handleMessage);
     });
 
     it('doesn\'t consume more messages when called multiple times', () => {
@@ -631,7 +605,7 @@ describe('Consumer', () => {
       consumer.start();
       consumer.stop();
 
-      await pEvent(consumer, 'stopped');
+      await Promise.all([pEvent(consumer, 'stopped'), clock.runAllAsync()]);
 
       sandbox.assert.calledOnce(handleMessage);
     });
@@ -639,7 +613,7 @@ describe('Consumer', () => {
     it('fires a stopped event when last poll occurs after stopping', async () => {
       consumer.start();
       consumer.stop();
-      await pEvent(consumer, 'stopped');
+      await Promise.all([pEvent(consumer, 'stopped'), clock.runAllAsync()]);
     });
 
     it('fires a stopped event only once when stopped multiple times', async () => {
@@ -647,33 +621,27 @@ describe('Consumer', () => {
 
       consumer.on('stopped', handleStop);
 
-      return new Promise((resolve) => {
-        consumer.start();
-        consumer.stop();
-        consumer.stop();
-        consumer.stop();
+      consumer.start();
+      consumer.stop();
+      consumer.stop();
+      consumer.stop();
+      await clock.runAllAsync();
 
-        setTimeout(() => {
-          sandbox.assert.calledOnce(handleStop);
-          resolve();
-        }, 10);
-      });
+      sandbox.assert.calledOnce(handleStop);
     });
 
     it('fires a stopped event a second time if started and stopped twice', async () => {
-      return new Promise((resolve) => {
-        const handleStop = sandbox.stub().returns(null).onSecondCall().callsFake(() => {
-          sandbox.assert.calledTwice(handleStop);
-          resolve();
-        });
+      const handleStop = sandbox.stub().returns(null);
 
-        consumer.on('stopped', handleStop);
+      consumer.on('stopped', handleStop);
 
-        consumer.start();
-        consumer.stop();
-        consumer.start();
-        consumer.stop();
-      });
+      consumer.start();
+      consumer.stop();
+      consumer.start();
+      consumer.stop();
+      await clock.runAllAsync();
+
+      sandbox.assert.calledTwice(handleStop);
     });
   });
 
