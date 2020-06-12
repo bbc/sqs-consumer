@@ -201,11 +201,7 @@ export class Consumer extends EventEmitter {
       this.emitError(err, message);
 
       if (this.terminateVisibilityTimeout) {
-        try {
-          await this.terminateVisabilityTimeout(message);
-        } catch (err) {
-          this.emit('error', err, message);
-        }
+        await this.changeVisabilityTimeout(message, 0);
       }
     }
   }
@@ -262,14 +258,18 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async terminateVisabilityTimeout(message: SQSMessage): Promise<PromiseResult<any, AWSError>> {
-    return this.sqs
-      .changeMessageVisibility({
-        QueueUrl: this.queueUrl,
-        ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: 0
-      })
-      .promise();
+  private async changeVisabilityTimeout(message: SQSMessage, timeout: number): Promise<PromiseResult<any, AWSError>> {
+    try {
+      return this.sqs
+        .changeMessageVisibility({
+          QueueUrl: this.queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: timeout
+        })
+        .promise();
+    } catch (err) {
+      this.emit('error', err, message);
+    }
   }
 
   private emitError(err: Error, message: SQSMessage): void {
@@ -330,11 +330,7 @@ export class Consumer extends EventEmitter {
       this.emit('error', err, messages);
 
       if (this.terminateVisibilityTimeout) {
-        try {
-          await this.terminateVisabilityTimeoutBatch(messages);
-        } catch (err) {
-          this.emit('error', err, messages);
-        }
+        await this.changeVisabilityTimeoutBatch(messages, 0);
       }
     }
   }
@@ -368,18 +364,22 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async terminateVisabilityTimeoutBatch(messages: SQSMessage[]): Promise<PromiseResult<any, AWSError>> {
+  private async changeVisabilityTimeoutBatch(messages: SQSMessage[], timeout: number): Promise<PromiseResult<any, AWSError>> {
     const params = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
         Id: message.MessageId,
         ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: 0
+        VisibilityTimeout: timeout
       }))
     };
-    return this.sqs
-      .changeMessageVisibilityBatch(params)
-      .promise();
+    try {
+      return this.sqs
+        .changeMessageVisibilityBatch(params)
+        .promise();
+    } catch (err) {
+      this.emit('error', err, messages);
+    }
   }
 
 }
