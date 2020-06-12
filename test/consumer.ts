@@ -59,6 +59,7 @@ describe('Consumer', () => {
     sqs.deleteMessage = stubResolve();
     sqs.deleteMessageBatch = stubResolve();
     sqs.changeMessageVisibility = stubResolve();
+    sqs.changeMessageVisibilityBatch = stubResolve();
 
     consumer = new Consumer({
       queueUrl: 'some-queue-url',
@@ -110,6 +111,29 @@ describe('Consumer', () => {
         queueUrl: 'some-queue-url',
         handleMessage,
         batchSize: -1
+      });
+    });
+  });
+
+  it('requires visibilityTimeout to be set with heartbeatInterval', () => {
+    assert.throws(() => {
+      new Consumer({
+        region: 'some-region',
+        queueUrl: 'some-queue-url',
+        handleMessage,
+        heartbeatInterval: 30
+      });
+    });
+  });
+
+  it('requires heartbeatInterval to be less than visibilityTimeout', () => {
+    assert.throws(() => {
+      new Consumer({
+        region: 'some-region',
+        queueUrl: 'some-queue-url',
+        handleMessage,
+        heartbeatInterval: 30,
+        visibilityTimeout: 30
       });
     });
   });
@@ -597,6 +621,76 @@ describe('Consumer', () => {
       sandbox.assert.callCount(handleMessageBatch, 1);
       sandbox.assert.callCount(handleMessage, 0);
 
+    });
+
+    it('extends visibility timeout for long running handler functions', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 75000)),
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30
+      });
+      const clearIntervalSpy = sinon.spy(global, 'clearInterval');
+
+      consumer.start();
+      await Promise.all([pEvent(consumer, 'response_processed'), clock.tickAsync(75000)]);
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.changeMessageVisibility, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle',
+        VisibilityTimeout: 70
+      });
+      sandbox.assert.calledWith(sqs.changeMessageVisibility, {
+        QueueUrl: 'some-queue-url',
+        ReceiptHandle: 'receipt-handle',
+        VisibilityTimeout: 100
+      });
+      sandbox.assert.calledOnce(clearIntervalSpy);
+    });
+
+    it('extends visibility timeout for long running batch handler functions', async () => {
+      sqs.receiveMessage = stubResolve({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' },
+          { MessageId: '2', ReceiptHandle: 'receipt-handle-2', Body: 'body-2' },
+          { MessageId: '3', ReceiptHandle: 'receipt-handle-3', Body: 'body-3' }
+        ]
+      });
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessageBatch: () => new Promise((resolve) => setTimeout(resolve, 75000)),
+        batchSize: 3,
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30
+      });
+      const clearIntervalSpy = sinon.spy(global, 'clearInterval');
+
+      consumer.start();
+      await Promise.all([pEvent(consumer, 'response_processed'), clock.tickAsync(75000)]);
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
+        QueueUrl: 'some-queue-url',
+        Entries: [
+          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 70 },
+          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 70 },
+          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 70 }
+        ]
+      });
+      sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
+        QueueUrl: 'some-queue-url',
+        Entries: [
+          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 100 },
+          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 100 },
+          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 100 }
+        ]
+      });
+      sandbox.assert.calledOnce(clearIntervalSpy);
     });
   });
 

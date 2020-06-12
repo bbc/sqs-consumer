@@ -44,6 +44,10 @@ function assertOptions(options: ConsumerOptions): void {
   if (options.batchSize > 10 || options.batchSize < 1) {
     throw new Error('SQS batchSize option must be between 1 and 10.');
   }
+
+  if (options.heartbeatInterval && !(options.heartbeatInterval < options.visibilityTimeout)) {
+    throw new Error('heartbeatInterval must be less than visibilityTimeout.');
+  }
 }
 
 function isConnectionError(err: Error): boolean {
@@ -80,6 +84,7 @@ export interface ConsumerOptions {
   authenticationErrorTimeout?: number;
   pollingWaitTimeMs?: number;
   terminateVisibilityTimeout?: boolean;
+  heartbeatInterval?: number;
   sqs?: SQS;
   region?: string;
   handleMessageTimeout?: number;
@@ -112,6 +117,7 @@ export class Consumer extends EventEmitter {
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private terminateVisibilityTimeout: boolean;
+  private heartbeatInterval: number;
   private sqs: SQS;
 
   constructor(options: ConsumerOptions) {
@@ -127,6 +133,7 @@ export class Consumer extends EventEmitter {
     this.batchSize = options.batchSize || 1;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
+    this.heartbeatInterval = options.heartbeatInterval;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
@@ -193,7 +200,13 @@ export class Consumer extends EventEmitter {
   private async processMessage(message: SQSMessage): Promise<void> {
     this.emit('message_received', message);
 
+    let heartbeat;
     try {
+      if (this.heartbeatInterval) {
+        heartbeat = this.startHeartbeat(async (elapsedSeconds) => {
+          return this.changeVisabilityTimeout(message, elapsedSeconds + this.visibilityTimeout);
+        });
+      }
       await this.executeHandler(message);
       await this.deleteMessage(message);
       this.emit('message_processed', message);
@@ -203,6 +216,8 @@ export class Consumer extends EventEmitter {
       if (this.terminateVisibilityTimeout) {
         await this.changeVisabilityTimeout(message, 0);
       }
+    } finally {
+      clearInterval(heartbeat);
     }
   }
 
@@ -320,7 +335,13 @@ export class Consumer extends EventEmitter {
       this.emit('message_received', message);
     });
 
+    let heartbeat;
     try {
+      if (this.heartbeatInterval) {
+        heartbeat = this.startHeartbeat(async (elapsedSeconds) => {
+          return this.changeVisabilityTimeoutBatch(messages, elapsedSeconds + this.visibilityTimeout);
+        });
+      }
       await this.executeBatchHandler(messages);
       await this.deleteMessageBatch(messages);
       messages.forEach((message) => {
@@ -332,6 +353,8 @@ export class Consumer extends EventEmitter {
       if (this.terminateVisibilityTimeout) {
         await this.changeVisabilityTimeoutBatch(messages, 0);
       }
+    } finally {
+      clearInterval(heartbeat);
     }
   }
 
@@ -382,4 +405,11 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  private startHeartbeat(heartbeatFn: (elapsedSeconds: number) => void): NodeJS.Timeout {
+    const startTime = Date.now();
+    return setInterval(() => {
+      const elapsedSeconds = Math.ceil((Date.now() - startTime) / 1000);
+      heartbeatFn(elapsedSeconds);
+    }, this.heartbeatInterval * 1000);
+  }
 }
