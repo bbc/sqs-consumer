@@ -136,9 +136,9 @@ export class Consumer extends EventEmitter {
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
-    this.waitTimeSeconds = options.waitTimeSeconds || 20;
-    this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
-    this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+    this.waitTimeSeconds = options.waitTimeSeconds ?? 20;
+    this.authenticationErrorTimeout = options.authenticationErrorTimeout ?? 10000;
+    this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
 
     this.sqs = options.sqs || new SQS({
