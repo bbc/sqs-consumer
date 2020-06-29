@@ -127,7 +127,7 @@ export class Consumer extends EventEmitter {
     this.batchSize = options.batchSize || 1;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
-    this.waitTimeSeconds = options.waitTimeSeconds || 20;
+    this.waitTimeSeconds = !isNaN(options.waitTimeSeconds) ? options.waitTimeSeconds : 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
 
