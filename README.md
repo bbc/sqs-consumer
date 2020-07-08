@@ -40,6 +40,35 @@ app.start();
 * Messages are deleted from the queue once the handler function has completed successfully.
 * Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 * By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
+* By default, the default Node.js HTTP/HTTPS SQS agent creates a new TCP connection for every new request ([AWS SQS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/node-reusing-connections.html)). To avoid the cost of establishing a new connection, you can reuse an existing connection by passing a new SQS instance with `keepAlive: true`.
+```js
+const { Consumer } = require('sqs-consumer');
+const AWS = require('aws-sdk');
+
+const app = Consumer.create({
+  queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
+  handleMessage: async (message) => {
+    // do some work with `message`
+  },
+  sqs: new AWS.SQS({
+    httpOptions: {
+      agent: new https.Agent({
+        keepAlive: true
+      })
+    }
+  })
+});
+
+app.on('error', (err) => {
+  console.error(err.message);
+});
+
+app.on('processing_error', (err) => {
+  console.error(err.message);
+});
+
+app.start();
+```
 
 ### Credentials
 
@@ -98,11 +127,12 @@ Creates a new SQS consumer.
 * `region` - _String_ - The AWS region (default `eu-west-1`)
 * `handleMessage` - _Function_ - An `async` function (or function that returns a `Promise`) to be called whenever a message is received. Receives an SQS message object as it's first argument.
 * `handleMessageBatch` - _Function_ - An `async` function (or function that returns a `Promise`) to be called whenever a batch of messages is received. Similar to `handleMessage` but will receive the list of messages, not each message individually. **If both are set, `handleMessageBatch` overrides `handleMessage`**.
-* `handleMessageTimeout` - _String_ - Time in ms to wait for `handleMessage` to process a message before timing out. Emits `timeout_error` on timeout. By default, if `handleMessage` times out, the unprocessed message returns to the end of the queue.
+* `handleMessageTimeout` - _Number_ - Time in ms to wait for `handleMessage` to process a message before timing out. Emits `timeout_error` on timeout. By default, if `handleMessage` times out, the unprocessed message returns to the end of the queue.
 * `attributeNames` - _Array_ - List of queue attributes to retrieve (i.e. `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
 * `messageAttributeNames` - _Array_ - List of message attributes to retrieve (i.e. `['name', 'address']`).
 * `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
 * `visibilityTimeout` - _Number_ - The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request.
+* `heartbeatInterval` - _Number_ - The interval (in seconds) between requests to extend the message visibility timeout. On each heartbeat the visibility is extended by adding `visibilityTimeout` to the number of seconds since the start of the handler function. This value must less than `visibilityTimeout`.
 * `terminateVisibilityTimeout` - _Boolean_ - If true, sets the message visibility timeout to 0 after a `processing_error` (defaults to `false`).
 * `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning.
 * `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
@@ -142,4 +172,4 @@ Consumer will receive and delete messages from the SQS queue. Ensure `sqs:Receiv
 
 
 ### Contributing 
-See contributing [guildlines](https://github.com/bbc/sqs-consumer/blob/master/CONTRIBUTING.md)
+See contributing [guidelines](https://github.com/bbc/sqs-consumer/blob/master/CONTRIBUTING.md)
