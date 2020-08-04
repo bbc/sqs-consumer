@@ -264,7 +264,7 @@ export class Consumer extends EventEmitter {
     } catch (err) {
       if (err instanceof TimeoutError) {
         err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
-      } else {
+      } else if (err instanceof Error) {
         err.message = `Unexpected message handler failure: ${err.message}`;
       }
       throw err;
