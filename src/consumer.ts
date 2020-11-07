@@ -90,6 +90,7 @@ export interface ConsumerOptions {
   handleMessageTimeout?: number;
   handleMessage?(message: SQSMessage): Promise<void>;
   handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+  handleSemaphore? (): Promise<void>;
 }
 
 interface Events {
@@ -107,6 +108,7 @@ export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
   private handleMessageBatch: (message: SQSMessage[]) => Promise<void>;
+  private handleSemaphore: () => Promise<void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
@@ -126,6 +128,7 @@ export class Consumer extends EventEmitter {
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
     this.handleMessageBatch = options.handleMessageBatch;
+    this.handleSemaphore = options.handleSemaphore;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -314,20 +317,40 @@ export class Consumer extends EventEmitter {
     };
 
     let currentPollingTimeout = this.pollingWaitTimeMs;
-    this.receiveMessage(receiveParams)
-      .then(this.handleSqsResponse)
-      .catch((err) => {
-        this.emit('error', err);
-        if (isConnectionError(err)) {
-          debug('There was an authentication error. Pausing before retrying.');
-          currentPollingTimeout = this.authenticationErrorTimeout;
-        }
-        return;
-      }).then(() => {
-        setTimeout(this.poll, currentPollingTimeout);
-      }).catch((err) => {
-        this.emit('error', err);
-      });
+
+    const receiveAndHandleFlow = () => (
+      this.receiveMessage(receiveParams)
+        .then(this.handleSqsResponse)
+        .catch((err) => {
+          this.emit('error', err);
+          if (isConnectionError(err)) {
+            debug('There was an authentication error. Pausing before retrying.');
+            currentPollingTimeout = this.authenticationErrorTimeout;
+          }
+          return;
+        })
+    );
+
+    if (this.handleSemaphore) {
+      this.handleSemaphore()
+        .then(() => {
+          setTimeout(this.poll, currentPollingTimeout);
+        })
+        .catch((err) => {
+          this.emit('error', err);
+        });
+      receiveAndHandleFlow()
+        .then(() => {}).catch((err) => {
+          this.emit('error', err);
+        });
+    } else {
+      receiveAndHandleFlow()
+        .then(() => {
+          setTimeout(this.poll, currentPollingTimeout);
+        }).catch((err) => {
+          this.emit('error', err);
+        });
+    }
   }
 
   private async processMessageBatch(messages: SQSMessage[]): Promise<void> {

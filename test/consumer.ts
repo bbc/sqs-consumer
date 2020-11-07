@@ -41,6 +41,7 @@ describe('Consumer', () => {
   let clock;
   let handleMessage;
   let handleMessageBatch;
+  let handleSemaphore;
   let sqs;
   const response = {
     Messages: [{
@@ -54,6 +55,7 @@ describe('Consumer', () => {
     clock = sinon.useFakeTimers();
     handleMessage = sandbox.stub().resolves(null);
     handleMessageBatch = sandbox.stub().resolves(null);
+    handleSemaphore = sandbox.stub().resolves(null);
     sqs = sandbox.mock();
     sqs.receiveMessage = stubResolve(response);
     sqs.deleteMessage = stubResolve();
@@ -620,6 +622,26 @@ describe('Consumer', () => {
 
       sandbox.assert.callCount(handleMessageBatch, 1);
       sandbox.assert.callCount(handleMessage, 0);
+
+    });
+
+    it('uses semaphore handler if configured to', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleSemaphore,
+        handleMessage,
+        batchSize: 2,
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(handleSemaphore, 1);
+      sandbox.assert.callCount(handleMessage, 1);
 
     });
 
