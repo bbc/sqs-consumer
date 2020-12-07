@@ -44,6 +44,7 @@ app.start();
 ```js
 const { Consumer } = require('sqs-consumer');
 const AWS = require('aws-sdk');
+const https = require('https');
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
