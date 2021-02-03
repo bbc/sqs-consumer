@@ -8,7 +8,7 @@ import { SQSError, TimeoutError } from './errors';
 
 const debug = Debug('sqs-consumer');
 
-type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
+type ReceiveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
 type ReceiveMessageRequest = SQS.Types.ReceiveMessageRequest;
 export type SQSMessage = SQS.Types.Message;
 
@@ -69,7 +69,7 @@ function toSQSError(err: AWSError, message: string): SQSError {
   return sqsError;
 }
 
-function hasMessages(response: ReceieveMessageResponse): boolean {
+function hasMessages(response: ReceiveMessageResponse): boolean {
   return response.Messages && response.Messages.length > 0;
 }
 
@@ -178,7 +178,7 @@ export class Consumer extends EventEmitter {
     this.stopped = true;
   }
 
-  private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
+  private async handleSqsResponse(response: ReceiveMessageResponse): Promise<void> {
     debug('Received SQS response');
     debug(response);
 
@@ -204,7 +204,7 @@ export class Consumer extends EventEmitter {
     try {
       if (this.heartbeatInterval) {
         heartbeat = this.startHeartbeat(async (elapsedSeconds) => {
-          return this.changeVisabilityTimeout(message, elapsedSeconds + this.visibilityTimeout);
+          return this.changeVisibilityTimeout(message, elapsedSeconds + this.visibilityTimeout);
         });
       }
       await this.executeHandler(message);
@@ -214,14 +214,14 @@ export class Consumer extends EventEmitter {
       this.emitError(err, message);
 
       if (this.terminateVisibilityTimeout) {
-        await this.changeVisabilityTimeout(message, 0);
+        await this.changeVisibilityTimeout(message, 0);
       }
     } finally {
       clearInterval(heartbeat);
     }
   }
 
-  private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceieveMessageResponse> {
+  private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceiveMessageResponse> {
     try {
       return await this.sqs
         .receiveMessage(params)
@@ -273,7 +273,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async changeVisabilityTimeout(message: SQSMessage, timeout: number): Promise<PromiseResult<any, AWSError>> {
+  private async changeVisibilityTimeout(message: SQSMessage, timeout: number): Promise<PromiseResult<any, AWSError>> {
     try {
       return this.sqs
         .changeMessageVisibility({
@@ -339,7 +339,7 @@ export class Consumer extends EventEmitter {
     try {
       if (this.heartbeatInterval) {
         heartbeat = this.startHeartbeat(async (elapsedSeconds) => {
-          return this.changeVisabilityTimeoutBatch(messages, elapsedSeconds + this.visibilityTimeout);
+          return this.changeVisibilityTimeoutBatch(messages, elapsedSeconds + this.visibilityTimeout);
         });
       }
       await this.executeBatchHandler(messages);
@@ -351,7 +351,7 @@ export class Consumer extends EventEmitter {
       this.emit('error', err, messages);
 
       if (this.terminateVisibilityTimeout) {
-        await this.changeVisabilityTimeoutBatch(messages, 0);
+        await this.changeVisibilityTimeoutBatch(messages, 0);
       }
     } finally {
       clearInterval(heartbeat);
@@ -387,7 +387,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async changeVisabilityTimeoutBatch(messages: SQSMessage[], timeout: number): Promise<PromiseResult<any, AWSError>> {
+  private async changeVisibilityTimeoutBatch(messages: SQSMessage[], timeout: number): Promise<PromiseResult<any, AWSError>> {
     const params = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
