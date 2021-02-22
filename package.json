@@ -33,6 +33,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@aws-sdk/client-sqs": "^3.5.0",
+    "@aws-sdk/smithy-client": "^3.5.0",
     "@types/chai": "^4.2.11",
     "@types/debug": "^4.1.5",
     "@types/mocha": "^7.0.2",
@@ -53,7 +54,6 @@
     "typescript": "^3.9.5"
   },
   "dependencies": {
-    "@aws-sdk/smithy-client": "^3.5.0",
     "debug": "^4.1.1"
   },
   "peerDependencies": {
