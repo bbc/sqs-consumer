@@ -89,7 +89,7 @@ export interface ConsumerOptions {
   region?: string;
   handleMessageTimeout?: number;
   handleMessage?(message: SQSMessage): Promise<void>;
-  handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+  handleMessageBatch?(messages: SQSMessage[]): Promise<SQSMessage[] | void>;
 }
 
 interface Events {
@@ -106,7 +106,7 @@ interface Events {
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
-  private handleMessageBatch: (message: SQSMessage[]) => Promise<void>;
+  private handleMessageBatch: (message: SQSMessage[]) => Promise<SQSMessage[] | void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
@@ -342,9 +342,13 @@ export class Consumer extends EventEmitter {
           return this.changeVisabilityTimeoutBatch(messages, elapsedSeconds + this.visibilityTimeout);
         });
       }
-      await this.executeBatchHandler(messages);
-      await this.deleteMessageBatch(messages);
-      messages.forEach((message) => {
+      const ackedMessages = await this.executeBatchHandler(messages);
+
+      if (ackedMessages.length > 0) {
+        await this.deleteMessageBatch(ackedMessages);
+      }
+
+      ackedMessages.forEach((message) => {
         this.emit('message_processed', message);
       });
     } catch (err) {
@@ -378,9 +382,14 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async executeBatchHandler(messages: SQSMessage[]): Promise<void> {
+  private async executeBatchHandler(messages: SQSMessage[]): Promise<SQSMessage[]> {
     try {
-      await this.handleMessageBatch(messages);
+      const result = await this.handleMessageBatch(messages);
+
+      if (result instanceof Object) {
+        return result;
+      }
+      return messages;
     } catch (err) {
       err.message = `Unexpected message handler failure: ${err.message}`;
       throw err;
