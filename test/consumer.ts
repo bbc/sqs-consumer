@@ -623,6 +623,43 @@ describe('Consumer', () => {
 
     });
 
+    it('deleteMessageBatch not called if handleMessagesBatch returns an empty array', async ()=>{
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessageBatch: async ()=>([]),
+        batchSize: 2,
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+      sandbox.assert.callCount(sqs.deleteMessageBatch, 0);
+    });
+
+    it('ack only returned messages if handleMessagesBatch returns an array', async ()=>{
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: 'some-region',
+        handleMessageBatch: async ()=>([{ MessageId: '123', ReceiptHandle: 'receipt-handle' }]),
+        batchSize: 2,
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.deleteMessageBatch, {
+        QueueUrl: 'some-queue-url',
+        Entries: [{ Id: '123', ReceiptHandle: 'receipt-handle' }]
+      });
+
+    });
+
     it('extends visibility timeout for long running handler functions', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
