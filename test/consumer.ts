@@ -390,6 +390,25 @@ describe('Consumer', () => {
       sandbox.assert.notCalled(sqs.deleteMessage);
     });
 
+    it('doesn\'t delete the message when the option deleteMessagesOnSuccess is set to false', async () => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: 20,
+        deleteMessagesOnSuccess: false
+      });
+
+      handleMessage.resolves();
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.notCalled(sqs.deleteMessage);
+    });
+
     it('consumes another message once one is processed', async () => {
       handleMessage.resolves();
 
