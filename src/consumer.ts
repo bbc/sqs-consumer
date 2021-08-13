@@ -203,8 +203,8 @@ export class Consumer extends EventEmitter {
     let heartbeat;
     try {
       if (this.heartbeatInterval) {
-        heartbeat = this.startHeartbeat(async (elapsedSeconds) => {
-          return this.changeVisabilityTimeout(message, elapsedSeconds + this.visibilityTimeout);
+        heartbeat = this.startHeartbeat(async () => {
+          return this.changeVisabilityTimeout(message, this.visibilityTimeout);
         });
       }
       await this.executeHandler(message);
@@ -338,8 +338,8 @@ export class Consumer extends EventEmitter {
     let heartbeat;
     try {
       if (this.heartbeatInterval) {
-        heartbeat = this.startHeartbeat(async (elapsedSeconds) => {
-          return this.changeVisabilityTimeoutBatch(messages, elapsedSeconds + this.visibilityTimeout);
+        heartbeat = this.startHeartbeat(async () => {
+          return this.changeVisabilityTimeoutBatch(messages, this.visibilityTimeout);
         });
       }
       await this.executeBatchHandler(messages);
@@ -405,11 +405,9 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private startHeartbeat(heartbeatFn: (elapsedSeconds: number) => void): NodeJS.Timeout {
-    const startTime = Date.now();
+  private startHeartbeat(heartbeatFn: () => void): NodeJS.Timeout {
     return setInterval(() => {
-      const elapsedSeconds = Math.ceil((Date.now() - startTime) / 1000);
-      heartbeatFn(elapsedSeconds);
+      heartbeatFn();
     }, this.heartbeatInterval * 1000);
   }
 }
