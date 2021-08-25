@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import * as pEvent from 'p-event';
+import pEvent from 'p-event';
 
 import * as sinon from 'sinon';
 import { Consumer } from '../src/index';
@@ -331,7 +331,7 @@ describe('Consumer', () => {
         handleMessage,
         sqs,
         authenticationErrorTimeout: 20,
-        pollingWaitTimeMs: 100
+        pollingWaitTimeMs: POLLING_TIMEOUT
       });
 
       consumer.start();
@@ -682,15 +682,32 @@ describe('Consumer', () => {
           { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
         ]
       });
-      sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
-        QueueUrl: 'some-queue-url',
-        Entries: [
-          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
-          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
-          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
+      sandbox.assert.calledOnce(clearIntervalSpy);
+    });
+
+    it('can process more messages than the batch limit', async () => {
+      sqs.receiveMessage = stubResolve({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' },
+          { MessageId: '2', ReceiptHandle: 'receipt-handle-2', Body: 'body-2' },
+          { MessageId: '3', ReceiptHandle: 'receipt-handle-3', Body: 'body-3' }
         ]
       });
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      handleMessage = sinon.stub().callsFake(() => new Promise((resolve) => setTimeout(resolve, 100))),
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage,
+        batchSize: 3,
+        concurrency: 6,
+        sqs,
+      });
+
+      consumer.start();
+      await clock.tickAsync(100);
+      consumer.stop();
+
+      sandbox.assert.callCount(handleMessage, 6);
     });
   });
 
@@ -731,6 +748,7 @@ describe('Consumer', () => {
 
       consumer.start();
       consumer.stop();
+      await clock.runAllAsync();
       consumer.start();
       consumer.stop();
       await clock.runAllAsync();

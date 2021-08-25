@@ -1,10 +1,11 @@
 import { AWSError } from 'aws-sdk';
-import * as SQS from 'aws-sdk/clients/sqs';
+import SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import * as Debug from 'debug';
+import Debug from 'debug';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
+import fastq from 'fastq';
 
 const debug = Debug('sqs-consumer');
 
@@ -79,6 +80,7 @@ export interface ConsumerOptions {
   messageAttributeNames?: string[];
   stopped?: boolean;
   batchSize?: number;
+  concurrency?: number;
   visibilityTimeout?: number;
   waitTimeSeconds?: number;
   authenticationErrorTimeout?: number;
@@ -103,6 +105,12 @@ interface Events {
   'stopped': [];
 }
 
+enum POLLING_STATUS {
+  ACTIVE,
+  WAITING,
+  INACTIVE
+}
+
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
@@ -112,6 +120,7 @@ export class Consumer extends EventEmitter {
   private messageAttributeNames: string[];
   private stopped: boolean;
   private batchSize: number;
+  private concurrency: number;
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
@@ -119,6 +128,8 @@ export class Consumer extends EventEmitter {
   private terminateVisibilityTimeout: boolean;
   private heartbeatInterval: number;
   private sqs: SQS;
+  private workQueue: fastq.queueAsPromised;
+  private pollingStatus: POLLING_STATUS;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -131,12 +142,16 @@ export class Consumer extends EventEmitter {
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.stopped = true;
     this.batchSize = options.batchSize || 1;
+    this.concurrency = options.concurrency || (this.handleMessageBatch ? 1 : this.batchSize);
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+    this.pollingStatus = POLLING_STATUS.INACTIVE;
+    this.workQueue = this.handleMessageBatch ?
+      fastq.promise(this.executeBatchHandler.bind(this), this.concurrency) : fastq.promise(this.executeHandler.bind(this), this.concurrency);
 
     this.sqs = options.sqs || new SQS({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
@@ -191,6 +206,7 @@ export class Consumer extends EventEmitter {
           await Promise.all(response.Messages.map(this.processMessage));
         }
         this.emit('response_processed');
+        this.queuePoll();
       } else {
         this.emit('empty');
       }
@@ -207,7 +223,9 @@ export class Consumer extends EventEmitter {
           return this.changeVisabilityTimeout(message, this.visibilityTimeout);
         });
       }
-      await this.executeHandler(message);
+      debug('pushed');
+      await this.workQueue.push(message);
+      debug('done');
       await this.deleteMessage(message);
       this.emit('message_processed', message);
     } catch (err) {
@@ -299,10 +317,27 @@ export class Consumer extends EventEmitter {
 
   private poll(): void {
     if (this.stopped) {
+      this.pollingStatus === POLLING_STATUS.INACTIVE;
       this.emit('stopped');
       return;
     }
 
+    if (this.pollingStatus === POLLING_STATUS.ACTIVE) {
+      debug('sqs polling already in progress');
+      return;
+    }
+
+    if (this.workQueue.length() > 0) {
+      debug('unstarted work in queue. not polling');
+      return;
+    }
+
+    if ((this.workQueue as any).running() >= this.concurrency) {
+      debug('work queue at capacity, no need to poll');
+      return;
+    }
+
+    this.pollingStatus = POLLING_STATUS.ACTIVE;
     debug('Polling for messages');
     const receiveParams = {
       QueueUrl: this.queueUrl,
@@ -315,7 +350,6 @@ export class Consumer extends EventEmitter {
 
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage(receiveParams)
-      .then(this.handleSqsResponse)
       .catch((err) => {
         this.emit('error', err);
         if (isConnectionError(err)) {
@@ -323,11 +357,25 @@ export class Consumer extends EventEmitter {
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
         return;
-      }).then(() => {
-        setTimeout(this.poll, currentPollingTimeout);
-      }).catch((err) => {
+      })
+      .then((message) => {
+        this.queuePoll(currentPollingTimeout);
+        if (message) return this.handleSqsResponse(message);
+      })
+      .catch((err) => {
         this.emit('error', err);
+      }).finally(() => {
+        if (this.pollingStatus === POLLING_STATUS.ACTIVE) {
+          this.pollingStatus = POLLING_STATUS.INACTIVE;
+        }
       });
+  }
+
+  private queuePoll(timeout?: number) {
+    if (this.pollingStatus !== POLLING_STATUS.WAITING) {
+      this.pollingStatus = POLLING_STATUS.WAITING;
+      setTimeout(this.poll, timeout ?? this.pollingWaitTimeMs);
+    }
   }
 
   private async processMessageBatch(messages: SQSMessage[]): Promise<void> {
@@ -342,7 +390,7 @@ export class Consumer extends EventEmitter {
           return this.changeVisabilityTimeoutBatch(messages, this.visibilityTimeout);
         });
       }
-      await this.executeBatchHandler(messages);
+      await this.workQueue.push(messages);
       await this.deleteMessageBatch(messages);
       messages.forEach((message) => {
         this.emit('message_processed', message);
