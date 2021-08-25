@@ -700,7 +700,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: 3,
         concurrency: 6,
-        sqs,
+        sqs
       });
 
       consumer.start();

@@ -81,6 +81,7 @@ export interface ConsumerOptions {
   stopped?: boolean;
   batchSize?: number;
   concurrency?: number;
+  bufferMessages?: boolean;
   visibilityTimeout?: number;
   waitTimeSeconds?: number;
   authenticationErrorTimeout?: number;
@@ -121,6 +122,7 @@ export class Consumer extends EventEmitter {
   private stopped: boolean;
   private batchSize: number;
   private concurrency: number;
+  private bufferMessages: boolean;
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
@@ -143,6 +145,7 @@ export class Consumer extends EventEmitter {
     this.stopped = true;
     this.batchSize = options.batchSize || 1;
     this.concurrency = options.concurrency || (this.handleMessageBatch ? 1 : this.batchSize);
+    this.bufferMessages = options.bufferMessages ?? (!this.handleMessageBatch && this.concurrency > this.batchSize),
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
@@ -324,6 +327,11 @@ export class Consumer extends EventEmitter {
 
     if (this.pollingStatus === POLLING_STATUS.ACTIVE) {
       debug('sqs polling already in progress');
+      return;
+    }
+
+    if (!this.bufferMessages && (this.workQueue as any).running() > 0) {
+      debug('work queue is not yet empty. not polling');
       return;
     }
 
