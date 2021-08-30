@@ -37,7 +37,7 @@ app.start();
 ```
 
 * The queue is polled continuously for messages using [long polling](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html).
-* Messages are processed once the handler function has completed successfully. User needs to manually delete the processed messages.
+* Messages are processed once the handler function has completed successfully. You need to delete the processed message using AWS SQS SDK
 * Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 * By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
 * By default, the default Node.js HTTP/HTTPS SQS agent creates a new TCP connection for every new request ([AWS SQS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/node-reusing-connections.html)). To avoid the cost of establishing a new connection, you can reuse an existing connection by passing a new SQS instance with `keepAlive: true`.
@@ -161,7 +161,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 |`processing_error`|`err`, `message`|Fired when an error occurs processing the message.|
 |`timeout_error`|`err`, `message`|Fired when `handleMessageTimeout` is supplied as an option and if `handleMessage` times out.|
 |`message_received`|`message`|Fired when a message is received.|
-|`message_processed`|`message`|Fired when a message is successfully processed. Message needs to be deleted manually for every message processed|
+|`message_processed`|`message`|Fired when a message is successfully processed. You need to delete the processed message using AWS SQS SDK|
 |`response_processed`|None|Fired after one batch of items (up to `batchSize`) has been successfully processed.|
 |`stopped`|None|Fired when the consumer finally stops its work.|
 |`empty`|None|Fired when the queue is empty (All messages have been consumed).|
