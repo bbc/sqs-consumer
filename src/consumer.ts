@@ -208,7 +208,6 @@ export class Consumer extends EventEmitter {
         });
       }
       await this.executeHandler(message);
-      await this.deleteMessage(message);
       this.emit('message_processed', message);
     } catch (err) {
       this.emitError(err, message);
@@ -231,22 +230,6 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async deleteMessage(message: SQSMessage): Promise<void> {
-    debug('Deleting message %s', message.MessageId);
-
-    const deleteParams = {
-      QueueUrl: this.queueUrl,
-      ReceiptHandle: message.ReceiptHandle
-    };
-
-    try {
-      await this.sqs
-        .deleteMessage(deleteParams)
-        .promise();
-    } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
-    }
-  }
 
   private async executeHandler(message: SQSMessage): Promise<void> {
     let timeout;
@@ -343,7 +326,6 @@ export class Consumer extends EventEmitter {
         });
       }
       await this.executeBatchHandler(messages);
-      await this.deleteMessageBatch(messages);
       messages.forEach((message) => {
         this.emit('message_processed', message);
       });
@@ -355,26 +337,6 @@ export class Consumer extends EventEmitter {
       }
     } finally {
       clearInterval(heartbeat);
-    }
-  }
-
-  private async deleteMessageBatch(messages: SQSMessage[]): Promise<void> {
-    debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
-
-    const deleteParams = {
-      QueueUrl: this.queueUrl,
-      Entries: messages.map((message) => ({
-        Id: message.MessageId,
-        ReceiptHandle: message.ReceiptHandle
-      }))
-    };
-
-    try {
-      await this.sqs
-        .deleteMessageBatch(deleteParams)
-        .promise();
-    } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
   }
 
