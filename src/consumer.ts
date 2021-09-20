@@ -109,7 +109,8 @@ interface Events {
 enum POLLING_STATUS {
   ACTIVE,
   WAITING,
-  INACTIVE
+  INACTIVE,
+  READY
 }
 
 export class Consumer extends EventEmitter {
@@ -145,7 +146,7 @@ export class Consumer extends EventEmitter {
     this.stopped = true;
     this.batchSize = options.batchSize || 1;
     this.concurrency = options.concurrency || (this.handleMessageBatch ? 1 : this.batchSize);
-    this.bufferMessages = options.bufferMessages ?? (!this.handleMessageBatch && this.concurrency > this.batchSize),
+    this.bufferMessages = options.bufferMessages ?? !!options.concurrency,
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
@@ -209,7 +210,6 @@ export class Consumer extends EventEmitter {
           await Promise.all(response.Messages.map(this.processMessage));
         }
         this.emit('response_processed');
-        this.queuePoll();
       } else {
         this.emit('empty');
       }
@@ -239,6 +239,7 @@ export class Consumer extends EventEmitter {
       }
     } finally {
       clearInterval(heartbeat);
+      this.queuePoll();
     }
   }
 
@@ -332,16 +333,19 @@ export class Consumer extends EventEmitter {
 
     if (!this.bufferMessages && (this.workQueue as any).running() > 0) {
       debug('work queue is not yet empty. not polling');
+      this.pollingStatus = POLLING_STATUS.READY;
       return;
     }
 
     if (this.workQueue.length() > 0) {
       debug('unstarted work in queue. not polling');
+      this.pollingStatus = POLLING_STATUS.READY;
       return;
     }
 
     if ((this.workQueue as any).running() >= this.concurrency) {
       debug('work queue at capacity, no need to poll');
+      this.pollingStatus = POLLING_STATUS.READY;
       return;
     }
 
