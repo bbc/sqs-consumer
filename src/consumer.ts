@@ -415,6 +415,7 @@ export class Consumer extends EventEmitter {
       }
     } finally {
       clearInterval(heartbeat);
+      this.queuePoll();
     }
   }
 
