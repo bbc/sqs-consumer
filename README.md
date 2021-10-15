@@ -9,8 +9,10 @@ Build SQS-based applications without the boilerplate. Just define an async funct
 
 ## Installation
 
+sqs-consumer depends on [AWS SDK for JavaScript 2.x](https://www.npmjs.com/package/aws-sdk)
+
 ```bash
-npm install sqs-consumer --save
+npm install aws-sdk sqs-consumer --save
 ```
 
 ## Usage
