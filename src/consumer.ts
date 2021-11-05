@@ -52,7 +52,12 @@ function assertOptions(options: ConsumerOptions): void {
 
 function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
-    return (err.statusCode === 403 || err.code === 'CredentialsError' || err.code === 'UnknownEndpoint');
+    return (
+      err.statusCode === 403
+      || err.code === 'CredentialsError'
+      || err.code === 'UnknownEndpoint'
+      || err.code === 'AWS.SimpleQueueService.NonExistentQueue'
+    );
   }
   return false;
 }
@@ -320,6 +325,7 @@ export class Consumer extends EventEmitter {
         this.emit('error', err);
         if (isConnectionError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
+          debug(err.message);
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
         return;
