@@ -3,3 +3,4 @@ test.js
 coverage
 dist
 .nyc_output
+.history
