@@ -75,7 +75,7 @@ class Consumer extends events_1.EventEmitter {
         this.sqs = options.sqs || new SQS({
             region: options.region || process.env.AWS_REGION || 'eu-west-1'
         });
-        bind_1.autoBind(this);
+        (0, bind_1.autoBind)(this);
     }
     emit(event, ...args) {
         return super.emit(event, ...args);
