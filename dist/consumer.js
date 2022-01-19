@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const debug = require('debug')('sqs-consumer');
+exports.Consumer = void 0;
 const SQS = require("aws-sdk/clients/sqs");
+const Debug = require("debug");
 const events_1 = require("events");
 const bind_1 = require("./bind");
 const errors_1 = require("./errors");
+const debug = Debug('sqs-consumer');
 const requiredOptions = [
     'queueUrl',
     // only one of handleMessage / handleMessagesBatch is required
@@ -29,6 +31,9 @@ function assertOptions(options) {
     if (options.batchSize > 10 || options.batchSize < 1) {
         throw new Error('SQS batchSize option must be between 1 and 10.');
     }
+    if (options.heartbeatInterval && !(options.heartbeatInterval < options.visibilityTimeout)) {
+        throw new Error('heartbeatInterval must be less than visibilityTimeout.');
+    }
 }
 function isConnectionError(err) {
     if (err instanceof errors_1.SQSError) {
@@ -51,6 +56,7 @@ function hasMessages(response) {
 }
 class Consumer extends events_1.EventEmitter {
     constructor(options) {
+        var _a;
         super();
         assertOptions(options);
         this.queueUrl = options.queueUrl;
@@ -63,12 +69,24 @@ class Consumer extends events_1.EventEmitter {
         this.batchSize = options.batchSize || 1;
         this.visibilityTimeout = options.visibilityTimeout;
         this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
+        this.heartbeatInterval = options.heartbeatInterval;
         this.waitTimeSeconds = options.waitTimeSeconds || 20;
         this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
+        this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+        this.shouldDeleteMessages = (_a = options.shouldDeleteMessages) !== null && _a !== void 0 ? _a : true;
         this.sqs = options.sqs || new SQS({
             region: options.region || process.env.AWS_REGION || 'eu-west-1'
         });
         bind_1.autoBind(this);
+    }
+    emit(event, ...args) {
+        return super.emit(event, ...args);
+    }
+    on(event, listener) {
+        return super.on(event, listener);
+    }
+    once(event, listener) {
+        return super.once(event, listener);
     }
     get isRunning() {
         return !this.stopped;
@@ -108,7 +126,13 @@ class Consumer extends events_1.EventEmitter {
     }
     async processMessage(message) {
         this.emit('message_received', message);
+        let heartbeat;
         try {
+            if (this.heartbeatInterval) {
+                heartbeat = this.startHeartbeat(async () => {
+                    return this.changeVisabilityTimeout(message, this.visibilityTimeout);
+                });
+            }
             await this.executeHandler(message);
             await this.deleteMessage(message);
             this.emit('message_processed', message);
@@ -116,13 +140,11 @@ class Consumer extends events_1.EventEmitter {
         catch (err) {
             this.emitError(err, message);
             if (this.terminateVisibilityTimeout) {
-                try {
-                    await this.terminateVisabilityTimeout(message);
-                }
-                catch (err) {
-                    this.emit('error', err, message);
-                }
+                await this.changeVisabilityTimeout(message, 0);
             }
+        }
+        finally {
+            clearInterval(heartbeat);
         }
     }
     async receiveMessage(params) {
@@ -136,6 +158,10 @@ class Consumer extends events_1.EventEmitter {
         }
     }
     async deleteMessage(message) {
+        if (!this.shouldDeleteMessages) {
+            debug('Skipping message delete since shouldDeleteMessages is set to false');
+            return;
+        }
         debug('Deleting message %s', message.MessageId);
         const deleteParams = {
             QueueUrl: this.queueUrl,
@@ -169,7 +195,7 @@ class Consumer extends events_1.EventEmitter {
             if (err instanceof errors_1.TimeoutError) {
                 err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
             }
-            else {
+            else if (err instanceof Error) {
                 err.message = `Unexpected message handler failure: ${err.message}`;
             }
             throw err;
@@ -178,14 +204,19 @@ class Consumer extends events_1.EventEmitter {
             clearTimeout(timeout);
         }
     }
-    async terminateVisabilityTimeout(message) {
-        return this.sqs
-            .changeMessageVisibility({
-            QueueUrl: this.queueUrl,
-            ReceiptHandle: message.ReceiptHandle,
-            VisibilityTimeout: 0
-        })
-            .promise();
+    async changeVisabilityTimeout(message, timeout) {
+        try {
+            return this.sqs
+                .changeMessageVisibility({
+                QueueUrl: this.queueUrl,
+                ReceiptHandle: message.ReceiptHandle,
+                VisibilityTimeout: timeout
+            })
+                .promise();
+        }
+        catch (err) {
+            this.emit('error', err, message);
+        }
     }
     emitError(err, message) {
         if (err.name === errors_1.SQSError.name) {
@@ -212,18 +243,18 @@ class Consumer extends events_1.EventEmitter {
             WaitTimeSeconds: this.waitTimeSeconds,
             VisibilityTimeout: this.visibilityTimeout
         };
-        let pollingTimeout = 0;
+        let currentPollingTimeout = this.pollingWaitTimeMs;
         this.receiveMessage(receiveParams)
             .then(this.handleSqsResponse)
             .catch((err) => {
             this.emit('error', err);
             if (isConnectionError(err)) {
                 debug('There was an authentication error. Pausing before retrying.');
-                pollingTimeout = this.authenticationErrorTimeout;
+                currentPollingTimeout = this.authenticationErrorTimeout;
             }
             return;
         }).then(() => {
-            setTimeout(this.poll, pollingTimeout);
+            setTimeout(this.poll, currentPollingTimeout);
         }).catch((err) => {
             this.emit('error', err);
         });
@@ -232,7 +263,13 @@ class Consumer extends events_1.EventEmitter {
         messages.forEach((message) => {
             this.emit('message_received', message);
         });
+        let heartbeat;
         try {
+            if (this.heartbeatInterval) {
+                heartbeat = this.startHeartbeat(async () => {
+                    return this.changeVisabilityTimeoutBatch(messages, this.visibilityTimeout);
+                });
+            }
             await this.executeBatchHandler(messages);
             await this.deleteMessageBatch(messages);
             messages.forEach((message) => {
@@ -242,20 +279,22 @@ class Consumer extends events_1.EventEmitter {
         catch (err) {
             this.emit('error', err, messages);
             if (this.terminateVisibilityTimeout) {
-                try {
-                    await this.terminateVisabilityTimeoutBatch(messages);
-                }
-                catch (err) {
-                    this.emit('error', err, messages);
-                }
+                await this.changeVisabilityTimeoutBatch(messages, 0);
             }
+        }
+        finally {
+            clearInterval(heartbeat);
         }
     }
     async deleteMessageBatch(messages) {
+        if (!this.shouldDeleteMessages) {
+            debug('Skipping message delete since shouldDeleteMessages is set to false');
+            return;
+        }
         debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
         const deleteParams = {
             QueueUrl: this.queueUrl,
-            Entries: messages.map(message => ({
+            Entries: messages.map((message) => ({
                 Id: message.MessageId,
                 ReceiptHandle: message.ReceiptHandle
             }))
@@ -278,18 +317,28 @@ class Consumer extends events_1.EventEmitter {
             throw err;
         }
     }
-    async terminateVisabilityTimeoutBatch(messages) {
+    async changeVisabilityTimeoutBatch(messages, timeout) {
         const params = {
             QueueUrl: this.queueUrl,
             Entries: messages.map((message) => ({
                 Id: message.MessageId,
                 ReceiptHandle: message.ReceiptHandle,
-                VisibilityTimeout: 0
+                VisibilityTimeout: timeout
             }))
         };
-        return this.sqs
-            .changeMessageVisibilityBatch(params)
-            .promise();
+        try {
+            return this.sqs
+                .changeMessageVisibilityBatch(params)
+                .promise();
+        }
+        catch (err) {
+            this.emit('error', err, messages);
+        }
+    }
+    startHeartbeat(heartbeatFn) {
+        return setInterval(() => {
+            heartbeatFn();
+        }, this.heartbeatInterval * 1000);
     }
 }
 exports.Consumer = Consumer;

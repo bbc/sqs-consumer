@@ -1,5 +1,6 @@
-'use strict';
+"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.autoBind = void 0;
 function isMethod(propertyName, value) {
     return propertyName !== 'constructor' && typeof value === 'function';
 }

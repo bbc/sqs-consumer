@@ -1,6 +1,7 @@
+/// <reference types="node" />
 import * as SQS from 'aws-sdk/clients/sqs';
 import { EventEmitter } from 'events';
-declare type SQSMessage = SQS.Types.Message;
+export declare type SQSMessage = SQS.Types.Message;
 export interface ConsumerOptions {
     queueUrl?: string;
     attributeNames?: string[];
@@ -10,12 +11,25 @@ export interface ConsumerOptions {
     visibilityTimeout?: number;
     waitTimeSeconds?: number;
     authenticationErrorTimeout?: number;
+    pollingWaitTimeMs?: number;
     terminateVisibilityTimeout?: boolean;
+    heartbeatInterval?: number;
     sqs?: SQS;
     region?: string;
     handleMessageTimeout?: number;
+    shouldDeleteMessages?: boolean;
     handleMessage?(message: SQSMessage): Promise<void>;
     handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+}
+interface Events {
+    'response_processed': [];
+    'empty': [];
+    'message_received': [SQSMessage];
+    'message_processed': [SQSMessage];
+    'error': [Error, void | SQSMessage | SQSMessage[]];
+    'timeout_error': [Error, SQSMessage];
+    'processing_error': [Error, SQSMessage];
+    'stopped': [];
 }
 export declare class Consumer extends EventEmitter {
     private queueUrl;
@@ -29,10 +43,16 @@ export declare class Consumer extends EventEmitter {
     private visibilityTimeout;
     private waitTimeSeconds;
     private authenticationErrorTimeout;
+    private pollingWaitTimeMs;
     private terminateVisibilityTimeout;
+    private heartbeatInterval;
     private sqs;
+    private shouldDeleteMessages;
     constructor(options: ConsumerOptions);
-    readonly isRunning: boolean;
+    emit<T extends keyof Events>(event: T, ...args: Events[T]): boolean;
+    on<T extends keyof Events>(event: T, listener: (...args: Events[T]) => void): this;
+    once<T extends keyof Events>(event: T, listener: (...args: Events[T]) => void): this;
+    get isRunning(): boolean;
     static create(options: ConsumerOptions): Consumer;
     start(): void;
     stop(): void;
@@ -41,12 +61,13 @@ export declare class Consumer extends EventEmitter {
     private receiveMessage;
     private deleteMessage;
     private executeHandler;
-    private terminateVisabilityTimeout;
+    private changeVisabilityTimeout;
     private emitError;
     private poll;
     private processMessageBatch;
     private deleteMessageBatch;
     private executeBatchHandler;
-    private terminateVisabilityTimeoutBatch;
+    private changeVisabilityTimeoutBatch;
+    private startHeartbeat;
 }
 export {};

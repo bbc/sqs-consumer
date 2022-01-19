@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.TimeoutError = exports.SQSError = void 0;
 class SQSError extends Error {
     constructor(message) {
         super(message);
