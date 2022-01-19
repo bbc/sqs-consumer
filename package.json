@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "5.2.0",
+  "version": "5.6.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,8 +10,9 @@
     "clean": "rm -fr dist/*",
     "prepublish": "npm run build",
     "pretest": "npm run build",
-    "test": "mocha",
-    "lint": "tslint --project tsconfig.json",
+    "test": "mocha --recursive --full-trace --exit",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --fix",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
     "posttest": "npm run lint"
@@ -31,26 +32,31 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/chai": "^4.1.4",
-    "@types/mocha": "^2.2.43",
-    "@types/node": "^10.12.18",
-    "@types/sinon": "^4.0.0",
+    "@types/chai": "^4.2.11",
+    "@types/debug": "^4.1.5",
+    "@types/mocha": "^7.0.2",
+    "@types/node": "^14.0.13",
+    "@types/sinon": "^9.0.4",
     "@types/typescript": "^2.0.0",
     "chai": "^4.2.0",
     "codeclimate-test-reporter": "^0.5.1",
-    "mocha": "^5.2.0",
-    "nyc": "^13.1.0",
-    "p-event": "^2.1.0",
-    "sinon": "^7.2.2",
-    "ts-node": "^3.3.0",
-    "tslint": "^5.12.1",
-    "tslint-config-airbnb": "^5.3.1",
-    "tslint-microsoft-contrib": "^5.0.3",
-    "typescript": "^2.6.1"
+    "eslint": "^7.2.0",
+    "eslint-config-iplayer-ts": "^2.0.0",
+    "mocha": "^8.0.1",
+    "nyc": "^15.1.0",
+    "p-event": "^4.2.0",
+    "sinon": "^9.0.2",
+    "ts-node": "^8.10.2",
+    "tslint-config-airbnb": "^5.11.2",
+    "tslint-microsoft-contrib": "^6.2.0",
+    "typescript": "^3.9.5",
+    "aws-sdk": "^2.699.0"
   },
   "dependencies": {
-    "aws-sdk": "^2.443.0",
     "debug": "^4.1.1"
+  },
+  "peerDependencies": {
+    "aws-sdk": "^2.699.0"
   },
   "nyc": {
     "include": [
@@ -64,5 +70,16 @@
     ],
     "sourceMap": true,
     "instrument": true
+  },
+  "eslintConfig": {
+    "extends": "iplayer-ts",
+    "parserOptions": {
+      "ecmaVersion": 2017,
+      "sourceType": "module"
+    }
+  },
+  "mocha": {
+    "spec": "test/**/**/*.ts",
+    "require": "ts-node/register"
   }
 }
