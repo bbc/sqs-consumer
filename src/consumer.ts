@@ -1,4 +1,4 @@
-import { AWSError } from 'aws-sdk';
+import { AWSError, Request as AWSRequest } from 'aws-sdk';
 import * as SQS from 'aws-sdk/clients/sqs';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import * as Debug from 'debug';
@@ -120,6 +120,9 @@ export class Consumer extends EventEmitter {
   private heartbeatInterval: number;
   private sqs: SQS;
 
+  private currentPollingTimeoutId: NodeJS.Timeout | null;
+  private currentPollingRequest: AWSRequest<SQS.Types.ReceiveMessageResult, AWSError> | null;
+
   constructor(options: ConsumerOptions) {
     super();
     assertOptions(options);
@@ -175,7 +178,23 @@ export class Consumer extends EventEmitter {
 
   public stop(): void {
     debug('Stopping consumer');
+    if (this.stopped) {
+      return;
+    }
+
     this.stopped = true;
+
+    if (this.currentPollingRequest) {
+      this.currentPollingRequest.abort();
+      this.currentPollingRequest = null;
+    }
+
+    if (this.currentPollingTimeoutId) {
+      clearTimeout(this.currentPollingTimeoutId);
+      this.currentPollingTimeoutId = null;
+    }
+
+    this.emit('stopped');
   }
 
   private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
@@ -223,9 +242,8 @@ export class Consumer extends EventEmitter {
 
   private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceieveMessageResponse> {
     try {
-      return await this.sqs
-        .receiveMessage(params)
-        .promise();
+      this.currentPollingRequest = this.sqs.receiveMessage(params);
+      return await this.currentPollingRequest.promise();
     } catch (err) {
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
@@ -299,7 +317,6 @@ export class Consumer extends EventEmitter {
 
   private poll(): void {
     if (this.stopped) {
-      this.emit('stopped');
       return;
     }
 
@@ -324,7 +341,7 @@ export class Consumer extends EventEmitter {
         }
         return;
       }).then(() => {
-        setTimeout(this.poll, currentPollingTimeout);
+        this.currentPollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
       }).catch((err) => {
         this.emit('error', err);
       });

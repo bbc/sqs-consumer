@@ -12,13 +12,19 @@ const POLLING_TIMEOUT = 100;
 function stubResolve(value?: any): any {
   return sandbox
     .stub()
-    .returns({ promise: sandbox.stub().resolves(value) });
+    .returns({
+      abort: sandbox.stub(),
+      promise: sandbox.stub().resolves(value)
+    });
 }
 
 function stubReject(value?: any): any {
   return sandbox
     .stub()
-    .returns({ promise: sandbox.stub().rejects(value) });
+    .returns({
+      abort: sandbox.stub(),
+      promise: sandbox.stub().rejects(value)
+    });
 }
 
 class MockSQSError extends Error {
@@ -412,6 +418,19 @@ describe('Consumer', () => {
       sandbox.assert.calledOnce(sqs.receiveMessage);
     });
 
+    it('doesn\'t consume more messages when called multiple times after stoped', () => {
+      sqs.receiveMessage = stubResolve(new Promise((res) => setTimeout(res, 100)));
+      consumer.start();
+      consumer.stop();
+
+      consumer.start();
+      consumer.start();
+      consumer.start();
+      consumer.start();
+
+      sandbox.assert.calledTwice(sqs.receiveMessage);
+    });
+
     it('consumes multiple messages when the batchSize is greater than 1', async () => {
       sqs.receiveMessage = stubResolve({
         Messages: [
@@ -697,17 +716,12 @@ describe('Consumer', () => {
   describe('.stop', () => {
     it('stops the consumer polling for messages', async () => {
       consumer.start();
+
+      const stopped = pEvent(consumer, 'stopped');
       consumer.stop();
 
-      await Promise.all([pEvent(consumer, 'stopped'), clock.runAllAsync()]);
-
+      await stopped;
       sandbox.assert.calledOnce(handleMessage);
-    });
-
-    it('fires a stopped event when last poll occurs after stopping', async () => {
-      consumer.start();
-      consumer.stop();
-      await Promise.all([pEvent(consumer, 'stopped'), clock.runAllAsync()]);
     });
 
     it('fires a stopped event only once when stopped multiple times', async () => {
