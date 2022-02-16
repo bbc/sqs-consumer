@@ -57,6 +57,14 @@ function isConnectionError(err: Error): boolean {
   return false;
 }
 
+function isAbortedError(err: Error): boolean {
+  if (err instanceof SQSError) {
+    return (err.statusCode === 200 || err.code === 'RequestAbortedError');
+  }
+
+  return false;
+}
+
 function toSQSError(err: AWSError, message: string): SQSError {
   const sqsError = new SQSError(message);
   sqsError.code = err.code;
@@ -245,7 +253,11 @@ export class Consumer extends EventEmitter {
       this.currentPollingRequest = this.sqs.receiveMessage(params);
       return await this.currentPollingRequest.promise();
     } catch (err) {
-      throw toSQSError(err, `SQS receive message failed: ${err.message}`);
+      const sqsError = toSQSError(err, `SQS receive message failed: ${err.message}`);
+
+      if (!isAbortedError(sqsError)) {
+        throw sqsError;
+      }
     }
   }
 
