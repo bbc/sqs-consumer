@@ -1,9 +1,10 @@
 {
-  "name": "sqs-consumer",
+  "name": "@ctnnguyen/ts-sqs-consumer",
   "version": "5.6.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "npm run clean && tsc",
     "watch": "tsc --watch",
@@ -11,26 +12,29 @@
     "prepublish": "npm run build",
     "pretest": "npm run build",
     "test": "mocha --recursive --full-trace --exit",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --fix -c .eslintrc.cjs",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
     "posttest": "npm run lint"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/BBC/sqs-consumer.git"
+    "url": "https://github.com/ctnnguyen/ts-sqs-consumer.git"
   },
   "bugs": {
-    "url": "https://github.com/BBC/sqs-consumer/issues"
+    "url": "https://github.com/ctnnguyen/ts-sqs-consumer/issues"
   },
-  "homepage": "https://github.com/BBC/sqs-consumer",
+  "homepage": "https://github.com/ctnnguyen/ts-sqs-consumer",
   "keywords": [
     "sqs",
     "queue",
-    "consumer"
+    "consumer",
+    "typescript"
   ],
   "license": "Apache-2.0",
+  "dependencies": {
+    "debug": "^4.1.1"
+  },
   "devDependencies": {
     "@types/chai": "^4.2.11",
     "@types/debug": "^4.1.5",
@@ -38,10 +42,12 @@
     "@types/node": "^14.0.13",
     "@types/sinon": "^9.0.4",
     "@types/typescript": "^2.0.0",
+    "@typescript-eslint/eslint-plugin": "5.12.1",
+    "@typescript-eslint/parser": "5.12.1",
+    "aws-sdk": "^2.699.0",
     "chai": "^4.2.0",
     "codeclimate-test-reporter": "^0.5.1",
-    "eslint": "^7.2.0",
-    "eslint-config-iplayer-ts": "^2.0.0",
+    "eslint": "8.10.0",
     "mocha": "^8.0.1",
     "nyc": "^15.1.0",
     "p-event": "^4.2.0",
@@ -49,11 +55,7 @@
     "ts-node": "^8.10.2",
     "tslint-config-airbnb": "^5.11.2",
     "tslint-microsoft-contrib": "^6.2.0",
-    "typescript": "^3.9.5",
-    "aws-sdk": "^2.699.0"
-  },
-  "dependencies": {
-    "debug": "^4.1.1"
+    "typescript": "4.5.5"
   },
   "peerDependencies": {
     "aws-sdk": "^2.699.0"
@@ -70,13 +72,6 @@
     ],
     "sourceMap": true,
     "instrument": true
-  },
-  "eslintConfig": {
-    "extends": "iplayer-ts",
-    "parserOptions": {
-      "ecmaVersion": 2017,
-      "sourceType": "module"
-    }
   },
   "mocha": {
     "spec": "test/**/**/*.ts",
