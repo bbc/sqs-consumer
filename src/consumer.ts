@@ -16,7 +16,7 @@ type ReceiveMessageRequest = SQS.Types.ReceiveMessageRequest;
 const requiredOptions = [
   'queueUrl',
   // only one of handleMessage / handleMessagesBatch is required
-  'handleMessage|handleMessageBatch'
+  'handleMessage|handleMessageBatch',
 ];
 
 interface TimeoutResponse {
@@ -39,9 +39,9 @@ function createTimeout(duration: number): TimeoutResponse[] {
 }
 
 function assertOptions(options: ConsumerOptions): void {
-  requiredOptions.forEach(option => {
+  requiredOptions.forEach((option) => {
     const possibilities = option.split('|');
-    if (!possibilities.find(p => options[p])) {
+    if (!possibilities.find((p) => options[p])) {
       throw new Error(`Missing SQS consumer option [ ${possibilities.join(' or ')} ].`);
     }
   });
@@ -160,7 +160,7 @@ export class Consumer extends EventEmitter {
     this.sqs =
       options.sqs ||
       new SQS({
-        region: options.region || process.env.AWS_REGION || 'eu-west-1'
+        region: options.region || process.env.AWS_REGION || 'eu-west-1',
       });
 
     autoBind(this);
@@ -185,6 +185,18 @@ export class Consumer extends EventEmitter {
   public stop(): void {
     debug('Stopping consumer');
     this.stopped = true;
+  }
+
+  public setBatchSize(newBatchSize: number): void {
+    this.batchSize = newBatchSize;
+  }
+
+  public setConcurrencyLimit(newConcurrencyLimit: number): void {
+    const concurrencyLimitDiff = newConcurrencyLimit - this.concurrencyLimit;
+    const newFreeConcurrentSlots = Math.max(0, this.freeConcurrentSlots + concurrencyLimitDiff);
+
+    this.concurrencyLimit = newConcurrencyLimit;
+    this.freeConcurrentSlots = newFreeConcurrentSlots;
   }
 
   public async reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void> {
@@ -220,7 +232,7 @@ export class Consumer extends EventEmitter {
         instanceId: process.env.HOSTNAME,
         queueUrl: this.queueUrl,
         messagesReceived: numberOfMessages,
-        freeConcurrentSlots: this.freeConcurrentSlots
+        freeConcurrentSlots: this.freeConcurrentSlots,
       });
     }
 
@@ -272,7 +284,7 @@ export class Consumer extends EventEmitter {
 
     const deleteParams = {
       QueueUrl: this.queueUrl,
-      ReceiptHandle: message.ReceiptHandle
+      ReceiptHandle: message.ReceiptHandle,
     };
 
     try {
@@ -310,7 +322,7 @@ export class Consumer extends EventEmitter {
       .changeMessageVisibility({
         QueueUrl: this.queueUrl,
         ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: 0
+        VisibilityTimeout: 0,
       })
       .promise();
   }
@@ -339,7 +351,7 @@ export class Consumer extends EventEmitter {
         instanceId: process.env.HOSTNAME,
         queueUrl: this.queueUrl,
         pollBatchSize,
-        freeConcurrentSlots: this.freeConcurrentSlots
+        freeConcurrentSlots: this.freeConcurrentSlots,
       });
     }
 
@@ -352,12 +364,12 @@ export class Consumer extends EventEmitter {
         MessageAttributeNames: this.messageAttributeNames,
         MaxNumberOfMessages: pollBatchSize,
         WaitTimeSeconds: this.waitTimeSeconds,
-        VisibilityTimeout: this.visibilityTimeout
+        VisibilityTimeout: this.visibilityTimeout,
       };
 
       this.receiveMessage(receiveParams)
         .then(this.handleSqsResponse)
-        .catch(err => {
+        .catch((err) => {
           this.emit('error', err);
           if (isConnectionError(err)) {
             debug('There was an authentication error. Pausing before retrying.');
@@ -368,7 +380,7 @@ export class Consumer extends EventEmitter {
         .then(() => {
           setTimeout(this.poll, currentPollingTimeout);
         })
-        .catch(err => {
+        .catch((err) => {
           this.emit('error', err);
         });
     } else {
@@ -377,7 +389,7 @@ export class Consumer extends EventEmitter {
   }
 
   private async processMessageBatch(messages: SQSMessage[]): Promise<void> {
-    messages.forEach(message => {
+    messages.forEach((message) => {
       this.emit('message_received', message);
     });
 
@@ -390,7 +402,7 @@ export class Consumer extends EventEmitter {
         queueUrl: this.queueUrl,
         batchUuid,
         numberOfMessages: messages.length,
-        freeConcurrentSlots: this.freeConcurrentSlots
+        freeConcurrentSlots: this.freeConcurrentSlots,
       });
     }
 
@@ -402,11 +414,11 @@ export class Consumer extends EventEmitter {
             queueUrl: this.queueUrl,
             batchUuid,
             numberOfMessages: messages.length,
-            freeConcurrentSlots: this.freeConcurrentSlots
+            freeConcurrentSlots: this.freeConcurrentSlots,
           });
         }
       })
-      .catch(err => {
+      .catch((err) => {
         if (this.batchFailedInstrumentCallBack) {
           this.batchFailedInstrumentCallBack({
             instanceId: process.env.HOSTNAME,
@@ -414,7 +426,7 @@ export class Consumer extends EventEmitter {
             batchUuid,
             numberOfMessages: messages.length,
             freeConcurrentSlots: this.freeConcurrentSlots,
-            error: err
+            error: err,
           });
         }
       });

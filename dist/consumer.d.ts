@@ -53,6 +53,8 @@ export declare class Consumer extends EventEmitter {
     static create(options: ConsumerOptions): Consumer;
     start(): void;
     stop(): void;
+    setBatchSize(newBatchSize: number): void;
+    setConcurrencyLimit(newConcurrencyLimit: number): void;
     reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void>;
     private reportNumberOfMessagesReceived;
     private handleSqsResponse;
