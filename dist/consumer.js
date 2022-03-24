@@ -41,6 +41,12 @@ function isConnectionError(err) {
     }
     return false;
 }
+function isNonExistentQueueError(err) {
+    if (err instanceof errors_1.SQSError) {
+        return err.code === 'AWS.SimpleQueueService.NonExistentQueue';
+    }
+    return false;
+}
 function toSQSError(err, message) {
     const sqsError = new errors_1.SQSError(message);
     sqsError.code = err.code;
@@ -282,6 +288,9 @@ class Consumer extends events_1.EventEmitter {
                 .then(this.handleSqsResponse)
                 .catch((err) => {
                 this.emit('error', err);
+                if (isNonExistentQueueError(err)) {
+                    throw new Error(`Could not receive messages - non existent queue - ${this.queueUrl}`);
+                }
                 if (isConnectionError(err)) {
                     debug('There was an authentication error. Pausing before retrying.');
                     currentPollingTimeout = this.authenticationErrorTimeout;
