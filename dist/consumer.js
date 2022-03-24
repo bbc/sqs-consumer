@@ -10,7 +10,7 @@ const debug = Debug('sqs-consumer');
 const requiredOptions = [
     'queueUrl',
     // only one of handleMessage / handleMessagesBatch is required
-    'handleMessage|handleMessageBatch'
+    'handleMessage|handleMessageBatch',
 ];
 function generateUuid() {
     return crypto.randomBytes(16).toString('hex');
@@ -25,9 +25,9 @@ function createTimeout(duration) {
     return [timeout, pending];
 }
 function assertOptions(options) {
-    requiredOptions.forEach(option => {
+    requiredOptions.forEach((option) => {
         const possibilities = option.split('|');
-        if (!possibilities.find(p => options[p])) {
+        if (!possibilities.find((p) => options[p])) {
             throw new Error(`Missing SQS consumer option [ ${possibilities.join(' or ')} ].`);
         }
     });
@@ -38,6 +38,12 @@ function assertOptions(options) {
 function isConnectionError(err) {
     if (err instanceof errors_1.SQSError) {
         return err.statusCode === 403 || err.code === 'CredentialsError' || err.code === 'UnknownEndpoint';
+    }
+    return false;
+}
+function isNonExistentQueueError(err) {
+    if (err instanceof errors_1.SQSError) {
+        return err.code === 'AWS.SimpleQueueService.NonExistentQueue';
     }
     return false;
 }
@@ -90,7 +96,7 @@ class Consumer extends events_1.EventEmitter {
         this.sqs =
             options.sqs ||
                 new SQS({
-                    region: options.region || process.env.AWS_REGION || 'eu-west-1'
+                    region: options.region || process.env.AWS_REGION || 'eu-west-1',
                 });
         bind_1.autoBind(this);
     }
@@ -110,6 +116,15 @@ class Consumer extends events_1.EventEmitter {
     stop() {
         debug('Stopping consumer');
         this.stopped = true;
+    }
+    setBatchSize(newBatchSize) {
+        this.batchSize = newBatchSize;
+    }
+    setConcurrencyLimit(newConcurrencyLimit) {
+        const concurrencyLimitDiff = newConcurrencyLimit - this.concurrencyLimit;
+        const newFreeConcurrentSlots = Math.max(0, this.freeConcurrentSlots + concurrencyLimitDiff);
+        this.concurrencyLimit = newConcurrencyLimit;
+        this.freeConcurrentSlots = newFreeConcurrentSlots;
     }
     async reportMessageFromBatchFinished(message, error) {
         debug('Message from batch has finised');
@@ -139,7 +154,7 @@ class Consumer extends events_1.EventEmitter {
                 instanceId: process.env.HOSTNAME,
                 queueUrl: this.queueUrl,
                 messagesReceived: numberOfMessages,
-                freeConcurrentSlots: this.freeConcurrentSlots
+                freeConcurrentSlots: this.freeConcurrentSlots,
             });
         }
         if (response) {
@@ -189,7 +204,7 @@ class Consumer extends events_1.EventEmitter {
         debug('Deleting message %s', message.MessageId);
         const deleteParams = {
             QueueUrl: this.queueUrl,
-            ReceiptHandle: message.ReceiptHandle
+            ReceiptHandle: message.ReceiptHandle,
         };
         try {
             await this.sqs.deleteMessage(deleteParams).promise();
@@ -229,7 +244,7 @@ class Consumer extends events_1.EventEmitter {
             .changeMessageVisibility({
             QueueUrl: this.queueUrl,
             ReceiptHandle: message.ReceiptHandle,
-            VisibilityTimeout: 0
+            VisibilityTimeout: 0,
         })
             .promise();
     }
@@ -256,7 +271,7 @@ class Consumer extends events_1.EventEmitter {
                 instanceId: process.env.HOSTNAME,
                 queueUrl: this.queueUrl,
                 pollBatchSize,
-                freeConcurrentSlots: this.freeConcurrentSlots
+                freeConcurrentSlots: this.freeConcurrentSlots,
             });
         }
         let currentPollingTimeout = this.pollingWaitTimeMs;
@@ -267,12 +282,15 @@ class Consumer extends events_1.EventEmitter {
                 MessageAttributeNames: this.messageAttributeNames,
                 MaxNumberOfMessages: pollBatchSize,
                 WaitTimeSeconds: this.waitTimeSeconds,
-                VisibilityTimeout: this.visibilityTimeout
+                VisibilityTimeout: this.visibilityTimeout,
             };
             this.receiveMessage(receiveParams)
                 .then(this.handleSqsResponse)
-                .catch(err => {
+                .catch((err) => {
                 this.emit('error', err);
+                if (isNonExistentQueueError(err)) {
+                    throw new Error(`Could not receive messages - non existent queue - ${this.queueUrl}`);
+                }
                 if (isConnectionError(err)) {
                     debug('There was an authentication error. Pausing before retrying.');
                     currentPollingTimeout = this.authenticationErrorTimeout;
@@ -282,7 +300,7 @@ class Consumer extends events_1.EventEmitter {
                 .then(() => {
                 setTimeout(this.poll, currentPollingTimeout);
             })
-                .catch(err => {
+                .catch((err) => {
                 this.emit('error', err);
             });
         }
@@ -291,7 +309,7 @@ class Consumer extends events_1.EventEmitter {
         }
     }
     async processMessageBatch(messages) {
-        messages.forEach(message => {
+        messages.forEach((message) => {
             this.emit('message_received', message);
         });
         this.reportNumberOfMessagesReceived(messages.length);
@@ -302,7 +320,7 @@ class Consumer extends events_1.EventEmitter {
                 queueUrl: this.queueUrl,
                 batchUuid,
                 numberOfMessages: messages.length,
-                freeConcurrentSlots: this.freeConcurrentSlots
+                freeConcurrentSlots: this.freeConcurrentSlots,
             });
         }
         this.handleMessageBatch(messages, this)
@@ -313,11 +331,11 @@ class Consumer extends events_1.EventEmitter {
                     queueUrl: this.queueUrl,
                     batchUuid,
                     numberOfMessages: messages.length,
-                    freeConcurrentSlots: this.freeConcurrentSlots
+                    freeConcurrentSlots: this.freeConcurrentSlots,
                 });
             }
         })
-            .catch(err => {
+            .catch((err) => {
             if (this.batchFailedInstrumentCallBack) {
                 this.batchFailedInstrumentCallBack({
                     instanceId: process.env.HOSTNAME,
@@ -325,7 +343,7 @@ class Consumer extends events_1.EventEmitter {
                     batchUuid,
                     numberOfMessages: messages.length,
                     freeConcurrentSlots: this.freeConcurrentSlots,
-                    error: err
+                    error: err,
                 });
             }
         });
