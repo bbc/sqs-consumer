@@ -694,6 +694,60 @@ describe('Consumer', () => {
     });
   });
 
+  it('emit error when changing visibility timeout fails', async () => {
+    sqs.receiveMessage = stubResolve({
+      Messages: [
+        { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+      ]
+    });
+    consumer = new Consumer({
+      queueUrl: 'some-queue-url',
+      region: 'some-region',
+      handleMessage: () => new Promise((resolve) => setTimeout(resolve, 75000)),
+      sqs,
+      visibilityTimeout: 40,
+      heartbeatInterval: 30
+    });
+
+    const receiveErr = new MockSQSError('failed');
+    sqs.changeMessageVisibility = stubReject(receiveErr);
+
+    consumer.start();
+    const [err]: any[] = await Promise.all([pEvent(consumer, 'error'), clock.tickAsync(75000)]);
+    consumer.stop();
+
+    assert.ok(err);
+    assert.equal(err.message, 'Error changing visibility timeout: failed');
+  });
+
+  it('emit error when changing visibility timeout fails for batch handler functions', async () => {
+    sqs.receiveMessage = stubResolve({
+      Messages: [
+        { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' },
+        { MessageId: '2', ReceiptHandle: 'receipt-handle-2', Body: 'body-2' }
+      ]
+    });
+    consumer = new Consumer({
+      queueUrl: 'some-queue-url',
+      region: 'some-region',
+      handleMessageBatch: () => new Promise((resolve) => setTimeout(resolve, 75000)),
+      sqs,
+      batchSize: 2,
+      visibilityTimeout: 40,
+      heartbeatInterval: 30
+    });
+
+    const receiveErr = new MockSQSError('failed');
+    sqs.changeMessageVisibilityBatch = stubReject(receiveErr);
+
+    consumer.start();
+    const [err]: any[] = await Promise.all([pEvent(consumer, 'error'), clock.tickAsync(75000)]);
+    consumer.stop();
+
+    assert.ok(err);
+    assert.equal(err.message, 'Error changing visibility timeout: failed');
+  });
+
   describe('.stop', () => {
     it('stops the consumer polling for messages', async () => {
       consumer.start();
