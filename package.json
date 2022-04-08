@@ -1,6 +1,6 @@
 {
   "name": "@covetool/sqs-consumer",
-  "version": "5.6.1",
+  "version": "5.6.2",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
