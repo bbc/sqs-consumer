@@ -208,7 +208,7 @@ export class Consumer extends EventEmitter {
   }
 
   public async reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void> {
-    debug('Message from batch has finised');
+    debug('Message from batch has finished');
 
     this.freeConcurrentSlots++;
 
@@ -216,7 +216,7 @@ export class Consumer extends EventEmitter {
       if (error) throw error;
 
       await this.deleteMessage(message);
-      this.emit('message_processed', message);
+      this.emit('message_processed', message, this.queueUrl);
     } catch (err) {
       this.emitError(err, message);
     }
@@ -252,20 +252,20 @@ export class Consumer extends EventEmitter {
         } else {
           await Promise.all(response.Messages.map(this.processMessage));
         }
-        this.emit('response_processed');
+        this.emit('response_processed', this.queueUrl);
       } else {
-        this.emit('empty');
+        this.emit('empty', this.queueUrl);
       }
     }
   }
 
   private async processMessage(message: SQSMessage): Promise<void> {
-    this.emit('message_received', message);
+    this.emit('message_received', message, this.queueUrl);
 
     try {
       await this.executeHandler(message);
       await this.deleteMessage(message);
-      this.emit('message_processed', message);
+      this.emit('message_processed', message, this.queueUrl);
     } catch (err) {
       this.emitError(err, message);
 
@@ -347,7 +347,7 @@ export class Consumer extends EventEmitter {
 
   private poll(): void {
     if (this.stopped) {
-      this.emit('stopped');
+      this.emit('stopped', this.queueUrl);
       return;
     }
 
@@ -402,7 +402,7 @@ export class Consumer extends EventEmitter {
 
   private async processMessageBatch(messages: SQSMessage[]): Promise<void> {
     messages.forEach((message) => {
-      this.emit('message_received', message);
+      this.emit('message_received', message, this.queueUrl);
     });
 
     this.reportNumberOfMessagesReceived(messages.length);
