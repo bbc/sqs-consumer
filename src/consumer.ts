@@ -273,7 +273,7 @@ export class Consumer extends EventEmitter {
         try {
           await this.terminateVisabilityTimeout(message);
         } catch (err) {
-          this.emit('error', err, message);
+          this.emit('error', err, message, this.queueUrl);
         }
       }
     }
@@ -337,11 +337,11 @@ export class Consumer extends EventEmitter {
 
   private emitError(err: Error, message: SQSMessage): void {
     if (err.name === SQSError.name) {
-      this.emit('error', err, message);
+      this.emit('error', err, message, this.queueUrl);
     } else if (err instanceof TimeoutError) {
-      this.emit('timeout_error', err, message);
+      this.emit('timeout_error', err, message, this.queueUrl);
     } else {
-      this.emit('processing_error', err, message);
+      this.emit('processing_error', err, message, this.queueUrl);
     }
   }
 
@@ -378,7 +378,7 @@ export class Consumer extends EventEmitter {
       this.receiveMessage(receiveParams)
         .then(this.handleSqsResponse)
         .catch((err) => {
-          this.emit('error', err);
+          this.emit('unhandled_error', err, this.queueUrl);
           if (isNonExistentQueueError(err)) {
             throw new Error(`Could not receive messages - non existent queue - ${this.queueUrl}`);
           }
@@ -393,7 +393,7 @@ export class Consumer extends EventEmitter {
           setTimeout(this.poll, currentPollingTimeout);
         })
         .catch((err) => {
-          this.emit('error', err);
+          this.emit('unhandled_error', err, this.queueUrl);
         });
     } else {
       setTimeout(this.poll, this.msDelayOnEmptyBatchSize);

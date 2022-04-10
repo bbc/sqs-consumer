@@ -187,7 +187,7 @@ class Consumer extends events_1.EventEmitter {
                     await this.terminateVisabilityTimeout(message);
                 }
                 catch (err) {
-                    this.emit('error', err, message);
+                    this.emit('error', err, message, this.queueUrl);
                 }
             }
         }
@@ -250,13 +250,13 @@ class Consumer extends events_1.EventEmitter {
     }
     emitError(err, message) {
         if (err.name === errors_1.SQSError.name) {
-            this.emit('error', err, message);
+            this.emit('error', err, message, this.queueUrl);
         }
         else if (err instanceof errors_1.TimeoutError) {
-            this.emit('timeout_error', err, message);
+            this.emit('timeout_error', err, message, this.queueUrl);
         }
         else {
-            this.emit('processing_error', err, message);
+            this.emit('processing_error', err, message, this.queueUrl);
         }
     }
     poll() {
@@ -287,7 +287,7 @@ class Consumer extends events_1.EventEmitter {
             this.receiveMessage(receiveParams)
                 .then(this.handleSqsResponse)
                 .catch((err) => {
-                this.emit('error', err);
+                this.emit('unhandled_error', err, this.queueUrl);
                 if (isNonExistentQueueError(err)) {
                     throw new Error(`Could not receive messages - non existent queue - ${this.queueUrl}`);
                 }
@@ -301,7 +301,7 @@ class Consumer extends events_1.EventEmitter {
                 setTimeout(this.poll, currentPollingTimeout);
             })
                 .catch((err) => {
-                this.emit('error', err);
+                this.emit('unhandled_error', err, this.queueUrl);
             });
         }
         else {
