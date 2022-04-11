@@ -207,7 +207,10 @@ export class Consumer extends EventEmitter {
           // prefer handling messages in batch when available
           await this.processMessageBatch(response.Messages);
         } else {
-          await Promise.all(response.Messages.map(this.processMessage));
+          // handle messages in sequence to preserve ordering
+          for (const message of response.Messages) {
+            await this.processMessage(message);
+          }
         }
         this.emit('response_processed');
       } else {
