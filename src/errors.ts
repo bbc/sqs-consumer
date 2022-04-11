@@ -1,10 +1,10 @@
 class SQSError extends Error {
   code: string;
   statusCode: number;
-  region: string;
-  hostname: string;
+  service: string;
   time: Date;
   retryable: boolean;
+  fault: 'client' | 'server'
 
   constructor(message: string) {
     super(message);

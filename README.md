@@ -10,13 +10,19 @@ Build SQS-based applications without the boilerplate. Just define an async funct
 ## Installation
 
 ```bash
-npm install sqs-consumer --save
+npm add sqs-consumer
+```
+
+Note: This library assumes you are using [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/index.html). If you are using v2, please install v5.5.0:
+
+```bash
+npm add sqs-consumer@5.5.0
 ```
 
 ## Usage
 
 ```js
-const { Consumer } = require('sqs-consumer');
+import { Consumer } from 'sqs-consumer';
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
@@ -40,22 +46,19 @@ app.start();
 * Messages are deleted from the queue once the handler function has completed successfully.
 * Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 * By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
-* By default, the default Node.js HTTP/HTTPS SQS agent creates a new TCP connection for every new request ([AWS SQS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/node-reusing-connections.html)). To avoid the cost of establishing a new connection, you can reuse an existing connection by passing a new SQS instance with `keepAlive: true`.
+* If you need to add specific configuration options to the SQS client, you may pass an instantiated client to the Consumer constructor:
 ```js
-const { Consumer } = require('sqs-consumer');
-const AWS = require('aws-sdk');
+import { Consumer } from 'sqs-consumer';
+import { SQSClient } from '@aws-sdk/client-sqs';
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
   handleMessage: async (message) => {
     // do some work with `message`
   },
-  sqs: new AWS.SQS({
-    httpOptions: {
-      agent: new https.Agent({
-        keepAlive: true
-      })
-    }
+  sqs: new SQSClient({
+    region: 'my-region',
+    requestHandler: MyCustomHttpHandler
   })
 });
 
@@ -79,25 +82,26 @@ export AWS_SECRET_ACCESS_KEY=...
 export AWS_ACCESS_KEY_ID=...
 ```
 
-If you need to specify your credentials manually, you can use a pre-configured instance of the [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) client:
+If you need to specify your credentials manually, you can use a pre-configured instance of the [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) client and chose from [a valid credentials provider](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 
 
 ```js
-const { Consumer } = require('sqs-consumer');
-const AWS = require('aws-sdk');
+import { Consumer } from 'sqs-consumer';
+import { SQSClient } from '@aws-sdk/client-sqs';
+import { fromIni } from '@aws-sdk/credential-provider-ini';
 
-AWS.config.update({
-  region: 'eu-west-1',
-  accessKeyId: '...',
-  secretAccessKey: '...'
+const credentials = fromIni({
+  profile: 'my-profile'
 });
+
+const region = 'my-region';
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
   handleMessage: async (message) => {
     // ...
   },
-  sqs: new AWS.SQS()
+  sqs: new SQSClient({ region, credentials })
 });
 
 app.on('error', (err) => {
@@ -137,7 +141,7 @@ Creates a new SQS consumer.
 * `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning.
 * `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
 * `pollingWaitTimeMs` - _Number_ - The duration (in milliseconds) to wait before repolling the queue (defaults to `0`).
-* `sqs` - _Object_ - An optional [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) object to use if you need to configure the client manually
+* `sqs` - _Object_ - An optional [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) object to use if you need to configure the client manually
 
 ### `consumer.start()`
 
