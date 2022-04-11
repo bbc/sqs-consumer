@@ -7,7 +7,8 @@
     "moduleResolution": "node",
     "allowJs": false,
     "noUnusedLocals": true,
-    "declaration": true
+    "declaration": true,
+    "esModuleInterop": true
   },
   "include": [
     "src/**/*"
