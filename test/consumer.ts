@@ -7,7 +7,7 @@ import {
   SQSClient
 } from '@aws-sdk/client-sqs';
 import { assert } from 'chai';
-import * as pEvent from 'p-event';
+import pEvent from 'p-event';
 
 import * as sinon from 'sinon';
 import { Consumer } from '../src/index';
@@ -351,7 +351,7 @@ describe('Consumer', () => {
         handleMessage,
         sqs,
         authenticationErrorTimeout: 20,
-        pollingWaitTimeMs: 100
+        pollingWaitTimeMs: POLLING_TIMEOUT
       });
 
       consumer.start();
@@ -758,6 +758,7 @@ describe('Consumer', () => {
 
       consumer.start();
       consumer.stop();
+      await clock.runAllAsync();
       consumer.start();
       consumer.stop();
       await clock.runAllAsync();
