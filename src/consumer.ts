@@ -204,7 +204,7 @@ export class Consumer extends EventEmitter {
     try {
       if (this.heartbeatInterval) {
         heartbeat = this.startHeartbeat(async () => {
-          return this.changeVisabilityTimeout(message, this.visibilityTimeout);
+          return this.changeVisibilityTimeout(message, this.visibilityTimeout);
         });
       }
       await this.executeHandler(message);
@@ -214,7 +214,7 @@ export class Consumer extends EventEmitter {
       this.emitError(err, message);
 
       if (this.terminateVisibilityTimeout) {
-        await this.changeVisabilityTimeout(message, 0);
+        await this.changeVisibilityTimeout(message, 0);
       }
     } finally {
       clearInterval(heartbeat);
@@ -273,7 +273,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async changeVisabilityTimeout(message: SQSMessage, timeout: number): Promise<PromiseResult<any, AWSError>> {
+  private async changeVisibilityTimeout(message: SQSMessage, timeout: number): Promise<PromiseResult<any, AWSError>> {
     try {
       return this.sqs
         .changeMessageVisibility({
