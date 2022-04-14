@@ -50,13 +50,13 @@
     "tslint-config-airbnb": "^5.11.2",
     "tslint-microsoft-contrib": "^6.2.0",
     "typescript": "^3.9.5",
-    "aws-sdk": "^2.699.0"
+    "aws-sdk": "^2.1114.0"
   },
   "dependencies": {
     "debug": "^4.3.1"
   },
   "peerDependencies": {
-    "aws-sdk": "^2.699.0"
+    "aws-sdk": "^2.1114.0"
   },
   "nyc": {
     "include": [
