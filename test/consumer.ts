@@ -752,4 +752,27 @@ describe('Consumer', () => {
       assert.isFalse(consumer.isRunning);
     });
   });
+
+  describe('delete messages property', () => {
+    beforeEach(() => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: 20,
+        shouldDeleteMessages: false
+      });
+    });
+
+    it('dont deletes the message when the handleMessage function is called', async () => {
+      handleMessage.resolves();
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.notCalled(sqs.deleteMessage);
+    });
+  });
 });

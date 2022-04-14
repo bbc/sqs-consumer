@@ -88,6 +88,7 @@ export interface ConsumerOptions {
   sqs?: SQS;
   region?: string;
   handleMessageTimeout?: number;
+  shouldDeleteMessages?: boolean;
   handleMessage?(message: SQSMessage): Promise<void>;
   handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
 }
@@ -119,6 +120,7 @@ export class Consumer extends EventEmitter {
   private terminateVisibilityTimeout: boolean;
   private heartbeatInterval: number;
   private sqs: SQS;
+  private shouldDeleteMessages: boolean;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -137,6 +139,7 @@ export class Consumer extends EventEmitter {
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
     this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+    this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
 
     this.sqs = options.sqs || new SQS({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
@@ -232,6 +235,10 @@ export class Consumer extends EventEmitter {
   }
 
   private async deleteMessage(message: SQSMessage): Promise<void> {
+    if (!this.shouldDeleteMessages) {
+      debug('Skipping message delete since shouldDeleteMessages is set to false');
+      return;
+    }
     debug('Deleting message %s', message.MessageId);
 
     const deleteParams = {
@@ -359,6 +366,10 @@ export class Consumer extends EventEmitter {
   }
 
   private async deleteMessageBatch(messages: SQSMessage[]): Promise<void> {
+    if (!this.shouldDeleteMessages) {
+      debug('Skipping message delete since shouldDeleteMessages is set to false');
+      return;
+    }
     debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
 
     const deleteParams = {
