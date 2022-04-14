@@ -158,7 +158,7 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 
 |Event|Params|Description|
 |-----|------|-----------|
-|`error`|`err`, `[message]`|Fired when an error occurs interacting with the queue. If the error correlates to a message, that error is included in Params|
+|`error`|`err`, `[message]`|Fired when an error occurs interacting with the queue. If the error correlates to a message, that message is included in Params|
 |`processing_error`|`err`, `message`|Fired when an error occurs processing the message.|
 |`timeout_error`|`err`, `message`|Fired when `handleMessageTimeout` is supplied as an option and if `handleMessage` times out.|
 |`message_received`|`message`|Fired when a message is received.|
