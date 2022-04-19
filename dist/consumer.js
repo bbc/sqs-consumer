@@ -126,6 +126,9 @@ class Consumer extends events_1.EventEmitter {
         this.concurrencyLimit = newConcurrencyLimit;
         this.freeConcurrentSlots = newFreeConcurrentSlots;
     }
+    setPollingWaitTimeMs(newPollingWaitTimeMs) {
+        this.pollingWaitTimeMs = newPollingWaitTimeMs;
+    }
     async reportMessageFromBatchFinished(message, error) {
         debug('Message from batch has finished');
         this.freeConcurrentSlots++;

@@ -207,6 +207,10 @@ export class Consumer extends EventEmitter {
     this.freeConcurrentSlots = newFreeConcurrentSlots;
   }
 
+  public setPollingWaitTimeMs(newPollingWaitTimeMs: number): void {
+    this.pollingWaitTimeMs = newPollingWaitTimeMs;
+  }
+
   public async reportMessageFromBatchFinished(message: SQSMessage, error: Error): Promise<void> {
     debug('Message from batch has finished');
 
