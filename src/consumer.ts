@@ -294,8 +294,8 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private emitError(err: Error, message: SQSMessage): void {
-    if (err.name === SQSError.name) {
+  private emitError(err?: Error, message: SQSMessage): void {
+    if (err?.name === SQSError.name) {
       this.emit('error', err, message);
     } else if (err instanceof TimeoutError) {
       this.emit('timeout_error', err, message);
