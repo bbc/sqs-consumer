@@ -41,8 +41,14 @@ function assertOptions(options: ConsumerOptions): void {
     }
   });
 
-  if (options.batchSize > 10 || options.batchSize < 1) {
+  const isFIFO = options.queueUrl.endsWith('.fifo');
+
+  if (isFIFO && (options.batchSize > 10 || options.batchSize < 1)) {
     throw new Error('SQS batchSize option must be between 1 and 10.');
+  }
+
+  if (!isFIFO && (options.batchSize > 10000 || options.batchSize < 1)) {
+    throw new Error('SQS batchSize option must be between 1 and 10000.');
   }
 
   if (options.heartbeatInterval && !(options.heartbeatInterval < options.visibilityTimeout)) {

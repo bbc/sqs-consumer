@@ -93,13 +93,24 @@ describe('Consumer', () => {
     });
   });
 
-  it('requires the batchSize option to be no greater than 10', () => {
+  it('requires the batchSize option to be no greater than 10 on FIFO queue', () => {
     assert.throws(() => {
       new Consumer({
         region: 'some-region',
-        queueUrl: 'some-queue-url',
+        queueUrl: 'http://some-queue-url.fifo',
         handleMessage,
         batchSize: 11
+      });
+    });
+  });
+
+  it('requires the batchSize option to be no greater than 10000', () => {
+    assert.throws(() => {
+      new Consumer({
+        region: 'some-region',
+        queueUrl: 'http://some-queue-url',
+        handleMessage,
+        batchSize: 10001
       });
     });
   });
