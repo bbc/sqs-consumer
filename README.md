@@ -10,7 +10,7 @@ Build SQS-based applications without the boilerplate. Just define an async funct
 ## Installation
 
 ```bash
-npm install sqs-consumer --save
+npm install sqs-consumer --save-dev
 ```
 
 ## Usage
@@ -172,4 +172,4 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:DeleteMessageBatch`, `sqs:ChangeMessageVisibility` and `sqs:ChangeMessageVisibilityBatch` access is granted on the queue being consumed.
 
 ### Contributing 
-See contributing [guidelines](https://github.com/bbc/sqs-consumer/blob/master/.github/CONTRIBUTING.md).
+See contributing [guidelines](https://github.com/bbc/sqs-consumer/blob/main/.github/CONTRIBUTING.md).
