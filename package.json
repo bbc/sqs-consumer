@@ -11,11 +11,13 @@
     "prepublish": "npm run build",
     "pretest": "npm run build",
     "test": "mocha --recursive --full-trace --exit",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --fix",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
-    "posttest": "npm run lint"
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --loglevel warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
+    "format:check": "prettier --check \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
+    "posttest": "npm run lint && npm run format:check"
   },
   "repository": {
     "type": "git",
@@ -32,31 +34,34 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/chai": "^4.2.11",
-    "@types/debug": "^4.1.5",
-    "@types/mocha": "^7.0.2",
-    "@types/node": "^14.0.13",
-    "@types/sinon": "^9.0.4",
-    "@types/typescript": "^2.0.0",
-    "chai": "^4.2.0",
-    "codeclimate-test-reporter": "^0.5.1",
-    "eslint": "^7.2.0",
-    "eslint-config-iplayer-ts": "^2.0.0",
-    "mocha": "^8.0.1",
+    "@types/chai": "^4.3.4",
+    "@types/debug": "^4.1.7",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^16.18.7",
+    "@types/sinon": "^10.0.13",
+    "chai": "^4.3.7",
+    "eslint": "^8.29.0",
+    "eslint-config-iplayer-ts": "^4.1.0",
+    "eslint-config-prettier": "^4.3.0",
+    "mocha": "^10.1.0",
     "nyc": "^15.1.0",
     "p-event": "^4.2.0",
-    "sinon": "^9.0.2",
-    "ts-node": "^8.10.2",
-    "tslint-config-airbnb": "^5.11.2",
-    "tslint-microsoft-contrib": "^6.2.0",
-    "typescript": "^3.9.5",
-    "aws-sdk": "^2.1114.0"
+    "prettier": "^2.8.1",
+    "sinon": "^15.0.0",
+    "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.4"
   },
   "dependencies": {
-    "debug": "^4.3.1"
+    "aws-sdk": "^2.1271.0",
+    "debug": "^4.3.4"
   },
   "peerDependencies": {
-    "aws-sdk": "^2.1114.0"
+    "aws-sdk": "^2.1271.0"
+  },
+  "mocha": {
+    "spec": "test/**/**/*.test.ts",
+    "require": "ts-node/register"
   },
   "nyc": {
     "include": [
@@ -72,14 +77,28 @@
     "instrument": true
   },
   "eslintConfig": {
-    "extends": "iplayer-ts",
+    "extends": [
+      "iplayer-ts",
+      "prettier",
+      "prettier/react",
+      "prettier/@typescript-eslint"
+    ],
     "parserOptions": {
-      "ecmaVersion": 2017,
       "sourceType": "module"
+    },
+    "rules": {
+      "@typescript-eslint/naming-convention": [
+        "error",
+        {
+          "selector": "variable",
+          "format": [
+            "camelCase",
+            "UPPER_CASE",
+            "PascalCase"
+          ],
+          "leadingUnderscore": "allow"
+        }
+      ]
     }
-  },
-  "mocha": {
-    "spec": "test/**/**/*.ts",
-    "require": "ts-node/register"
   }
 }
