@@ -1,0 +1,35 @@
+name: Report Coverage
+on:
+  pull_request:
+    branches:
+      - 'main'
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Node Modules
+        run: npm ci
+
+      - name: Report Coverage
+        uses: paambaati/codeclimate-action@v3.2.0
+        env:
+          CC_TEST_REPORTER_ID: 2d851f8f3a9348ac4f43262305037f80a730c2660fda50af8ae4d445fd89333b
+        with:
+          coverageCommand: npm run lcov

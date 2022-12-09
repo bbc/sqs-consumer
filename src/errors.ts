@@ -20,7 +20,4 @@ class TimeoutError extends Error {
   }
 }
 
-export {
-  SQSError,
-  TimeoutError
-};
+export { SQSError, TimeoutError };
