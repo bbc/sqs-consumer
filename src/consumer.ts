@@ -158,19 +158,22 @@ export class Consumer extends EventEmitter {
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.stopped = true;
     this.batchSize = options.batchSize || 1;
-    this.concurrency = options.concurrency || (this.handleMessageBatch ? 1 : this.batchSize);
-    this.bufferMessages = options.bufferMessages ?? !!options.concurrency,
-    this.visibilityTimeout = options.visibilityTimeout;
+    this.concurrency =
+      options.concurrency || (this.handleMessageBatch ? 1 : this.batchSize);
+    (this.bufferMessages = options.bufferMessages ?? !!options.concurrency),
+      (this.visibilityTimeout = options.visibilityTimeout);
     this.terminateVisibilityTimeout =
       options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
     this.waitTimeSeconds = options.waitTimeSeconds || 20;
-    this.authenticationErrorTimeout = options.authenticationErrorTimeout || 10000;
+    this.authenticationErrorTimeout =
+      options.authenticationErrorTimeout || 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
     this.pollingStatus = POLLING_STATUS.INACTIVE;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
-    this.workQueue = this.handleMessageBatch ?
-      fastq.promise(this.executeBatchHandler.bind(this), this.concurrency) : fastq.promise(this.executeHandler.bind(this), this.concurrency);
+    this.workQueue = this.handleMessageBatch
+      ? fastq.promise(this.executeBatchHandler.bind(this), this.concurrency)
+      : fastq.promise(this.executeHandler.bind(this), this.concurrency);
 
     this.sqs =
       options.sqs ||
@@ -409,7 +412,8 @@ export class Consumer extends EventEmitter {
       })
       .catch((err) => {
         this.emit('error', err);
-      }).finally(() => {
+      })
+      .finally(() => {
         if (this.pollingStatus === POLLING_STATUS.ACTIVE) {
           this.pollingStatus = POLLING_STATUS.INACTIVE;
         }

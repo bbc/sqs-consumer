@@ -723,15 +723,17 @@ describe('Consumer', () => {
           { MessageId: '3', ReceiptHandle: 'receipt-handle-3', Body: 'body-3' }
         ]
       });
-      handleMessage = sinon.stub().callsFake(() => new Promise((resolve) => setTimeout(resolve, 100))),
-      consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
-        handleMessage,
-        batchSize: 3,
-        concurrency: 6,
-        sqs
-      });
+      (handleMessage = sinon
+        .stub()
+        .callsFake(() => new Promise((resolve) => setTimeout(resolve, 100)))),
+        (consumer = new Consumer({
+          queueUrl: 'some-queue-url',
+          region: 'some-region',
+          handleMessage,
+          batchSize: 3,
+          concurrency: 6,
+          sqs
+        }));
 
       consumer.start();
       await clock.tickAsync(100);
