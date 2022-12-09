@@ -10,7 +10,8 @@
     "clean": "rm -fr dist/*",
     "prepublish": "npm run build",
     "pretest": "npm run build",
-    "test": "jest --coverage",
+    "test": "mocha --recursive --full-trace --exit",
+    "coverage": "nyc npm run test --reporter=lcov",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --fix",
     "format": "prettier --loglevel warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
@@ -34,7 +35,7 @@
   "devDependencies": {
     "@types/chai": "^4.3.4",
     "@types/debug": "^4.1.7",
-    "@types/jest": "^29.2.4",
+    "@types/mocha": "^10.0.1",
     "@types/node": "^16.18.7",
     "@types/sinon": "^10.0.13",
     "aws-sdk": "^2.1271.0",
@@ -42,7 +43,8 @@
     "eslint": "^8.29.0",
     "eslint-config-iplayer-ts": "^4.1.0",
     "eslint-config-prettier": "^4.3.0",
-    "jest": "^29.3.1",
+    "mocha": "^10.1.0",
+    "nyc": "^15.1.0",
     "p-event": "^5.0.1",
     "prettier": "^2.8.1",
     "sinon": "^15.0.0",
@@ -55,6 +57,10 @@
   },
   "peerDependencies": {
     "aws-sdk": "^2.1271.0"
+  },
+  "mocha": {
+    "spec": "test/**/**/*.test.ts",
+    "require": "ts-node/register"
   },
   "nyc": {
     "include": [

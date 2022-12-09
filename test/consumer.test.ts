@@ -480,7 +480,7 @@ describe('Consumer', () => {
           });
           sandbox.assert.callCount(handleMessage, 3);
           consumer.stop();
-          resolve('done');
+          resolve();
         });
       });
     });
