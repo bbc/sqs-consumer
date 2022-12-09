@@ -118,7 +118,9 @@ interface Events {
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: SQSMessage) => Promise<void>;
-  private handleMessageBatch: (message: SQSMessage[]) => Promise<SQSMessage[] | void>;
+  private handleMessageBatch: (
+    message: SQSMessage[]
+  ) => Promise<SQSMessage[] | void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
@@ -428,7 +430,9 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async executeBatchHandler(messages: SQSMessage[]): Promise<SQSMessage[]> {
+  private async executeBatchHandler(
+    messages: SQSMessage[]
+  ): Promise<SQSMessage[]> {
     try {
       const result = await this.handleMessageBatch(messages);
 
