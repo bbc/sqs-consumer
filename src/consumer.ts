@@ -165,10 +165,10 @@ export class Consumer extends EventEmitter {
     this.terminateVisibilityTimeout =
       options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
-    this.waitTimeSeconds = options.waitTimeSeconds || 20;
+    this.waitTimeSeconds = options.waitTimeSeconds ?? 20;
     this.authenticationErrorTimeout =
-      options.authenticationErrorTimeout || 10000;
-    this.pollingWaitTimeMs = options.pollingWaitTimeMs || 0;
+      options.authenticationErrorTimeout ?? 10000;
+    this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.pollingStatus = POLLING_STATUS.INACTIVE;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.workQueue = this.handleMessageBatch
