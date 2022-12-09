@@ -1,7 +1,7 @@
 import { assert } from 'chai';
 import * as sinon from 'sinon';
-import { pEvent } from 'p-event';
-import { Consumer } from '../src/index';
+import * as pEvent from 'p-event';
+import { Consumer } from '../src/consumer';
 
 const sandbox = sinon.createSandbox();
 
