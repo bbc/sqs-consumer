@@ -1,8 +1,7 @@
 import { assert } from 'chai';
-import * as pEvent from 'p-event';
-
 import * as sinon from 'sinon';
-import { Consumer } from '../src/index';
+import * as pEvent from 'p-event';
+import { Consumer } from '../src/consumer';
 
 const sandbox = sinon.createSandbox();
 
@@ -10,21 +9,17 @@ const AUTHENTICATION_ERROR_TIMEOUT = 20;
 const POLLING_TIMEOUT = 100;
 
 function stubResolve(value?: any): any {
-  return sandbox
-    .stub()
-    .returns({
-      abort: sandbox.stub(),
-      promise: sandbox.stub().resolves(value)
-    });
+  return sandbox.stub().returns({
+    abort: sandbox.stub(),
+    promise: sandbox.stub().resolves(value)
+  });
 }
 
 function stubReject(value?: any): any {
-  return sandbox
-    .stub()
-    .returns({
-      abort: sandbox.stub(),
-      promise: sandbox.stub().rejects(value)
-    });
+  return sandbox.stub().returns({
+    abort: sandbox.stub(),
+    promise: sandbox.stub().rejects(value)
+  });
 }
 
 class MockSQSError extends Error {
@@ -41,7 +36,6 @@ class MockSQSError extends Error {
   }
 }
 
-// tslint:disable:no-unused-expression
 describe('Consumer', () => {
   let consumer;
   let clock;
@@ -49,11 +43,13 @@ describe('Consumer', () => {
   let handleMessageBatch;
   let sqs;
   const response = {
-    Messages: [{
-      ReceiptHandle: 'receipt-handle',
-      MessageId: '123',
-      Body: 'body'
-    }]
+    Messages: [
+      {
+        ReceiptHandle: 'receipt-handle',
+        MessageId: '123',
+        Body: 'body'
+      }
+    ]
   };
 
   beforeEach(() => {
@@ -77,6 +73,7 @@ describe('Consumer', () => {
   });
 
   afterEach(() => {
+    clock.restore();
     sandbox.restore();
   });
 
@@ -204,18 +201,25 @@ describe('Consumer', () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         region: 'some-region',
-        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 1000)),
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(resolve, 1000)),
         handleMessageTimeout,
         sqs,
         authenticationErrorTimeout: 20
       });
 
       consumer.start();
-      const [err]: any = await Promise.all([pEvent(consumer, 'timeout_error'), clock.tickAsync(handleMessageTimeout)]);
+      const [err]: any = await Promise.all([
+        pEvent(consumer, 'timeout_error'),
+        clock.tickAsync(handleMessageTimeout)
+      ]);
       consumer.stop();
 
       assert.ok(err);
-      assert.equal(err.message, `Message handler timed out after ${handleMessageTimeout}ms: Operation timed out.`);
+      assert.equal(
+        err.message,
+        `Message handler timed out after ${handleMessageTimeout}ms: Operation timed out.`
+      );
     });
 
     it('handles unexpected exceptions thrown by the handler function', async () => {
@@ -234,7 +238,10 @@ describe('Consumer', () => {
       consumer.stop();
 
       assert.ok(err);
-      assert.equal(err.message, 'Unexpected message handler failure: unexpected parsing error');
+      assert.equal(
+        err.message,
+        'Unexpected message handler failure: unexpected parsing error'
+      );
     });
 
     it('fires an error event when an error occurs deleting a message', async () => {
@@ -257,10 +264,18 @@ describe('Consumer', () => {
       handleMessage.rejects(processingErr);
 
       consumer.start();
-      const [err, message] = await pEvent(consumer, 'processing_error', { multiArgs: true });
+      const [err, message] = await pEvent<
+        string | symbol,
+        { [key: string]: string }[]
+      >(consumer, 'processing_error', {
+        multiArgs: true
+      });
       consumer.stop();
 
-      assert.equal(err.message, 'Unexpected message handler failure: Processing error');
+      assert.equal(
+        err instanceof Error ? err.message : '',
+        'Unexpected message handler failure: Processing error'
+      );
       assert.equal(message.MessageId, '123');
     });
 
@@ -272,7 +287,12 @@ describe('Consumer', () => {
       sqs.deleteMessage = stubReject(sqsError);
 
       consumer.start();
-      const [err, message] = await pEvent(consumer, 'error', { multiArgs: true });
+      const [err, message] = await pEvent<
+        string | symbol,
+        { [key: string]: string }[]
+      >(consumer, 'error', {
+        multiArgs: true
+      });
       consumer.stop();
 
       assert.equal(err.message, 'SQS delete message failed: Processing error');
@@ -316,7 +336,8 @@ describe('Consumer', () => {
     it('waits before repolling when a UnknownEndpoint error occurs', async () => {
       const unknownEndpointErr = {
         code: 'UnknownEndpoint',
-        message: 'Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.'
+        message:
+          'Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.'
       };
       sqs.receiveMessage = stubReject(unknownEndpointErr);
       const errorListener = sandbox.stub();
@@ -386,7 +407,7 @@ describe('Consumer', () => {
       });
     });
 
-    it('doesn\'t delete the message when a processing error is reported', async () => {
+    it("doesn't delete the message when a processing error is reported", async () => {
       handleMessage.rejects(new Error('Processing error'));
 
       consumer.start();
@@ -406,8 +427,10 @@ describe('Consumer', () => {
       sandbox.assert.calledTwice(handleMessage);
     });
 
-    it('doesn\'t consume more messages when called multiple times', () => {
-      sqs.receiveMessage = stubResolve(new Promise((res) => setTimeout(res, 100)));
+    it("doesn't consume more messages when called multiple times", () => {
+      sqs.receiveMessage = stubResolve(
+        new Promise((res) => setTimeout(res, 100))
+      );
       consumer.start();
       consumer.start();
       consumer.start();
@@ -418,8 +441,10 @@ describe('Consumer', () => {
       sandbox.assert.calledOnce(sqs.receiveMessage);
     });
 
-    it('doesn\'t consume more messages when called multiple times after stoped', () => {
-      sqs.receiveMessage = stubResolve(new Promise((res) => setTimeout(res, 100)));
+    it("doesn't consume more messages when called multiple times after stoped", () => {
+      sqs.receiveMessage = stubResolve(
+        new Promise((res) => setTimeout(res, 100))
+      );
       consumer.start();
       consumer.stop();
 
@@ -480,7 +505,7 @@ describe('Consumer', () => {
       });
     });
 
-    it('consumes messages with message attribute \'ApproximateReceiveCount\'', async () => {
+    it("consumes messages with message attribute 'ApproximateReceiveCount'", async () => {
       const messageWithAttr = {
         ReceiptHandle: 'receipt-handle-1',
         MessageId: '1',
@@ -639,14 +664,14 @@ describe('Consumer', () => {
 
       sandbox.assert.callCount(handleMessageBatch, 1);
       sandbox.assert.callCount(handleMessage, 0);
-
     });
 
     it('uses the correct visibility timeout for long running handler functions', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         region: 'some-region',
-        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 75000)),
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(resolve, 75000)),
         sqs,
         visibilityTimeout: 40,
         heartbeatInterval: 30
@@ -654,7 +679,10 @@ describe('Consumer', () => {
       const clearIntervalSpy = sinon.spy(global, 'clearInterval');
 
       consumer.start();
-      await Promise.all([pEvent(consumer, 'response_processed'), clock.tickAsync(75000)]);
+      await Promise.all([
+        pEvent(consumer, 'response_processed'),
+        clock.tickAsync(75000)
+      ]);
       consumer.stop();
 
       sandbox.assert.calledWith(sqs.changeMessageVisibility, {
@@ -681,7 +709,8 @@ describe('Consumer', () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         region: 'some-region',
-        handleMessageBatch: () => new Promise((resolve) => setTimeout(resolve, 75000)),
+        handleMessageBatch: () =>
+          new Promise((resolve) => setTimeout(resolve, 75000)),
         batchSize: 3,
         sqs,
         visibilityTimeout: 40,
@@ -690,7 +719,10 @@ describe('Consumer', () => {
       const clearIntervalSpy = sinon.spy(global, 'clearInterval');
 
       consumer.start();
-      await Promise.all([pEvent(consumer, 'response_processed'), clock.tickAsync(75000)]);
+      await Promise.all([
+        pEvent(consumer, 'response_processed'),
+        clock.tickAsync(75000)
+      ]);
       consumer.stop();
 
       sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
@@ -710,6 +742,68 @@ describe('Consumer', () => {
         ]
       });
       sandbox.assert.calledOnce(clearIntervalSpy);
+    });
+
+    it('emit error when changing visibility timeout fails', async () => {
+      sqs.receiveMessage = stubResolve({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(resolve, 75000)),
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30
+      });
+
+      const receiveErr = new MockSQSError('failed');
+      sqs.changeMessageVisibility = stubReject(receiveErr);
+
+      consumer.start();
+      const [err]: any[] = await Promise.all([
+        pEvent(consumer, 'error'),
+        clock.tickAsync(75000)
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'Error changing visibility timeout: failed');
+    });
+
+    it('emit error when changing visibility timeout fails for batch handler functions', async () => {
+      sqs.receiveMessage = stubResolve({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' },
+          { MessageId: '2', ReceiptHandle: 'receipt-handle-2', Body: 'body-2' }
+        ]
+      });
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessageBatch: () =>
+          new Promise((resolve) => setTimeout(resolve, 75000)),
+        sqs,
+        batchSize: 2,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30
+      });
+
+      const receiveErr = new MockSQSError('failed');
+      sqs.changeMessageVisibilityBatch = stubReject(receiveErr);
+
+      consumer.start();
+      const [err]: any[] = await Promise.all([
+        pEvent(consumer, 'error'),
+        clock.tickAsync(75000)
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'Error changing visibility timeout: failed');
     });
   });
 
@@ -764,6 +858,29 @@ describe('Consumer', () => {
       consumer.start();
       consumer.stop();
       assert.isFalse(consumer.isRunning);
+    });
+  });
+
+  describe('delete messages property', () => {
+    beforeEach(() => {
+      consumer = new Consumer({
+        queueUrl: 'some-queue-url',
+        region: 'some-region',
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: 20,
+        shouldDeleteMessages: false
+      });
+    });
+
+    it('dont deletes the message when the handleMessage function is called', async () => {
+      handleMessage.resolves();
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.notCalled(sqs.deleteMessage);
     });
   });
 });
