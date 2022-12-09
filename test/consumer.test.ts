@@ -67,6 +67,7 @@ describe('Consumer', () => {
   });
 
   afterEach(() => {
+    clock.restore();
     sandbox.restore();
   });
 
