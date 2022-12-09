@@ -1,7 +1,6 @@
 import { assert } from 'chai';
-import { pEvent } from 'p-event';
 import * as sinon from 'sinon';
-
+import { pEvent } from 'p-event';
 import { Consumer } from '../src/index';
 
 const sandbox = sinon.createSandbox();
@@ -31,7 +30,6 @@ class MockSQSError extends Error {
   }
 }
 
-// tslint:disable:no-unused-expression
 describe('Consumer', () => {
   let consumer;
   let clock;
