@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2017",
+    "target": "es2021",
     "module": "commonjs",
+    "lib": ["es2021"],
     "outDir": "dist",
     "sourceMap": false,
     "moduleResolution": "node",
@@ -9,11 +10,6 @@
     "noUnusedLocals": true,
     "declaration": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
