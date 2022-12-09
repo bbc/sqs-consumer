@@ -23,7 +23,7 @@ npm install sqs-consumer --save-dev
 ## Usage
 
 ```js
-import { Consumer } from 'sqs-consumer';
+const { Consumer } = require('sqs-consumer');
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
@@ -47,12 +47,11 @@ app.start();
 - Messages are deleted from the queue once the handler function has completed successfully.
 - Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 - By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
-- By default, the default Node.js HTTP/HTTPS SQS agent creates a new TCP connection for every new request ([AWS SQS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/node-reusing-connections.html)). To avoid the cost of establishing a new connection, you can reuse an existing connection by passing a new SQS instance with `keepAlive: true`.
+- If you need to add specific configuration options to the SQS client, you may pass an instantiated client to the Consumer constructor:
 
 ```js
-const { Consumer } = require('sqs-consumer');
-const AWS = require('aws-sdk');
-const https = require('https');
+import { Consumer } from 'sqs-consumer';
+import { SQSClient } from '@aws-sdk/client-sqs';
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
@@ -143,7 +142,7 @@ Creates a new SQS consumer.
 - `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning (defaults to `20`).
 - `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
 - `pollingWaitTimeMs` - _Number_ - The duration (in milliseconds) to wait before repolling the queue (defaults to `0`).
-- `sqs` - _Object_ - An optional [AWS SQS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html) object to use if you need to configure the client manually
+- `sqs` - _Object_ - An optional [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) object to use if you need to configure the client manually
 - `shouldDeleteMessages` - _Boolean_ - Default to `true`, if you don't want the package to delete messages from sqs set this to `false`
 
 ### `consumer.start()`

@@ -6,6 +6,7 @@ import {
   ReceiveMessageCommand,
   SQSClient
 } from '@aws-sdk/client-sqs';
+import { SdkError } from '@aws-sdk/smithy-client';
 import { assert } from 'chai';
 import * as sinon from 'sinon';
 import * as pEvent from 'p-event';
@@ -13,16 +14,16 @@ import { Consumer } from '../src/consumer';
 
 const sandbox = sinon.createSandbox();
 
-const AUTHENTICATION_ERROR_TIMEOUT = 20; // 20???
-const POLLING_TIMEOUT = 1; // 100???
+const AUTHENTICATION_ERROR_TIMEOUT = 20;
+const POLLING_TIMEOUT = 100;
+const QUEUE_URL = 'some-queue-url';
+const REGION = 'some-region';
 
-function stubResolve(value?: any): any {
-  return sandbox.stub().returns({ promise: sandbox.stub().resolves(value) });
-}
-
-function stubReject(value?: any): any {
-  return sandbox.stub().returns({ promise: sandbox.stub().rejects(value) });
-}
+const mockReceiveMessage = sinon.match.instanceOf(ReceiveMessageCommand);
+const mockDeleteMessage = sinon.match.instanceOf(DeleteMessageCommand);
+const mockDeleteMessageBatch = sinon.match.instanceOf(DeleteMessageBatchCommand);
+const mockChangeMessageVisibility = sinon.match.instanceOf(ChangeMessageVisibilityCommand);
+const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(ChangeMessageVisibilityBatchCommand);
 
 class MockSQSError extends Error implements SdkError {
   name: string;
@@ -210,8 +211,8 @@ describe('Consumer', () => {
     it('fires a timeout event if handler function takes too long', async () => {
       const handleMessageTimeout = 500;
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessage: () =>
           new Promise((resolve) => setTimeout(resolve, 1000)),
         handleMessageTimeout,
@@ -447,7 +448,7 @@ describe('Consumer', () => {
     });
 
     it("doesn't consume more messages when called multiple times", () => {
-      sqs.receiveMessage = stubResolve(
+      sqs.send.withArgs(mockReceiveMessage).resolves(
         new Promise((res) => setTimeout(res, 100))
       );
       consumer.start();
@@ -672,8 +673,8 @@ describe('Consumer', () => {
 
     it('uses the correct visibility timeout for long running handler functions', async () => {
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessage: () =>
           new Promise((resolve) => setTimeout(resolve, 75000)),
         sqs,
@@ -694,9 +695,9 @@ describe('Consumer', () => {
         QueueUrl: QUEUE_URL,
         ReceiptHandle: 'receipt-handle',
         VisibilityTimeout: 40
-      });
+      }));
       sandbox.assert.calledWith(sqs.changeMessageVisibility, {
-        QueueUrl: 'some-queue-url',
+        QueueUrl: QUEUE_URL,
         ReceiptHandle: 'receipt-handle',
         VisibilityTimeout: 40
       });
@@ -704,7 +705,7 @@ describe('Consumer', () => {
     });
 
     it('passes in the correct visibility timeout for long running batch handler functions', async () => {
-      sqs.receiveMessage = stubResolve({
+      sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [
           { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' },
           { MessageId: '2', ReceiptHandle: 'receipt-handle-2', Body: 'body-2' },
@@ -712,8 +713,8 @@ describe('Consumer', () => {
         ]
       });
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessageBatch: () =>
           new Promise((resolve) => setTimeout(resolve, 75000)),
         batchSize: 3,
@@ -731,7 +732,7 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
-        QueueUrl: 'some-queue-url',
+        QueueUrl: QUEUE_URL,
         Entries: [
           { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
           { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
@@ -739,25 +740,25 @@ describe('Consumer', () => {
         ]
       });
       sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
-        QueueUrl: 'some-queue-url',
+        QueueUrl: QUEUE_URL,
         Entries: [
           { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
           { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
           { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
         ]
-      }));
+      });
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
     it('emit error when changing visibility timeout fails', async () => {
-      sqs.receiveMessage = stubResolve({
+      sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [
           { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
         ]
       });
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessage: () =>
           new Promise((resolve) => setTimeout(resolve, 75000)),
         sqs,
@@ -766,7 +767,7 @@ describe('Consumer', () => {
       });
 
       const receiveErr = new MockSQSError('failed');
-      sqs.changeMessageVisibility = stubReject(receiveErr);
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
 
       consumer.start();
       const [err]: any[] = await Promise.all([
@@ -780,15 +781,15 @@ describe('Consumer', () => {
     });
 
     it('emit error when changing visibility timeout fails for batch handler functions', async () => {
-      sqs.receiveMessage = stubResolve({
+      sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [
           { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' },
           { MessageId: '2', ReceiptHandle: 'receipt-handle-2', Body: 'body-2' }
         ]
       });
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessageBatch: () =>
           new Promise((resolve) => setTimeout(resolve, 75000)),
         sqs,
@@ -798,7 +799,7 @@ describe('Consumer', () => {
       });
 
       const receiveErr = new MockSQSError('failed');
-      sqs.changeMessageVisibilityBatch = stubReject(receiveErr);
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
 
       consumer.start();
       const [err]: any[] = await Promise.all([
@@ -874,8 +875,8 @@ describe('Consumer', () => {
   describe('delete messages property', () => {
     beforeEach(() => {
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessage,
         sqs,
         authenticationErrorTimeout: 20,
