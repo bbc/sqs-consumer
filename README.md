@@ -1,7 +1,7 @@
 # sqs-consumer
 
 [![NPM downloads](https://img.shields.io/npm/dm/sqs-consumer.svg?style=flat)](https://npmjs.org/package/sqs-consumer)
-[![Build Status](https://github.com/bbc/sqs-consumer/actions/workflows/test.yml/badge.svg)](https://github.com/bbc/sqs-consumer/actions/workflows/test.yml)
+[![Build Status](https://github.com/bbc/sqs-consumer/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/bbc/sqs-consumer/actions/workflows/test.yml)
 [![Code Climate](https://codeclimate.com/github/BBC/sqs-consumer/badges/gpa.svg)](https://codeclimate.com/github/BBC/sqs-consumer)
 [![Test Coverage](https://codeclimate.com/github/BBC/sqs-consumer/badges/coverage.svg)](https://codeclimate.com/github/BBC/sqs-consumer)
 
