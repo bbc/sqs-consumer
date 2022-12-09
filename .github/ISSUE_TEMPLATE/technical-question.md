@@ -4,7 +4,6 @@ about: Want to ask a technical question about the project
 title: ''
 labels: question
 assignees: ''
-
 ---
 
 **Question**
