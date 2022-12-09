@@ -14,7 +14,7 @@ npm install sqs-consumer --save-dev
 ```
 
 > **Note**
-> Note: This library assumes you are using [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/index.html). If you are using v2, please install v5.8.0:
+> This library assumes you are using [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/index.html). If you are using v2, please install v5.8.0:
 >
 > ```bash
 > npm install sqs-consumer@5.8.0 --save-dev
@@ -23,7 +23,7 @@ npm install sqs-consumer --save-dev
 ## Usage
 
 ```js
-const { Consumer } = require('sqs-consumer');
+import { Consumer } from 'sqs-consumer';
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
