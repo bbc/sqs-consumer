@@ -6,7 +6,7 @@ const sqsConfig: {
   secretAccessKey?: string;
   region: string;
 } = {
-  region: 'eu-west-1',
+  region: 'eu-west-1'
 };
 
 if (process.env.SQS_ENDPOINT) {

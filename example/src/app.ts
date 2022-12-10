@@ -3,7 +3,7 @@ const express = require('express');
 const { consumer } = require('./utils/consumer');
 const { producer } = require('./utils/producer');
 
-const expressApp = express()
+const expressApp = express();
 
 expressApp.get('/', (_, res) => {
   res.send(
@@ -55,7 +55,7 @@ expressApp.post('/sample-with-attributes', async (_, res) => {
       body: 'Hello world with two string attributes: attr1 and attr2',
       messageAttributes: {
         attr1: { DataType: 'String', StringValue: 'stringValue' },
-        attr2: { DataType: 'String', StringValue: 'stringValue2' },
+        attr2: { DataType: 'String', StringValue: 'stringValue2' }
       }
     }
   ]);

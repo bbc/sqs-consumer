@@ -12,7 +12,7 @@ Once installed, just enter the command `npm run docker:up` and after a few momen
 
 If you'd prefer to run without Docker, you can run the command `npm run start` instead.
 
-> *Note:* If you do not use the Docker stack, you will need to start a local version of SQS at `http://localhost:4566`
+> _Note:_ If you do not use the Docker stack, you will need to start a local version of SQS at `http://localhost:4566`
 
 ## Using the APIs
 
