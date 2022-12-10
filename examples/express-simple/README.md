@@ -1,4 +1,4 @@
-# SQS Consumer Example App
+# SQS Consumer Example App - Express Simple
 
 This is an example app to show how SQS Consumer can be used, while also allowing us to test that the library is working correctly between changes, and with new functionality.
 
