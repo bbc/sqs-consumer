@@ -1,0 +1,26 @@
+{
+  "name": "sqs-consumer-example-app",
+  "version": "1.0.0",
+  "description": "An example app for SQS Consumer",
+  "main": "./dist/app.js",
+  "scripts": {
+    "clean": "rm -fr dist/*",
+    "build": "npm run clean && tsc",
+    "dev": "NODE_ENV=development ts-node ./src/app.ts",
+    "start": "node ./dist/app.js",
+    "docker:up": "docker-compose -f ./docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f ./docker/docker-compose.yml down",
+    "docker:build": "docker-compose -f ./docker/docker-compose.yml build"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "4.9.4",
+    "ts-node": "10.9.1"
+  },
+  "dependencies": {
+    "aws-sdk": "2.1272.0",
+    "sqs-consumer": "5.8.0",
+    "sqs-producer": "2.2.0",
+    "express": "4.18.2"
+  }
+}

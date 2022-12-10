@@ -1,0 +1,57 @@
+version: '3'
+services:
+  localstack:
+    container_name: local_aws
+    hostname: local_aws
+    image: localstack/localstack:1.2.0@sha256:41216e34e25546654c58b8075b133027eab3d958e605ef2e7af168d1f05a9364
+    command: sh -c "/usr/local/bin/init.sh && exec myexecutable"
+    environment:
+      - AWS_DEFAULT_REGION=eu-west-2
+      - EDGE_PORT=4566
+      - SERVICES=sqs,cloudwatch,logs,xray
+      - AWS_ACCESS_KEY_ID=key
+      - AWS_SECRET_ACCESS_KEY=secret
+      - DATA_DIR=/tmp/localstack/data
+      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DEBUG=1
+    ports:
+      - "4566-4599:4566-4599"
+    volumes:
+      - '${TMPDIR:-/tmp/localstack}:/tmp/localstack'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - ./localstack_bootstrap:/docker-entrypoint-initaws.d
+    networks:
+      sqs_c_example_net:
+        ipv4_address: 172.16.250.11
+  nodejs:
+    depends_on:
+      - localstack
+    build:
+      context: ../
+      dockerfile: docker/node/Dockerfile
+    restart: unless-stopped
+    container_name: sqs_c_example
+    hostname: sqs_c_example
+    image: node:16
+    user: node
+    command: ts-node ./src/app.ts
+    ports:
+      - "3026:3026"
+    environment:
+      NODE_ENV: development
+      SQS_ENDPOINT: http://local_aws:4566
+      SQS_QUEUE_URL: http://local_aws:4566/000000000000/sqs-consumer-data
+    stdin_open: true
+    tty: true
+    networks:
+      sqs_c_example_net:
+        ipv4_address: 172.16.250.10
+
+networks:
+    sqs_c_example_net:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: 172.16.250.0/24
