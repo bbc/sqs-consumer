@@ -84,25 +84,24 @@ export AWS_SECRET_ACCESS_KEY=...
 export AWS_ACCESS_KEY_ID=...
 ```
 
-If you need to specify your credentials manually, you can use a pre-configured instance of the [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) client and chose from [a valid credentials provider](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
+If you need to specify your credentials manually, you can use a pre-configured instance of the [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) client.
 
 ```js
 import { Consumer } from 'sqs-consumer';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import { fromIni } from '@aws-sdk/credential-provider-ini';
-
-const credentials = fromIni({
-  profile: 'my-profile'
-});
-
-const region = 'my-region';
 
 const app = Consumer.create({
   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
   handleMessage: async (message) => {
     // ...
   },
-  sqs: new SQSClient({ region, credentials })
+  sqs: new SQSClient({
+    region: 'my-region',
+    credentials: {
+      accessKeyId: '...',
+      secretAccessKey: '...'
+    }
+  })
 });
 
 app.on('error', (err) => {

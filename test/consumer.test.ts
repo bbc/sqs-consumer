@@ -365,6 +365,7 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
     });
@@ -771,7 +772,7 @@ describe('Consumer', () => {
       });
 
       const receiveErr = new MockSQSError('failed');
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      sqs.send.withArgs(mockChangeMessageVisibility).rejects(receiveErr);
 
       consumer.start();
       const [err]: any[] = await Promise.all([
@@ -803,7 +804,7 @@ describe('Consumer', () => {
       });
 
       const receiveErr = new MockSQSError('failed');
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      sqs.send.withArgs(mockChangeMessageVisibilityBatch).rejects(receiveErr);
 
       consumer.start();
       const [err]: any[] = await Promise.all([
