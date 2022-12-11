@@ -384,7 +384,7 @@ export class Consumer extends EventEmitter {
     try {
       if (this.heartbeatInterval) {
         heartbeat = this.startHeartbeat(async () => {
-          return this.changeVisabilityTimeoutBatch(
+          return this.changeVisibilityTimeoutBatch(
             messages,
             this.visibilityTimeout
           );
@@ -399,7 +399,7 @@ export class Consumer extends EventEmitter {
       this.emit('error', err, messages);
 
       if (this.terminateVisibilityTimeout) {
-        await this.changeVisabilityTimeoutBatch(messages, 0);
+        await this.changeVisibilityTimeoutBatch(messages, 0);
       }
     } finally {
       clearInterval(heartbeat);
@@ -442,7 +442,7 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async changeVisabilityTimeoutBatch(
+  private async changeVisibilityTimeoutBatch(
     messages: Message[],
     timeout: number
   ): Promise<ChangeMessageVisibilityBatchCommandOutput> {
