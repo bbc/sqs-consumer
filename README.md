@@ -71,8 +71,8 @@ const app = Consumer.create({
   sqs: new SQSClient({
     region: 'my-region',
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      accessKeyId: 'yourAccessKey',
+      secretAccessKey: 'yourSecret',
     }
   })
 });
