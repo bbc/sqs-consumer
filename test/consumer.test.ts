@@ -885,14 +885,14 @@ describe('Consumer', () => {
       });
     });
 
-    it('dont deletes the message when the handleMessage function is called', async () => {
+    it('do not deletes the message when the handleMessage function is called', async () => {
       handleMessage.resolves();
 
       consumer.start();
       await pEvent(consumer, 'message_processed');
       consumer.stop();
 
-      sandbox.assert.notCalled(sqs.deleteMessage);
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
     });
   });
 });
