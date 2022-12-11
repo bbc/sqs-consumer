@@ -22,9 +22,15 @@ const REGION = 'some-region';
 
 const mockReceiveMessage = sinon.match.instanceOf(ReceiveMessageCommand);
 const mockDeleteMessage = sinon.match.instanceOf(DeleteMessageCommand);
-const mockDeleteMessageBatch = sinon.match.instanceOf(DeleteMessageBatchCommand);
-const mockChangeMessageVisibility = sinon.match.instanceOf(ChangeMessageVisibilityCommand);
-const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(ChangeMessageVisibilityBatchCommand);
+const mockDeleteMessageBatch = sinon.match.instanceOf(
+  DeleteMessageBatchCommand
+);
+const mockChangeMessageVisibility = sinon.match.instanceOf(
+  ChangeMessageVisibilityCommand
+);
+const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(
+  ChangeMessageVisibilityBatchCommand
+);
 
 class MockSQSError extends Error implements AWSError {
   name: string;
@@ -35,7 +41,7 @@ class MockSQSError extends Error implements AWSError {
   $retryable: {
     throttling: boolean;
   };
-  $fault: 'client' | 'server'
+  $fault: 'client' | 'server';
   time: Date;
 
   constructor(message: string) {
@@ -423,10 +429,13 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.calledWith(sqs.send.secondCall, mockDeleteMessage);
-      sandbox.assert.match(sqs.send.secondCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        ReceiptHandle: 'receipt-handle'
-      }));
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle'
+        })
+      );
     });
 
     it("doesn't delete the message when a processing error is reported", async () => {
@@ -450,9 +459,9 @@ describe('Consumer', () => {
     });
 
     it("doesn't consume more messages when called multiple times", () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves(
-        new Promise((res) => setTimeout(res, 100))
-      );
+      sqs.send
+        .withArgs(mockReceiveMessage)
+        .resolves(new Promise((res) => setTimeout(res, 100)));
       consumer.start();
       consumer.start();
       consumer.start();
@@ -499,14 +508,17 @@ describe('Consumer', () => {
 
       sandbox.assert.callCount(handleMessage, 3);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.match(sqs.send.firstCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        AttributeNames: [],
-        MessageAttributeNames: ['attribute-1', 'attribute-2'],
-        MaxNumberOfMessages: 3,
-        WaitTimeSeconds: 20,
-        VisibilityTimeout: undefined
-      }));
+      sandbox.assert.match(
+        sqs.send.firstCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          AttributeNames: [],
+          MessageAttributeNames: ['attribute-1', 'attribute-2'],
+          MaxNumberOfMessages: 3,
+          WaitTimeSeconds: 20,
+          VisibilityTimeout: undefined
+        })
+      );
     });
 
     it("consumes messages with message attribute 'ApproximateReceiveCount'", async () => {
@@ -536,14 +548,17 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.calledWith(sqs.send, mockReceiveMessage);
-      sandbox.assert.match(sqs.send.firstCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        AttributeNames: ['ApproximateReceiveCount'],
-        MessageAttributeNames: [],
-        MaxNumberOfMessages: 1,
-        WaitTimeSeconds: 20,
-        VisibilityTimeout: undefined
-      }));
+      sandbox.assert.match(
+        sqs.send.firstCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          AttributeNames: ['ApproximateReceiveCount'],
+          MessageAttributeNames: [],
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 20,
+          VisibilityTimeout: undefined
+        })
+      );
 
       assert.equal(message, messageWithAttr);
     });
@@ -565,12 +580,18 @@ describe('Consumer', () => {
       await pEvent(consumer, 'processing_error');
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(sqs.send.secondCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        ReceiptHandle: 'receipt-handle',
-        VisibilityTimeout: 0
-      }));
+      sandbox.assert.calledWith(
+        sqs.send.secondCall,
+        mockChangeMessageVisibility
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle',
+          VisibilityTimeout: 0
+        })
+      );
     });
 
     it('does not terminate visibility timeout when `terminateVisibilityTimeout` option is false', async () => {
@@ -596,12 +617,18 @@ describe('Consumer', () => {
       await pEvent(consumer, 'error');
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(sqs.send.secondCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        ReceiptHandle: 'receipt-handle',
-        VisibilityTimeout: 0
-      }));
+      sandbox.assert.calledWith(
+        sqs.send.secondCall,
+        mockChangeMessageVisibility
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle',
+          VisibilityTimeout: 0
+        })
+      );
     });
 
     it('fires response_processed event for each batch', async () => {
@@ -692,18 +719,30 @@ describe('Consumer', () => {
       ]);
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(sqs.send.secondCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        ReceiptHandle: 'receipt-handle',
-        VisibilityTimeout: 40
-      }));
-      sandbox.assert.calledWith(sqs.send.thirdCall, mockChangeMessageVisibility);
-      sandbox.assert.match(sqs.send.thirdCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        ReceiptHandle: 'receipt-handle',
-        VisibilityTimeout: 40
-      }));
+      sandbox.assert.calledWith(
+        sqs.send.secondCall,
+        mockChangeMessageVisibility
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle',
+          VisibilityTimeout: 40
+        })
+      );
+      sandbox.assert.calledWith(
+        sqs.send.thirdCall,
+        mockChangeMessageVisibility
+      );
+      sandbox.assert.match(
+        sqs.send.thirdCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle',
+          VisibilityTimeout: 40
+        })
+      );
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
@@ -734,24 +773,60 @@ describe('Consumer', () => {
       ]);
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibilityBatch);
-      sandbox.assert.match(sqs.send.secondCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        Entries: sinon.match.array.deepEquals([
-          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
-          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
-          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
-        ])
-      }));
-      sandbox.assert.calledWith(sqs.send.thirdCall, mockChangeMessageVisibilityBatch);
-      sandbox.assert.match(sqs.send.thirdCall.args[0].input, sinon.match({
-        QueueUrl: QUEUE_URL,
-        Entries: [
-          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
-          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
-          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
-        ]
-      }));
+      sandbox.assert.calledWith(
+        sqs.send.secondCall,
+        mockChangeMessageVisibilityBatch
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          Entries: sinon.match.array.deepEquals([
+            {
+              Id: '1',
+              ReceiptHandle: 'receipt-handle-1',
+              VisibilityTimeout: 40
+            },
+            {
+              Id: '2',
+              ReceiptHandle: 'receipt-handle-2',
+              VisibilityTimeout: 40
+            },
+            {
+              Id: '3',
+              ReceiptHandle: 'receipt-handle-3',
+              VisibilityTimeout: 40
+            }
+          ])
+        })
+      );
+      sandbox.assert.calledWith(
+        sqs.send.thirdCall,
+        mockChangeMessageVisibilityBatch
+      );
+      sandbox.assert.match(
+        sqs.send.thirdCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          Entries: [
+            {
+              Id: '1',
+              ReceiptHandle: 'receipt-handle-1',
+              VisibilityTimeout: 40
+            },
+            {
+              Id: '2',
+              ReceiptHandle: 'receipt-handle-2',
+              VisibilityTimeout: 40
+            },
+            {
+              Id: '3',
+              ReceiptHandle: 'receipt-handle-3',
+              VisibilityTimeout: 40
+            }
+          ]
+        })
+      );
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 

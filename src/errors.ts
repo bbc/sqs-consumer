@@ -4,7 +4,7 @@ class SQSError extends Error {
   service: string;
   time: Date;
   retryable: boolean;
-  fault: 'client' | 'server'
+  fault: 'client' | 'server';
 
   constructor(message: string) {
     super(message);

@@ -221,7 +221,6 @@ export class Consumer extends EventEmitter {
     if (response) {
       if (hasMessages(response)) {
         if (this.handleMessageBatch) {
-
           // prefer handling messages in batch when available
           await this.processMessageBatch(response.Messages);
         } else {
@@ -264,7 +263,6 @@ export class Consumer extends EventEmitter {
     try {
       return await this.sqs.send(new ReceiveMessageCommand(params));
     } catch (err) {
-
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
   }

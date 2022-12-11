@@ -17,7 +17,7 @@ export type AWSError = {
   /**
    * Whether the client or server are at fault.
    */
-  readonly $fault?: "client" | "server";
+  readonly $fault?: 'client' | 'server';
 
   /**
    * The service that encountered the exception.
