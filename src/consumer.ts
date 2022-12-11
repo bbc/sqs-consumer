@@ -320,7 +320,7 @@ export class Consumer extends EventEmitter {
         ReceiptHandle: message.ReceiptHandle,
         VisibilityTimeout: timeout
       };
-      return this.sqs.send(new ChangeMessageVisibilityCommand(input));
+      return await this.sqs.send(new ChangeMessageVisibilityCommand(input));
     } catch (err) {
       this.emit(
         'error',
@@ -455,7 +455,7 @@ export class Consumer extends EventEmitter {
       }))
     };
     try {
-      return this.sqs.send(new ChangeMessageVisibilityBatchCommand(params));
+      return await this.sqs.send(new ChangeMessageVisibilityBatchCommand(params));
     } catch (err) {
       this.emit(
         'error',
