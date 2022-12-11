@@ -6,7 +6,7 @@ const sqsConfig: {
   credentials?: {
     accessKeyId?: string;
     secretAccessKey?: string;
-  }
+  };
 } = {
   region: 'eu-west-1'
 };
@@ -18,7 +18,7 @@ if (process.env.SQS_ENDPOINT) {
 }
 
 if (process.env.SQS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development') {
-  sqsConfig.credentials = {}
+  sqsConfig.credentials = {};
 }
 if (process.env.SQS_ACCESS_KEY_ID) {
   sqsConfig.credentials.accessKeyId = process.env.SQS_ACCESS_KEY_ID;
