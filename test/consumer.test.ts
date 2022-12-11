@@ -224,7 +224,7 @@ describe('Consumer', () => {
           new Promise((resolve) => setTimeout(resolve, 1000)),
         handleMessageTimeout,
         sqs,
-        authenticationErrorTimeout: 20
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
       });
 
       consumer.start();
@@ -249,7 +249,7 @@ describe('Consumer', () => {
           throw new Error('unexpected parsing error');
         },
         sqs,
-        authenticationErrorTimeout: 20
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
       });
 
       consumer.start();
@@ -358,7 +358,7 @@ describe('Consumer', () => {
 
     it('waits before repolling when a UnknownEndpoint error occurs', async () => {
       const unknownEndpointErr = {
-        code: 'UnknownEndpoint',
+        name: 'UnknownEndpoint',
         message:
           'Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.'
       };
@@ -382,8 +382,8 @@ describe('Consumer', () => {
         region: REGION,
         handleMessage,
         sqs,
-        authenticationErrorTimeout: 20,
-        pollingWaitTimeMs: 100
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        pollingWaitTimeMs: POLLING_TIMEOUT
       });
 
       consumer.start();
@@ -515,7 +515,7 @@ describe('Consumer', () => {
           AttributeNames: [],
           MessageAttributeNames: ['attribute-1', 'attribute-2'],
           MaxNumberOfMessages: 3,
-          WaitTimeSeconds: 20,
+          WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
           VisibilityTimeout: undefined
         })
       );
@@ -555,7 +555,7 @@ describe('Consumer', () => {
           AttributeNames: ['ApproximateReceiveCount'],
           MessageAttributeNames: [],
           MaxNumberOfMessages: 1,
-          WaitTimeSeconds: 20,
+          WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
           VisibilityTimeout: undefined
         })
       );
@@ -959,7 +959,7 @@ describe('Consumer', () => {
         region: REGION,
         handleMessage,
         sqs,
-        authenticationErrorTimeout: 20,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
         shouldDeleteMessages: false
       });
     });
