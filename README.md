@@ -72,7 +72,7 @@ const app = Consumer.create({
     region: 'my-region',
     credentials: {
       accessKeyId: 'yourAccessKey',
-      secretAccessKey: 'yourSecret',
+      secretAccessKey: 'yourSecret'
     }
   })
 });
