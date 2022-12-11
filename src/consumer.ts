@@ -15,9 +15,10 @@ import {
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput
 } from '@aws-sdk/client-sqs';
-import { SdkError } from '@aws-sdk/smithy-client';
 import Debug from 'debug';
 import { EventEmitter } from 'events';
+
+import { AWSError } from './types';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
 
@@ -77,7 +78,7 @@ function isConnectionError(err: Error): boolean {
   return false;
 }
 
-function toSQSError(err: SdkError, message: string): SQSError {
+function toSQSError(err: AWSError, message: string): SQSError {
   const sqsError = new SQSError(message);
   sqsError.code = err.name;
   sqsError.statusCode = err.$metadata?.httpStatusCode;

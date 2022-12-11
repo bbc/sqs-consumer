@@ -6,10 +6,11 @@ import {
   ReceiveMessageCommand,
   SQSClient
 } from '@aws-sdk/client-sqs';
-import { SdkError } from '@aws-sdk/smithy-client';
 import { assert } from 'chai';
 import * as sinon from 'sinon';
 import * as pEvent from 'p-event';
+
+import { AWSError } from '../src/types';
 import { Consumer } from '../src/consumer';
 
 const sandbox = sinon.createSandbox();
@@ -25,7 +26,7 @@ const mockDeleteMessageBatch = sinon.match.instanceOf(DeleteMessageBatchCommand)
 const mockChangeMessageVisibility = sinon.match.instanceOf(ChangeMessageVisibilityCommand);
 const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(ChangeMessageVisibilityBatchCommand);
 
-class MockSQSError extends Error implements SdkError {
+class MockSQSError extends Error implements AWSError {
   name: string;
   $metadata: {
     httpStatusCode: number;
