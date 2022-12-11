@@ -455,7 +455,9 @@ export class Consumer extends EventEmitter {
       }))
     };
     try {
-      return await this.sqs.send(new ChangeMessageVisibilityBatchCommand(params));
+      return await this.sqs.send(
+        new ChangeMessageVisibilityBatchCommand(params)
+      );
     } catch (err) {
       this.emit(
         'error',

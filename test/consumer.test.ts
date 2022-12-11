@@ -390,9 +390,11 @@ describe('Consumer', () => {
       await clock.tickAsync(POLLING_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.callCount(sqs.send, 4);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
+      sandbox.assert.calledWithMatch(sqs.send.thirdCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.getCall(3), mockDeleteMessage);
     });
 
     it('fires a message_received event when a message is received', async () => {
