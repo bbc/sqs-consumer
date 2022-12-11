@@ -18,9 +18,9 @@
     "ts-node": "10.9.1"
   },
   "dependencies": {
-    "aws-sdk": "2.1272.0",
-    "sqs-consumer": "5.8.0",
-    "sqs-producer": "2.2.0",
+    "@aws-sdk/client-sqs": "3.226.0",
+    "sqs-consumer": "6.0.0-alpha.1",
+    "sqs-producer": "3.0.0-alpha.1",
     "express": "4.18.2"
   }
 }
