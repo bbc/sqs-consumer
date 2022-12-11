@@ -697,11 +697,12 @@ describe('Consumer', () => {
         ReceiptHandle: 'receipt-handle',
         VisibilityTimeout: 40
       }));
-      sandbox.assert.calledWith(sqs.changeMessageVisibility, {
+      sandbox.assert.calledWith(sqs.send.thirdCall, mockChangeMessageVisibility);
+      sandbox.assert.match(sqs.send.thirdCall.args[0].input, sinon.match({
         QueueUrl: QUEUE_URL,
         ReceiptHandle: 'receipt-handle',
         VisibilityTimeout: 40
-      });
+      }));
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
@@ -732,22 +733,24 @@ describe('Consumer', () => {
       ]);
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
+      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibilityBatch);
+      sandbox.assert.match(sqs.send.secondCall.args[0].input, sinon.match({
+        QueueUrl: QUEUE_URL,
+        Entries: sinon.match.array.deepEquals([
+          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
+          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
+          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
+        ])
+      }));
+      sandbox.assert.calledWith(sqs.send.thirdCall, mockChangeMessageVisibilityBatch);
+      sandbox.assert.match(sqs.send.thirdCall.args[0].input, sinon.match({
         QueueUrl: QUEUE_URL,
         Entries: [
           { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
           { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
           { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
         ]
-      });
-      sandbox.assert.calledWith(sqs.changeMessageVisibilityBatch, {
-        QueueUrl: QUEUE_URL,
-        Entries: [
-          { Id: '1', ReceiptHandle: 'receipt-handle-1', VisibilityTimeout: 40 },
-          { Id: '2', ReceiptHandle: 'receipt-handle-2', VisibilityTimeout: 40 },
-          { Id: '3', ReceiptHandle: 'receipt-handle-3', VisibilityTimeout: 40 }
-        ]
-      });
+      }));
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
