@@ -94,6 +94,10 @@ app.on('timeout_error', (err) => {
 app.start();
 ```
 
+### AWS IAM Permissions
+
+Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:DeleteMessageBatch`, `sqs:ChangeMessageVisibility` and `sqs:ChangeMessageVisibilityBatch` access is granted on the queue being consumed.
+
 ## API
 
 ### `Consumer.create(options)`
@@ -147,10 +151,6 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 | `response_processed` | None               | Fired after one batch of items (up to `batchSize`) has been successfully processed.                                             |
 | `stopped`            | None               | Fired when the consumer finally stops its work.                                                                                 |
 | `empty`              | None               | Fired when the queue is empty (All messages have been consumed).                                                                |
-
-### AWS IAM Permissions
-
-Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:DeleteMessageBatch`, `sqs:ChangeMessageVisibility` and `sqs:ChangeMessageVisibilityBatch` access is granted on the queue being consumed.
 
 ### Contributing
 
