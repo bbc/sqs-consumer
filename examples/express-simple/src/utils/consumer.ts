@@ -7,7 +7,7 @@ const consumer = Consumer.create({
   sqs,
   handleMessage: async (message) => {
     // eslint-disable-next-line no-console
-    console.log('RECEIVED SQS MESSAGE:');
+    console.log('HANDLING MESSAGE:');
     // eslint-disable-next-line no-console
     console.log(message);
   }
