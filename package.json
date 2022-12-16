@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "5.8.0",
+  "version": "6.0.2",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,7 @@
     "build": "npm run clean && tsc",
     "watch": "tsc --watch",
     "clean": "rm -fr dist/*",
-    "prepublish": "npm run build",
+    "prepare": "npm run build",
     "pretest": "npm run build",
     "test": "mocha --recursive --full-trace --exit",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
@@ -52,11 +52,11 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "aws-sdk": "^2.1271.0",
+    "@aws-sdk/client-sqs": "^3.226.0",
     "debug": "^4.3.4"
   },
   "peerDependencies": {
-    "aws-sdk": "^2.1271.0"
+    "@aws-sdk/client-sqs": "^3.226.0"
   },
   "mocha": {
     "spec": "test/**/**/*.test.ts",
