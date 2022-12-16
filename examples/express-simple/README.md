@@ -12,10 +12,20 @@ Once installed, just enter the command `npm run start` and after a few moments, 
 
 If you'd prefer to run without Docker, you can run the command `npm run start:node` instead.
 
-> _Note:_ If you do not use the Docker stack, you will need to start a local version of SQS at `http://localhost:4566`
+> **Note**
+> If you do not use the Docker stack, you will need to start a local version of SQS at `http://localhost:4566` or provide the location of your SQS Queue and your credentials using the environment variables that have been described below.
 
 ## Using the APIs
 
 Once the app has started, a number of APIs will be made available for you to send a set of predefined sample requests.
 
 You can find an [Insomnia export for these APIs here](./docs/Insomnia.json).
+
+## Environment Variables
+
+| Variable                | Description                            |
+| ----------------------- | -------------------------------------- |
+| `SQS_ENDPOINT`          | The SQS endpoint to use for your queue |
+| `SQS_ACCESS_KEY_ID`     | The access key for your queue          |
+| `SQS_SECRET_ACCESS_KEY` | The secret access key for your queue   |
+| `SQS_QUEUE_URL`         | The URL of your queue                  |

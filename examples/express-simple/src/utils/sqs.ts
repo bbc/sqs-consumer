@@ -36,8 +36,6 @@ exports.sqs =
     ? null
     : new SQSClient(sqsConfig);
 
-exports.QUEUE_NAME = process.env.SQS_QUEUE_NAME || 'sqs-consumer-data';
-
 exports.QUEUE_URL =
   process.env.SQS_QUEUE_URL ||
   'http://localhost:4566/000000000000/sqs-consumer-data';

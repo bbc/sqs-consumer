@@ -10,6 +10,7 @@
     "dev": "NODE_ENV=development ts-node ./src/app.ts",
     "prestart": "npm run docker:up",
     "start": "node ./dist/app.js",
+    "start:node": "node ./dist/app.js",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose build"
