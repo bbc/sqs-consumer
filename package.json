@@ -52,11 +52,11 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "aws-sdk": "^2.1271.0",
+    "@aws-sdk/client-sqs": "^3.226.0",
     "debug": "^4.3.4"
   },
   "peerDependencies": {
-    "aws-sdk": "^2.1271.0"
+    "@aws-sdk/client-sqs": "^3.226.0"
   },
   "mocha": {
     "spec": "test/**/**/*.test.ts",

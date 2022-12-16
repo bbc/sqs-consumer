@@ -1,1 +1,1 @@
-export { SQSMessage, Consumer, ConsumerOptions } from './consumer';
+export { Consumer, ConsumerOptions } from './consumer';
