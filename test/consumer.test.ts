@@ -702,7 +702,7 @@ describe('Consumer', () => {
       sandbox.assert.callCount(handleMessage, 0);
     });
 
-    it('deleteMessageBatch not called if handleMessagesBatch returns an empty array', async () => {
+    it('does not call deleteMessageBatch if handleMessagesBatch returns an empty array', async () => {
       consumer = new Consumer({
         queueUrl: 'some-queue-url',
         messageAttributeNames: ['attribute-1', 'attribute-2'],
@@ -715,7 +715,8 @@ describe('Consumer', () => {
       consumer.start();
       await pEvent(consumer, 'response_processed');
       consumer.stop();
-      sandbox.assert.callCount(sqs.deleteMessageBatch, 0);
+
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
     it('ack only returned messages if handleMessagesBatch returns an array', async () => {
@@ -734,10 +735,19 @@ describe('Consumer', () => {
       await pEvent(consumer, 'response_processed');
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.deleteMessageBatch, {
-        QueueUrl: 'some-queue-url',
-        Entries: [{ Id: '123', ReceiptHandle: 'receipt-handle' }]
-      });
+      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(
+        sqs.send.secondCall,
+        mockDeleteMessageBatch
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          Entries: [{ Id: '123', ReceiptHandle: 'receipt-handle' }]
+        })
+      );
     });
 
     it('uses the correct visibility timeout for long running handler functions', async () => {
