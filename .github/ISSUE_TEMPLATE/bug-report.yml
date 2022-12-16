@@ -1,4 +1,6 @@
 name: 'Bug report'
+title: "[Bug]: "
+labels: ["bug", "triage"]
 description: Report a reproducible bug or regression
 body:
   - type: markdown
