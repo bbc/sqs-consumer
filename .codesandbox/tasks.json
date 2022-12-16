@@ -1,0 +1,19 @@
+{
+  "setupTasks": [
+    {
+      "name": "Install Dependencies",
+      "command": "yarn install"
+    },
+    {
+      "name": "Start App",
+      "command": "npm run docker:up"
+    }
+  ],
+  "tasks": {
+    "start-app": {
+      "name": "Start App",
+      "command": "npm run docker:up",
+      "runAtStart": true
+    }
+  }
+}
