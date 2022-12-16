@@ -8,9 +8,9 @@ Please use this app when contributing changes to test your work with known funct
 
 To get started, you will need Docker installed and started on your machine, you can [find instructions on how to install Docker here](https://docs.docker.com/get-docker/).
 
-Once installed, just enter the command `npm run docker:up` and after a few moments, the example app should be available at `http://localhost:3026`.
+Once installed, just enter the command `npm run start` and after a few moments, the example app should be available at `http://localhost:3026`.
 
-If you'd prefer to run without Docker, you can run the command `npm run start` instead.
+If you'd prefer to run without Docker, you can run the command `npm run start:node` instead.
 
 > _Note:_ If you do not use the Docker stack, you will need to start a local version of SQS at `http://localhost:4566`
 
