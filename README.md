@@ -48,6 +48,8 @@ app.start();
 - Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 - By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed below](#options).
 
+You can also find some examples of sqs-consumer implemented in various ways within the [examples directory](./examples/).
+
 ### Credentials
 
 By default the consumer will look for AWS credentials in the places [specified by the AWS SDK](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials). The simplest option is to export your credentials as environment variables:
@@ -92,6 +94,10 @@ app.on('timeout_error', (err) => {
 app.start();
 ```
 
+### AWS IAM Permissions
+
+Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:DeleteMessageBatch`, `sqs:ChangeMessageVisibility` and `sqs:ChangeMessageVisibilityBatch` access is granted on the queue being consumed.
+
 ## API
 
 ### `Consumer.create(options)`
@@ -100,22 +106,24 @@ Creates a new SQS consumer.
 
 #### Options
 
-- `queueUrl` - _String_ - The SQS queue URL
-- `region` - _String_ - The AWS region (default `eu-west-1`)
-- `handleMessage` - _Function_ - An `async` function (or function that returns a `Promise`) to be called whenever a message is received. Receives an SQS message object as it's first argument.
-- `handleMessageBatch` - _Function_ - An `async` function (or function that returns a `Promise`) to be called whenever a batch of messages is received. Similar to `handleMessage` but will receive the list of messages, not each message individually. **If both are set, `handleMessageBatch` overrides `handleMessage`**. In the case that you need to ack only some of the messages, return an array with the successful messages only.
-- `handleMessageTimeout` - _Number_ - Time in ms to wait for `handleMessage` to process a message before timing out. Emits `timeout_error` on timeout. By default, if `handleMessage` times out, the unprocessed message returns to the end of the queue.
-- `attributeNames` - _Array_ - List of queue attributes to retrieve (i.e. `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
-- `messageAttributeNames` - _Array_ - List of message attributes to retrieve (i.e. `['name', 'address']`).
-- `batchSize` - _Number_ - The number of messages to request from SQS when polling (default `1`). This cannot be higher than the AWS limit of 10.
-- `visibilityTimeout` - _Number_ - The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request.
-- `heartbeatInterval` - _Number_ - The interval (in seconds) between requests to extend the message visibility timeout. On each heartbeat the visibility is extended by adding `visibilityTimeout` to the number of seconds since the start of the handler function. This value must less than `visibilityTimeout`.
-- `terminateVisibilityTimeout` - _Boolean_ - If true, sets the message visibility timeout to 0 after a `processing_error` (defaults to `false`).
-- `waitTimeSeconds` - _Number_ - The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning (defaults to `20`).
-- `authenticationErrorTimeout` - _Number_ - The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).
-- `pollingWaitTimeMs` - _Number_ - The duration (in milliseconds) to wait before repolling the queue (defaults to `0`).
-- `sqs` - _Object_ - An optional [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) object to use if you need to configure the client manually
-- `shouldDeleteMessages` - _Boolean_ - Default to `true`, if you don't want the package to delete messages from sqs set this to `false`
+| Option                       | Type      | Description                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `queueUrl`                   | String    | The SQS queue URL                                                                                                                                                                                                                                                                                                                                                                                      |
+| `region`                     | String    | The AWS region (default `eu-west-1`)                                                                                                                                                                                                                                                                                                                                                                   |
+| `handleMessage`              | Function  | An `async` function (or function that returns a `Promise`) to be called whenever a message is received. Receives an SQS message object as it's first argument.                                                                                                                                                                                                                                         |
+| `handleMessageBatch`         | Function  | An `async` function (or function that returns a `Promise`) to be called whenever a batch of messages is received. Similar to `handleMessage` but will receive the list of messages, not each message individually. **If both are set, `handleMessageBatch` overrides `handleMessage`**. In the case that you need to ack only some of the messages, return an array with the successful messages only. |
+| `handleMessageTimeout`       | Number    | Time in ms to wait for `handleMessage` to process a message before timing out. Emits `timeout_error` on timeout. By default, if `handleMessage` times out, the unprocessed message returns to the end of the queue.                                                                                                                                                                                    |
+| `attributeNames`             | Array     | List of queue attributes to retrieve (i.e. `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).                                                                                                                                                                                                                                                                                  |
+| `messageAttributeNames`      | Array     | List of message attributes to retrieve (i.e. `['name', 'address']`).                                                                                                                                                                                                                                                                                                                                   |
+| `batchSize`                  | Number    | The number of messages to request from SQS when polling (default `1`). This cannot be higher than the [AWS limit of 10](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html).                                                                                                                                                                              |
+| `visibilityTimeout`          | Number    | The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request.                                                                                                                                                                                                                                                   |
+| `heartbeatInterval`          | Number    | The interval (in seconds) between requests to extend the message visibility timeout. On each heartbeat the visibility is extended by adding `visibilityTimeout` to the number of seconds since the start of the handler function. This value must less than `visibilityTimeout`.                                                                                                                       |
+| `terminateVisibilityTimeout` | Boolean   | If true, sets the message visibility timeout to 0 after a `processing_error` (defaults to `false`).                                                                                                                                                                                                                                                                                                    |
+| `waitTimeSeconds`            | Number    | The duration (in seconds) for which the call will wait for a message to arrive in the queue before returning (defaults to `20`).                                                                                                                                                                                                                                                                       |
+| `authenticationErrorTimeout` | Number    | The duration (in milliseconds) to wait before retrying after an authentication error (defaults to `10000`).                                                                                                                                                                                                                                                                                            |
+| `pollingWaitTimeMs`          | Number    | The duration (in milliseconds) to wait before repolling the queue (defaults to `0`).                                                                                                                                                                                                                                                                                                                   |
+| `sqs`                        | SQSClient | An optional [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) object to use if you need to configure the client manually                                                                                                                                                                                                                  |
+| `shouldDeleteMessages`       | Boolean   | Default to `true`, if you don't want the package to delete messages from sqs set this to `false`                                                                                                                                                                                                                                                                                                       |
 
 ### `consumer.start()`
 
@@ -143,10 +151,6 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 | `response_processed` | None               | Fired after one batch of items (up to `batchSize`) has been successfully processed.                                             |
 | `stopped`            | None               | Fired when the consumer finally stops its work.                                                                                 |
 | `empty`              | None               | Fired when the queue is empty (All messages have been consumed).                                                                |
-
-### AWS IAM Permissions
-
-Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:DeleteMessageBatch`, `sqs:ChangeMessageVisibility` and `sqs:ChangeMessageVisibilityBatch` access is granted on the queue being consumed.
 
 ### Contributing
 

@@ -1,0 +1,115 @@
+name: 'Bug report'
+title: "[Bug]: "
+labels: ["bug", "triage"]
+description: Report a reproducible bug or regression
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue!
+
+        This issue tracker is for reporting reproducible bugs or regression's found in this package, if you have a question or feature request, please report it within the [Discussions tab](https://github.com/bbc/sqs-consumer/discussions) instead.
+
+        Before submitting a new bug/issue, please check the links below to see if there is a solution or question posted there already:
+
+         - [Discussions](https://github.com/bbc/sqs-consumer/discussions)
+         - [Open Issues](https://github.com/bbc/sqs-consumer/issues?q=is%3Aopen+is%3Aissue)
+         - [Closed Issues](https://github.com/bbc/sqs-consumer/issues?q=is%3Aissue+is%3Aclosed)
+
+        The more information you fill in, the better the community can help you.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: Provide a clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Your minimal, reproducible example
+      description: |
+        Please add a link to a minimal reproduction.
+        Note:
+        - Please keep your example as simple and reproduceable as possible, try leaving out dependencies that are not required for reproduction.
+        - To create a shareable code example for web, you can use CodeSandbox (https://codesandbox.io/s/new) or Stackblitz (https://stackblitz.com/).
+        - Please make sure the example is complete and runnable - e.g. avoid localhost URLs.
+      placeholder: |
+        e.g. Code Sandbox, Stackblitz, Expo Snack or TypeScript playground
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Describe the steps we have to take to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Provide a clear and concise description of what you expected to happen.
+      placeholder: |
+        As a user, I expected ___ behavior but i am seeing ___
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: How often does this bug happen?
+      description: |
+        Following the repro steps above, how easily are you able to reproduce this bug?
+      options:
+        - Every time
+        - Often
+        - Sometimes
+        - Only once
+  - type: textarea
+    id: screenshots_or_videos
+    attributes:
+      label: Screenshots or Videos
+      description: |
+        If applicable, add screenshots or a video to help explain your problem.
+        For more information on the supported file image/file types and the file size limits, please refer
+        to the following link: https://docs.github.com/en/github/writing-on-github/working-with-advanced-formatting/attaching-files
+      placeholder: |
+        You can drag your video or image files inside of this editor ↓
+  - type: textarea
+    id: platform
+    attributes:
+      label: Platform
+      description: |
+        Please let us know which Operating System and Node version you were using when the issue occurred.
+      placeholder: |
+        - OS: [e.g. macOS, Windows, Linux, iOS, Android]
+        - Node Version: [e.g. 16.6.0]
+    validations:
+      required: true
+  - type: input
+    id: package-version
+    attributes:
+      label: Package version
+      description: |
+        Please let us know the exact version of the package you were using when the issue occurred. Please don't just put in "latest", as this is subject to change.
+      placeholder: |
+        e.g. v6.0.0
+    validations:
+      required: true
+  - type: input
+    id: ts-version
+    attributes:
+      label: AWS SDK version
+      description: |
+        Please include what version of the AWS SDK you are using
+      placeholder: |
+        e.g. v3.226.0
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
