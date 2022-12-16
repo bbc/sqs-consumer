@@ -72,7 +72,8 @@ function isConnectionError(err: Error): boolean {
     return (
       err.statusCode === 403 ||
       err.code === 'CredentialsError' ||
-      err.code === 'UnknownEndpoint'
+      err.code === 'UnknownEndpoint' ||
+      err.code === 'AWS.SimpleQueueService.NonExistentQueue'
     );
   }
   return false;
