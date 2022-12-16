@@ -6,9 +6,10 @@
   "scripts": {
     "clean": "rm -fr dist/*",
     "build": "npm run clean && tsc",
+    "predev": "npm run docker:up",
     "dev": "NODE_ENV=development ts-node ./src/app.ts",
-    "start": "npm run docker:up",
-    "start:node": "node ./dist/app.js",
+    "prestart": "npm run docker:up",
+    "start": "node ./dist/app.js",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose build"
