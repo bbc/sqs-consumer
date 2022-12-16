@@ -20,7 +20,7 @@ services:
     volumes:
       - '${TMPDIR:-/tmp/localstack}:/tmp/localstack'
       - '/var/run/docker.sock:/var/run/docker.sock'
-      - ./localstack_bootstrap:/docker-entrypoint-initaws.d
+      - ./localstack:/docker-entrypoint-initaws.d
     networks:
       sqs_c_example_net:
         ipv4_address: 172.16.250.11
@@ -28,8 +28,8 @@ services:
     depends_on:
       - localstack
     build:
-      context: ../
-      dockerfile: docker/node/Dockerfile
+      context: ./
+      dockerfile: node/Dockerfile
     restart: unless-stopped
     container_name: sqs_c_example
     hostname: sqs_c_example

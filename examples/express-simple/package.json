@@ -8,9 +8,9 @@
     "build": "npm run clean && tsc",
     "dev": "NODE_ENV=development ts-node ./src/app.ts",
     "start": "node ./dist/app.js",
-    "docker:up": "docker-compose -f ./docker/docker-compose.yml up -d",
-    "docker:down": "docker-compose -f ./docker/docker-compose.yml down",
-    "docker:build": "docker-compose -f ./docker/docker-compose.yml build"
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build"
   },
   "license": "Apache-2.0",
   "devDependencies": {
