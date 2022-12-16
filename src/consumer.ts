@@ -111,7 +111,7 @@ export interface ConsumerOptions {
   handleMessageTimeout?: number;
   shouldDeleteMessages?: boolean;
   handleMessage?(message: Message): Promise<void>;
-  handleMessageBatch?(messages: Message[]): Promise<void>;
+  handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
 interface Events {
@@ -128,7 +128,7 @@ interface Events {
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: Message) => Promise<void>;
-  private handleMessageBatch: (message: Message[]) => Promise<void>;
+  private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
@@ -390,9 +390,13 @@ export class Consumer extends EventEmitter {
           );
         });
       }
-      await this.executeBatchHandler(messages);
-      await this.deleteMessageBatch(messages);
-      messages.forEach((message) => {
+      const ackedMessages = await this.executeBatchHandler(messages);
+
+      if (ackedMessages.length > 0) {
+        await this.deleteMessageBatch(ackedMessages);
+      }
+
+      ackedMessages.forEach((message) => {
         this.emit('message_processed', message);
       });
     } catch (err) {
@@ -433,9 +437,15 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async executeBatchHandler(messages: Message[]): Promise<void> {
+  private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      await this.handleMessageBatch(messages);
+      const result = await this.handleMessageBatch(messages);
+
+      if (result instanceof Object) {
+        return result;
+      }
+
+      return messages;
     } catch (err) {
       err.message = `Unexpected message handler failure: ${err.message}`;
       throw err;
