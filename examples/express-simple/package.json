@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "3.226.0",
-    "sqs-consumer": "6.0.0-alpha.1",
-    "sqs-producer": "3.0.0-alpha.1",
+    "sqs-consumer": "6.0.2",
+    "sqs-producer": "3.0.1",
     "express": "4.18.2"
   }
 }
