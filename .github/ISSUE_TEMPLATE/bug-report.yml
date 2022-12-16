@@ -8,7 +8,7 @@ body:
       value: |
         Thank you for reporting an issue!
 
-        This issue tracker is for reporting reproducible bugs or regression's found in this package, if you have a question, please report it within the [Discussions tab](https://github.com/bbc/sqs-consumer/discussions) instead.
+        This issue tracker is for reporting reproducible bugs or regression's found in this package, if you have a question or feature request, please report it within the [Discussions tab](https://github.com/bbc/sqs-consumer/discussions) instead.
 
         Before submitting a new bug/issue, please check the links below to see if there is a solution or question posted there already:
 
