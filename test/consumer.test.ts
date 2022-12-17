@@ -376,6 +376,25 @@ describe('Consumer', () => {
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
     });
 
+    it('waits before repolling when a NonExistentQueue error occurs', async () => {
+      const nonExistentQueueErr = {
+        name: 'AWS.SimpleQueueService.NonExistentQueue',
+        message: 'The specified queue does not exist for this wsdl version.'
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(nonExistentQueueErr);
+      const errorListener = sandbox.stub();
+      consumer.on('error', errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+    });
+
     it('waits before repolling when a polling timeout is set', async () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
