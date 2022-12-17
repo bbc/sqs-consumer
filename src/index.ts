@@ -1,1 +1,2 @@
-export { Consumer, ConsumerOptions } from './consumer';
+export { Consumer } from './consumer';
+export * from './types';
