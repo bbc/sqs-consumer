@@ -34,6 +34,16 @@ Follow the setup instructions in the [README](../README.md).
 
 Ensure all your code is thoroughly tested and that this testing is detailed in the pull request.
 
+## Contributors Licence Agreement
+
+In order to accept contributions, we need all contributors grant Us a licence to the intellectual
+property rights in their Contributions. This Agreement (“Agreement”) is intended to protect your 
+rights as a contributor, and to help ensure that the intellectual property contained
+within is available to the whole community, to use and build on.
+
+When you raise a pull request and you haven't previously signed a CLA, the bot will automatically
+ask you to do this. You must complete this step in order for your PR to be merged.
+
 ## Pull Request Process
 
 1. Make sure you have opened an issue and it was approved by a project maintainer before working on a PR
