@@ -19,7 +19,7 @@ jobs:
           path-to-signatures: 'sqs-consumer/v1/cla.json'
           remote-organization-name: 'bbc'
           remote-repository-name: 'cla-signatures'
-          path-to-document: 'https://bbc.github.io/cla-signatures/cla/v1/cla.md'
+          path-to-document: 'https://bbc.github.io/cla-signatures/cla/v1/cla.html'
           branch: 'main'
           allowlist: bot*
           custom-allsigned-prcomment: '**CLA CHECK** All Contributors have signed the CLA'
