@@ -93,15 +93,6 @@ describe('Consumer', () => {
     sandbox.restore();
   });
 
-  it('requires a queueUrl to be set', () => {
-    assert.throws(() => {
-      Consumer.create({
-        region: REGION,
-        handleMessage
-      });
-    });
-  });
-
   it('requires a handleMessage or handleMessagesBatch function to be set', () => {
     assert.throws(() => {
       new Consumer({

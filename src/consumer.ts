@@ -18,7 +18,7 @@ import {
 import Debug from 'debug';
 import { EventEmitter } from 'events';
 
-import { AWSError } from './types';
+import { AWSError, ConsumerOptions, Events } from './types';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
 
@@ -93,37 +93,6 @@ function toSQSError(err: AWSError, message: string): SQSError {
 
 function hasMessages(response: ReceiveMessageCommandOutput): boolean {
   return response.Messages && response.Messages.length > 0;
-}
-
-export interface ConsumerOptions {
-  queueUrl?: string;
-  attributeNames?: string[];
-  messageAttributeNames?: string[];
-  stopped?: boolean;
-  batchSize?: number;
-  visibilityTimeout?: number;
-  waitTimeSeconds?: number;
-  authenticationErrorTimeout?: number;
-  pollingWaitTimeMs?: number;
-  terminateVisibilityTimeout?: boolean;
-  heartbeatInterval?: number;
-  sqs?: SQSClient;
-  region?: string;
-  handleMessageTimeout?: number;
-  shouldDeleteMessages?: boolean;
-  handleMessage?(message: Message): Promise<void>;
-  handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
-}
-
-interface Events {
-  response_processed: [];
-  empty: [];
-  message_received: [Message];
-  message_processed: [Message];
-  error: [Error, void | Message | Message[]];
-  timeout_error: [Error, Message];
-  processing_error: [Error, Message];
-  stopped: [];
 }
 
 export class Consumer extends EventEmitter {

@@ -1,3 +1,36 @@
+import { SQSClient, Message } from '@aws-sdk/client-sqs';
+
+export interface ConsumerOptions {
+  queueUrl: string;
+  attributeNames?: string[];
+  messageAttributeNames?: string[];
+  stopped?: boolean;
+  batchSize?: number;
+  visibilityTimeout?: number;
+  waitTimeSeconds?: number;
+  authenticationErrorTimeout?: number;
+  pollingWaitTimeMs?: number;
+  terminateVisibilityTimeout?: boolean;
+  heartbeatInterval?: number;
+  sqs?: SQSClient;
+  region?: string;
+  handleMessageTimeout?: number;
+  shouldDeleteMessages?: boolean;
+  handleMessage?(message: Message): Promise<void>;
+  handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
+}
+
+export interface Events {
+  response_processed: [];
+  empty: [];
+  message_received: [Message];
+  message_processed: [Message];
+  error: [Error, void | Message | Message[]];
+  timeout_error: [Error, Message];
+  processing_error: [Error, Message];
+  stopped: [];
+}
+
 export type AWSError = {
   /**
    * Name, eg. ConditionalCheckFailedException
