@@ -37,7 +37,7 @@ Ensure all your code is thoroughly tested and that this testing is detailed in t
 ## Contributors Licence Agreement
 
 In order to accept contributions, we need all contributors grant Us a licence to the intellectual
-property rights in their Contributions. This Agreement (“Agreement”) is intended to protect your 
+property rights in their Contributions. This Agreement (“Agreement”) is intended to protect your
 rights as a contributor, and to help ensure that the intellectual property contained
 within is available to the whole community, to use and build on.
 
