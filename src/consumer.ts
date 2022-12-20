@@ -33,7 +33,7 @@ const debug = Debug('sqs-consumer');
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;
-  private handleMessage: (message: Message) => Promise<void>;
+  private handleMessage: (message: Message) => Promise<Message | void>;
   private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
   private handleMessageTimeout: number;
   private attributeNames: string[];
@@ -149,9 +149,14 @@ export class Consumer extends EventEmitter {
           return this.changeVisibilityTimeout(message, this.visibilityTimeout);
         });
       }
-      await this.executeHandler(message);
-      await this.deleteMessage(message);
-      this.emit('message_processed', message);
+
+      const ackedMessage = await this.executeHandler(message);
+
+      if (ackedMessage?.MessageId === message.MessageId) {
+        await this.deleteMessage(message);
+
+        this.emit('message_processed', message);
+      }
     } catch (err) {
       this.emitError(err, message);
 
@@ -194,16 +199,24 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async executeHandler(message: Message): Promise<void> {
+  private async executeHandler(message: Message): Promise<Message> {
     let timeout;
     let pending;
     try {
+      let result;
+
       if (this.handleMessageTimeout) {
         [timeout, pending] = createTimeout(this.handleMessageTimeout);
-        await Promise.race([this.handleMessage(message), pending]);
+        result = await Promise.race([this.handleMessage(message), pending]);
       } else {
-        await this.handleMessage(message);
+        result = await this.handleMessage(message);
       }
+
+      if (result instanceof Object) {
+        return result;
+      }
+
+      return message;
     } catch (err) {
       if (err instanceof TimeoutError) {
         err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;

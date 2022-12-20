@@ -293,7 +293,7 @@ describe('Consumer', () => {
       const sqsError = new Error('Processing error');
       sqsError.name = 'SQSError';
 
-      handleMessage.resolves(sqsError);
+      handleMessage.resolves();
       sqs.send.withArgs(mockDeleteMessage).rejects(sqsError);
 
       consumer.start();
@@ -712,11 +712,100 @@ describe('Consumer', () => {
       sandbox.assert.callCount(handleMessage, 0);
     });
 
+    it('ack the message if handleMessage returns void', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async () => {},
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle'
+        })
+      );
+    });
+
+    it('ack the message if handleMessage returns a message with the same ID', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async () => {
+          return {
+            MessageId: '123'
+          };
+        },
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle'
+        })
+      );
+    });
+
+    it('does not ack the message if handleMessage returns an empty object', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async () => {
+          return {};
+        },
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 1);
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+    });
+
+    it('does not ack the message if handleMessage returns a different ID', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async () => {
+          return {
+            MessageId: '143'
+          };
+        },
+        sqs
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 1);
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+    });
+
     it('does not call deleteMessageBatch if handleMessagesBatch returns an empty array', async () => {
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        messageAttributeNames: ['attribute-1', 'attribute-2'],
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessageBatch: async () => [],
         batchSize: 2,
         sqs
@@ -726,14 +815,14 @@ describe('Consumer', () => {
       await pEvent(consumer, 'response_processed');
       consumer.stop();
 
+      sandbox.assert.callCount(sqs.send, 1);
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
     it('ack all messages if handleMessageBatch returns void', async () => {
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        messageAttributeNames: ['attribute-1', 'attribute-2'],
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessageBatch: async () => {},
         batchSize: 2,
         sqs
@@ -760,9 +849,8 @@ describe('Consumer', () => {
 
     it('ack only returned messages if handleMessagesBatch returns an array', async () => {
       consumer = new Consumer({
-        queueUrl: 'some-queue-url',
-        messageAttributeNames: ['attribute-1', 'attribute-2'],
-        region: 'some-region',
+        queueUrl: QUEUE_URL,
+        region: REGION,
         handleMessageBatch: async () => [
           { MessageId: '123', ReceiptHandle: 'receipt-handle' }
         ],

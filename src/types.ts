@@ -21,7 +21,7 @@ export interface ConsumerOptions {
   region?: string;
   handleMessageTimeout?: number;
   shouldDeleteMessages?: boolean;
-  handleMessage?(message: Message): Promise<void>;
+  handleMessage?(message: Message): Promise<Message | void>;
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
