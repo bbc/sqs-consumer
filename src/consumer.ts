@@ -18,82 +18,18 @@ import {
 import Debug from 'debug';
 import { EventEmitter } from 'events';
 
-import { AWSError, ConsumerOptions, Events } from './types';
+import { ConsumerOptions, Events } from './types';
+import { createTimeout } from './timeout';
 import { autoBind } from './bind';
-import { SQSError, TimeoutError } from './errors';
+import {
+  SQSError,
+  TimeoutError,
+  toSQSError,
+  isConnectionError
+} from './errors';
+import { assertOptions, hasMessages } from './validation';
 
 const debug = Debug('sqs-consumer');
-
-const requiredOptions = [
-  'queueUrl',
-  // only one of handleMessage / handleMessagesBatch is required
-  'handleMessage|handleMessageBatch'
-];
-
-interface TimeoutResponse {
-  timeout: NodeJS.Timeout;
-  pending: Promise<void>;
-}
-
-function createTimeout(duration: number): TimeoutResponse[] {
-  let timeout;
-  const pending = new Promise((_, reject) => {
-    timeout = setTimeout((): void => {
-      reject(new TimeoutError());
-    }, duration);
-  });
-  return [timeout, pending];
-}
-
-function assertOptions(options: ConsumerOptions): void {
-  requiredOptions.forEach((option) => {
-    const possibilities = option.split('|');
-    if (!possibilities.find((p) => options[p])) {
-      throw new Error(
-        `Missing SQS consumer option [ ${possibilities.join(' or ')} ].`
-      );
-    }
-  });
-
-  if (options.batchSize > 10 || options.batchSize < 1) {
-    throw new Error('SQS batchSize option must be between 1 and 10.');
-  }
-
-  if (
-    options.heartbeatInterval &&
-    !(options.heartbeatInterval < options.visibilityTimeout)
-  ) {
-    throw new Error('heartbeatInterval must be less than visibilityTimeout.');
-  }
-}
-
-function isConnectionError(err: Error): boolean {
-  if (err instanceof SQSError) {
-    return (
-      err.statusCode === 403 ||
-      err.code === 'CredentialsError' ||
-      err.code === 'UnknownEndpoint' ||
-      err.code === 'AWS.SimpleQueueService.NonExistentQueue'
-    );
-  }
-  return false;
-}
-
-function toSQSError(err: AWSError, message: string): SQSError {
-  const sqsError = new SQSError(message);
-  sqsError.code = err.name;
-  sqsError.statusCode = err.$metadata?.httpStatusCode;
-  sqsError.retryable = err.$retryable?.throttling;
-  sqsError.service = err.$service;
-  sqsError.fault = err.$fault;
-  sqsError.time = new Date();
-
-  return sqsError;
-}
-
-function hasMessages(response: ReceiveMessageCommandOutput): boolean {
-  return response.Messages && response.Messages.length > 0;
-}
 
 export class Consumer extends EventEmitter {
   private queueUrl: string;

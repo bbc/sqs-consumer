@@ -1,5 +1,10 @@
 import { SQSClient, Message } from '@aws-sdk/client-sqs';
 
+export interface TimeoutResponse {
+  timeout: NodeJS.Timeout;
+  pending: Promise<void>;
+}
+
 export interface ConsumerOptions {
   queueUrl: string;
   attributeNames?: string[];
