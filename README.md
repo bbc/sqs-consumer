@@ -104,7 +104,7 @@ Consumer will receive and delete messages from the SQS queue. Ensure `sqs:Receiv
 
 ### `Consumer.create(options)`
 
-Creates a new SQS consumer using the [defined options](https://sqs-consumer.bbc.github.io/interfaces/ConsumerOptions.html).
+Creates a new SQS consumer using the [defined options](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html).
 
 ### `consumer.start()`
 
@@ -120,7 +120,7 @@ Returns the current polling state of the consumer: `true` if it is actively poll
 
 ### Events
 
-Each consumer is an [`EventEmitter`](https://nodejs.org/api/events.html) and [emits these events](https://sqs-consumer.bbc.github.io/interfaces/Events.html).
+Each consumer is an [`EventEmitter`](https://nodejs.org/api/events.html) and [emits these events](https://bbc.github.io/sqs-consumer/interfaces/Events.html).
 
 ## Contributing
 

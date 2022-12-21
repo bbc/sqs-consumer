@@ -27,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/BBC/sqs-consumer/issues"
   },
-  "homepage": "https://sqs-consumer.bbc.github.io",
+  "homepage": "https://bbc.github.io/sqs-consumer/",
   "keywords": [
     "sqs",
     "queue",

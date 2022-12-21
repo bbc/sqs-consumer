@@ -32,7 +32,7 @@ import { assertOptions, hasMessages } from './validation';
 const debug = Debug('sqs-consumer');
 
 /**
- * [Usage](https://sqs-consumer.bbc.github.io/index.html#usage)
+ * [Usage](https://bbc.github.io/sqs-consumer/index.html#usage)
  */
 export class Consumer extends EventEmitter {
   private queueUrl: string;
