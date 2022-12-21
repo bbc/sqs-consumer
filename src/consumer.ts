@@ -226,7 +226,9 @@ export class Consumer extends EventEmitter {
       }
       throw err;
     } finally {
-      clearTimeout(timeout);
+      if (timeout) {
+        clearTimeout(timeout);
+      }
     }
   }
 
