@@ -262,7 +262,7 @@ export class Consumer extends EventEmitter {
 
   private poll(): void {
     if (this.stopped) {
-      debug('Poll was called while consumer was stopped');
+      debug('Poll was called while consumer was stopped, cancelling poll...');
       return;
     }
 
