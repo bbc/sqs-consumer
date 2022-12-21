@@ -58,7 +58,7 @@ export interface ConsumerOptions {
    */
   terminateVisibilityTimeout?: boolean;
   /**
-   * he interval (in seconds) between requests to extend the message visibility timeout.
+   * The interval (in seconds) between requests to extend the message visibility timeout.
    *
    * On each heartbeat the visibility is extended by adding `visibilityTimeout` to
    * the number of seconds since the start of the handler function.
