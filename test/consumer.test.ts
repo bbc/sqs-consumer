@@ -1012,6 +1012,17 @@ describe('Consumer', () => {
       sandbox.assert.calledOnce(handleMessage);
     });
 
+    it('clears the polling timeout when stopped', async () => {
+      sinon.spy(clock, 'clearTimeout');
+
+      consumer.start();
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sinon.assert.calledOnce(clock.clearTimeout);
+    });
+
     it('fires a stopped event only once when stopped multiple times', async () => {
       const handleStop = sandbox.stub().returns(null);
 
