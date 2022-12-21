@@ -8,6 +8,10 @@ const requiredOptions = [
   'handleMessage|handleMessageBatch'
 ];
 
+/**
+ * Ensure that the required options have been set.
+ * @param options The options that have been set by the application.
+ */
 function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
     const possibilities = option.split('|');
@@ -30,6 +34,10 @@ function assertOptions(options: ConsumerOptions): void {
   }
 }
 
+/**
+ * Determine if the response from SQS has messages in it.
+ * @param response The response from SQS.
+ */
 function hasMessages(response: ReceiveMessageCommandOutput): boolean {
   return response.Messages && response.Messages.length > 0;
 }
