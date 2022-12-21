@@ -1016,11 +1016,12 @@ describe('Consumer', () => {
       sinon.spy(clock, 'clearTimeout');
 
       consumer.start();
+      await clock.tickAsync(0);
       consumer.stop();
 
       await clock.runAllAsync();
 
-      sinon.assert.calledOnce(clock.clearTimeout);
+      sinon.assert.calledTwice(clock.clearTimeout);
     });
 
     it('fires a stopped event only once when stopped multiple times', async () => {
