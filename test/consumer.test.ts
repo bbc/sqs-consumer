@@ -484,6 +484,21 @@ describe('Consumer', () => {
       sqs.send.calledOnceWith(mockReceiveMessage);
     });
 
+    it("doesn't consume more messages when called multiple times after stopped", () => {
+      sqs.send
+        .withArgs(mockReceiveMessage)
+        .resolves(new Promise((res) => setTimeout(res, 100)));
+      consumer.start();
+      consumer.stop();
+
+      consumer.start();
+      consumer.start();
+      consumer.start();
+      consumer.start();
+
+      sqs.send.calledOnceWith(mockReceiveMessage);
+    });
+
     it('consumes multiple messages when the batchSize is greater than 1', async () => {
       sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [
@@ -984,18 +999,17 @@ describe('Consumer', () => {
 
   describe('.stop', () => {
     it('stops the consumer polling for messages', async () => {
+      const handleStop = sandbox.stub().returns(null);
+
+      consumer.on('stopped', handleStop);
+
       consumer.start();
       consumer.stop();
 
-      await Promise.all([pEvent(consumer, 'stopped'), clock.runAllAsync()]);
+      await clock.runAllAsync()
 
+      sandbox.assert.calledOnce(handleStop);
       sandbox.assert.calledOnce(handleMessage);
-    });
-
-    it('fires a stopped event when last poll occurs after stopping', async () => {
-      consumer.start();
-      consumer.stop();
-      await Promise.all([pEvent(consumer, 'stopped'), clock.runAllAsync()]);
     });
 
     it('fires a stopped event only once when stopped multiple times', async () => {

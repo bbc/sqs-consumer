@@ -48,6 +48,7 @@ export class Consumer extends EventEmitter {
   private heartbeatInterval: number;
   private sqs: SQSClient;
   private shouldDeleteMessages: boolean;
+  private pollingTimeoutId: NodeJS.Timeout | undefined;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -69,6 +70,7 @@ export class Consumer extends EventEmitter {
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
+    this.pollingTimeoutId = undefined;
 
     this.sqs =
       options.sqs ||
@@ -114,8 +116,20 @@ export class Consumer extends EventEmitter {
   }
 
   public stop(): void {
+    if (this.stopped) {
+      debug('Consumer was already stopped');
+      return;
+    }
+
     debug('Stopping consumer');
     this.stopped = true;
+
+    if (this.pollingTimeoutId) {
+      clearTimeout(this.pollingTimeoutId);
+      this.pollingTimeoutId = null;
+    }
+
+    this.emit('stopped');
   }
 
   private async handleSqsResponse(
@@ -248,7 +262,10 @@ export class Consumer extends EventEmitter {
 
   private poll(): void {
     if (this.stopped) {
-      this.emit('stopped');
+      this.emit(
+        'error',
+        new Error('Poll was called while consumer was stopped')
+      );
       return;
     }
 
@@ -274,7 +291,7 @@ export class Consumer extends EventEmitter {
         return;
       })
       .then(() => {
-        setTimeout(this.poll, currentPollingTimeout);
+        this.pollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
       })
       .catch((err) => {
         this.emit('error', err);
