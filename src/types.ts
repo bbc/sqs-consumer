@@ -6,33 +6,142 @@ export interface TimeoutResponse {
 }
 
 export interface ConsumerOptions {
+  /**
+   * The SQS queue URL.
+   */
   queueUrl: string;
+  /**
+   * List of queue attributes to retrieve (i.e.
+   * `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
+   * @defaultvalue `[]`
+   */
   attributeNames?: string[];
+  /**
+   * List of message attributes to retrieve (i.e. `['name', 'address']`).
+   * @defaultvalue `[]`
+   */
   messageAttributeNames?: string[];
+  /** @hidden */
   stopped?: boolean;
+  /**
+   * The number of messages to request from SQS when polling (default `1`).
+   *
+   * This cannot be higher than the
+   * [AWS limit of 10](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html).
+   * @defaultvalue `1`
+   */
   batchSize?: number;
+  /**
+   * The duration (in seconds) that the received messages are hidden from subsequent
+   * retrieve requests after being retrieved by a ReceiveMessage request.
+   */
   visibilityTimeout?: number;
+  /**
+   * The duration (in seconds) for which the call will wait for a message to arrive in
+   * the queue before returning.
+   * @defaultvalue `20`
+   */
   waitTimeSeconds?: number;
+  /**
+   * The duration (in milliseconds) to wait before retrying after an authentication error.
+   * @defaultvalue `10000`
+   */
   authenticationErrorTimeout?: number;
+  /**
+   * The duration (in milliseconds) to wait before repolling the queue.
+   * @defaultvalue `0`
+   */
   pollingWaitTimeMs?: number;
+  /**
+   * If true, sets the message visibility timeout to 0 after a `processing_error`.
+   * @defaultvalue `false`
+   */
   terminateVisibilityTimeout?: boolean;
+  /**
+   * The interval (in seconds) between requests to extend the message visibility timeout.
+   *
+   * On each heartbeat the visibility is extended by adding `visibilityTimeout` to
+   * the number of seconds since the start of the handler function.
+   *
+   * This value must less than `visibilityTimeout`.
+   */
   heartbeatInterval?: number;
+  /**
+   * An optional [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html)
+   * object to use if you need to configure the client manually.
+   */
   sqs?: SQSClient;
+  /**
+   * The AWS region.
+   * @defaultValue `eu-west-1`
+   */
   region?: string;
+  /**
+   * Time in ms to wait for `handleMessage` to process a message before timing out.
+   *
+   * Emits `timeout_error` on timeout. By default, if `handleMessage` times out,
+   * the unprocessed message returns to the end of the queue.
+   */
   handleMessageTimeout?: number;
+  /**
+   * Default to `true`, if you don't want the package to delete messages from sqs
+   * set this to `false`.
+   * @defaultvalue `true`
+   */
   shouldDeleteMessages?: boolean;
+  /**
+   * An `async` function (or function that returns a `Promise`) to be called whenever
+   * a message is received.
+   */
   handleMessage?(message: Message): Promise<void>;
+  /**
+   * An `async` function (or function that returns a `Promise`) to be called whenever
+   * a batch of messages is received. Similar to `handleMessage` but will receive the
+   * list of messages, not each message individually.
+   *
+   * **If both are set, `handleMessageBatch` overrides `handleMessage`**.
+   *
+   * In the case that you need to ack only some of the messages, return an array with
+   * the successful messages only.
+   */
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
 export interface Events {
+  /**
+   * Fired after one batch of items (up to `batchSize`) has been successfully processed.
+   */
   response_processed: [];
+  /**
+   * Fired when the queue is empty (All messages have been consumed).
+   */
   empty: [];
+  /**
+   * Fired when a message is received.
+   */
   message_received: [Message];
+  /**
+   * Fired when a message is successfully processed and removed from the queue.
+   */
   message_processed: [Message];
+  /**
+   * Fired when an error occurs interacting with the queue.
+   *
+   * If the error correlates to a message, that message is included in Params
+   */
   error: [Error, void | Message | Message[]];
+  /**
+   * Fired when `handleMessageTimeout` is supplied as an option and if
+   * `handleMessage` times out.
+   */
   timeout_error: [Error, Message];
+  /**
+   * Fired when an error occurs processing the message.
+   */
   processing_error: [Error, Message];
+  /**
+   * Fired when the consumer finally stops its work.
+   */
   stopped: [];
 }
 
