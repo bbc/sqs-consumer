@@ -17,7 +17,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --loglevel warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
     "format:check": "prettier --check \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
-    "posttest": "npm run lint && npm run format:check"
+    "posttest": "npm run lint && npm run format:check",
+    "generate-docs": "typedoc"
   },
   "repository": {
     "type": "git",
@@ -26,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/BBC/sqs-consumer/issues"
   },
-  "homepage": "https://github.com/BBC/sqs-consumer",
+  "homepage": "https://bbc.github.io/sqs-consumer/",
   "keywords": [
     "sqs",
     "queue",
@@ -49,6 +50,7 @@
     "prettier": "^2.8.1",
     "sinon": "^15.0.0",
     "ts-node": "^10.9.1",
+    "typedoc": "^0.23.23",
     "typescript": "^4.9.4"
   },
   "dependencies": {

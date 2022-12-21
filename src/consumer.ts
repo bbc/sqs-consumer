@@ -31,6 +31,9 @@ import { assertOptions, hasMessages } from './validation';
 
 const debug = Debug('sqs-consumer');
 
+/**
+ * [Usage](https://bbc.github.io/sqs-consumer/index.html#usage)
+ */
 export class Consumer extends EventEmitter {
   private queueUrl: string;
   private handleMessage: (message: Message) => Promise<Message | void>;
@@ -79,10 +82,16 @@ export class Consumer extends EventEmitter {
     autoBind(this);
   }
 
+  /**
+   * Emits an event with the provided arguments
+   */
   emit<T extends keyof Events>(event: T, ...args: Events[T]) {
     return super.emit(event, ...args);
   }
 
+  /**
+   * Trigger a listener on all emitted events
+   */
   on<T extends keyof Events>(
     event: T,
     listener: (...args: Events[T]) => void
@@ -90,6 +99,9 @@ export class Consumer extends EventEmitter {
     return super.on(event, listener);
   }
 
+  /**
+   * Trigger a listener only once for an emitted event
+   */
   once<T extends keyof Events>(
     event: T,
     listener: (...args: Events[T]) => void
@@ -97,14 +109,23 @@ export class Consumer extends EventEmitter {
     return super.once(event, listener);
   }
 
+  /**
+   * Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
+   */
   public get isRunning(): boolean {
     return !this.stopped;
   }
 
+  /**
+   * Creates a new SQS consumer.
+   */
   public static create(options: ConsumerOptions): Consumer {
     return new Consumer(options);
   }
 
+  /**
+   * Start polling the queue for messages.
+   */
   public start(): void {
     if (this.stopped) {
       debug('Starting consumer');
@@ -113,6 +134,9 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Stop polling the queue for messages (pre existing requests will still be made until concluded).
+   */
   public stop(): void {
     debug('Stopping consumer');
     this.stopped = true;
