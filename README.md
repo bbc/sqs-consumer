@@ -130,4 +130,4 @@ But before you get started, [please read the contributing guidelines](https://gi
 
 ## License
 
-SQS Consumer is distributed under the Apache License, Version 2.0, see [LICENSE](./LICENSE) for more information.
+SQS Consumer is distributed under the Apache License, Version 2.0, see [LICENSE](https://github.com/bbc/sqs-consumer/blob/main/LICENSE) for more information.
