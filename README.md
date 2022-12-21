@@ -131,7 +131,7 @@ Start polling the queue for messages.
 
 ### `consumer.stop()`
 
-Stop polling the queue for messages.
+Stop polling the queue for messages (pre existing requests will still be made until concluded).
 
 ### `consumer.isRunning`
 
