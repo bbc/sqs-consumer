@@ -1006,7 +1006,7 @@ describe('Consumer', () => {
       consumer.start();
       consumer.stop();
 
-      await clock.runAllAsync()
+      await clock.runAllAsync();
 
       sandbox.assert.calledOnce(handleStop);
       sandbox.assert.calledOnce(handleMessage);

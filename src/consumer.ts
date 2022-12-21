@@ -126,7 +126,7 @@ export class Consumer extends EventEmitter {
 
     if (this.pollingTimeoutId) {
       clearTimeout(this.pollingTimeoutId);
-      this.pollingTimeoutId = null;
+      this.pollingTimeoutId = undefined;
     }
 
     this.emit('stopped');
@@ -262,10 +262,7 @@ export class Consumer extends EventEmitter {
 
   private poll(): void {
     if (this.stopped) {
-      this.emit(
-        'error',
-        new Error('Poll was called while consumer was stopped')
-      );
+      debug('Poll was called while consumer was stopped');
       return;
     }
 
