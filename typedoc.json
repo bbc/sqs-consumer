@@ -1,0 +1,13 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "sort": ["kind", "instance-first", "required-first", "alphabetical"],
+  "treatWarningsAsErrors": false,
+  "searchInComments": true,
+  "entryPoints": ["./src/index.ts"],
+  "out": "public",
+  "name": "SQS Consumer",
+  "hideGenerator": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/bbc/sqs-consumer"
+  }
+}
