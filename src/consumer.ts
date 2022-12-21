@@ -90,7 +90,7 @@ export class Consumer extends EventEmitter {
   }
 
   /**
-   * Trigger a listen for all emitted events
+   * Trigger a listener on all emitted events
    */
   on<T extends keyof Events>(
     event: T,
