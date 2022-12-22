@@ -263,9 +263,7 @@ export class Consumer extends EventEmitter {
       this.emit('message_received', message);
 
       if (this.heartbeatInterval) {
-        this.heartbeatTimeoutId = this.startHeartbeat(async () => {
-          return this.changeVisibilityTimeout(message, this.visibilityTimeout);
-        });
+        this.heartbeatTimeoutId = this.startHeartbeat(message);
       }
 
       const ackedMessage = await this.executeHandler(message);
@@ -298,12 +296,7 @@ export class Consumer extends EventEmitter {
       });
 
       if (this.heartbeatInterval) {
-        this.heartbeatTimeoutId = this.startHeartbeat(async () => {
-          return this.changeVisibilityTimeoutBatch(
-            messages,
-            this.visibilityTimeout
-          );
-        });
+        this.heartbeatTimeoutId = this.startHeartbeat(null, messages);
       }
 
       const ackedMessages = await this.executeBatchHandler(messages);
@@ -331,9 +324,19 @@ export class Consumer extends EventEmitter {
    * Trigger a function on a set interval
    * @param heartbeatFn The function that should be triggered
    */
-  private startHeartbeat(heartbeatFn: () => void): NodeJS.Timeout {
+  private startHeartbeat(
+    message?: Message,
+    messages?: Message[]
+  ): NodeJS.Timeout {
     return setInterval(() => {
-      heartbeatFn();
+      if (this.handleMessageBatch) {
+        return this.changeVisibilityTimeoutBatch(
+          messages,
+          this.visibilityTimeout
+        );
+      } else {
+        return this.changeVisibilityTimeout(message, this.visibilityTimeout);
+      }
     }, this.heartbeatInterval * 1000);
   }
 
