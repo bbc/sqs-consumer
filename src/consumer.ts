@@ -183,17 +183,16 @@ export class Consumer extends EventEmitter {
     }
 
     debug('Polling for messages');
-    const receiveParams: ReceiveMessageCommandInput = {
+
+    let currentPollingTimeout = this.pollingWaitTimeMs;
+    this.receiveMessage({
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
       MessageAttributeNames: this.messageAttributeNames,
       MaxNumberOfMessages: this.batchSize,
       WaitTimeSeconds: this.waitTimeSeconds,
       VisibilityTimeout: this.visibilityTimeout
-    };
-
-    let currentPollingTimeout = this.pollingWaitTimeMs;
-    this.receiveMessage(receiveParams)
+    })
       .then(this.handleSqsResponse)
       .catch((err) => {
         this.emit('error', err);
