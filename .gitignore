@@ -3,4 +3,5 @@ test.js
 coverage
 dist
 .nyc_output
+.DS_Store
 public
