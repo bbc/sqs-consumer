@@ -51,6 +51,7 @@ export class Consumer extends EventEmitter {
   private heartbeatInterval: number;
   private sqs: SQSClient;
   private shouldDeleteMessages: boolean;
+  private pollingTimeoutId: NodeJS.Timeout | undefined;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -72,6 +73,7 @@ export class Consumer extends EventEmitter {
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
+    this.pollingTimeoutId = undefined;
 
     this.sqs =
       options.sqs ||
@@ -143,8 +145,20 @@ export class Consumer extends EventEmitter {
    * Stop polling the queue for messages (pre existing requests will still be made until concluded).
    */
   public stop(): void {
+    if (this.stopped) {
+      debug('Consumer was already stopped');
+      return;
+    }
+
     debug('Stopping consumer');
     this.stopped = true;
+
+    if (this.pollingTimeoutId) {
+      clearTimeout(this.pollingTimeoutId);
+      this.pollingTimeoutId = undefined;
+    }
+
+    this.emit('stopped');
   }
 
   /**
@@ -275,7 +289,9 @@ export class Consumer extends EventEmitter {
       }
       throw err;
     } finally {
-      clearTimeout(timeout);
+      if (timeout) {
+        clearTimeout(timeout);
+      }
     }
   }
 
@@ -324,7 +340,7 @@ export class Consumer extends EventEmitter {
    */
   private poll(): void {
     if (this.stopped) {
-      this.emit('stopped');
+      debug('Poll was called while consumer was stopped, cancelling poll...');
       return;
     }
 
@@ -350,7 +366,10 @@ export class Consumer extends EventEmitter {
         return;
       })
       .then(() => {
-        setTimeout(this.poll, currentPollingTimeout);
+        if (this.pollingTimeoutId) {
+          clearTimeout(this.pollingTimeoutId);
+        }
+        this.pollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
       })
       .catch((err) => {
         this.emit('error', err);
