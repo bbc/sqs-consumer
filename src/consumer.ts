@@ -156,8 +156,10 @@ export class Consumer extends EventEmitter {
    * @param err The error object to forward on
    * @param message The message that the error occurred on
    */
-  private emitError(err: Error, message: Message): void {
-    if (err.name === SQSError.name) {
+  private emitError(err: Error, message?: Message): void {
+    if (!message) {
+      this.emit('error', err);
+    } else if (err.name === SQSError.name) {
       this.emit('error', err, message);
     } else if (err instanceof TimeoutError) {
       this.emit('timeout_error', err, message);
@@ -195,7 +197,7 @@ export class Consumer extends EventEmitter {
     })
       .then(this.handleSqsResponse)
       .catch((err) => {
-        this.emit('error', err);
+        this.emitError(err);
         if (isConnectionError(err)) {
           debug('There was an authentication error. Pausing before retrying.');
           currentPollingTimeout = this.authenticationErrorTimeout;
@@ -209,7 +211,7 @@ export class Consumer extends EventEmitter {
         this.pollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
       })
       .catch((err) => {
-        this.emit('error', err);
+        this.emitError(err);
       });
   }
 
