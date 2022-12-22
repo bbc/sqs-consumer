@@ -364,8 +364,9 @@ export class Consumer extends TypedEventEmitter {
    * @param message The message that was received from SQS
    */
   private async executeHandler(message: Message): Promise<Message> {
-    let result;
     try {
+      let result;
+      
       if (this.handleMessageTimeout) {
         const pending = new Promise((_, reject) => {
           this.handleMessageTimeoutId = setTimeout((): void => {
