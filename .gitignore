@@ -4,3 +4,4 @@ coverage
 dist
 .nyc_output
 public
+.DS_Store
