@@ -41,7 +41,7 @@ export class Consumer extends EventEmitter {
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
-  private stopped: boolean;
+  private stopped = true;
   private batchSize: number;
   private visibilityTimeout: number;
   private waitTimeSeconds: number;
@@ -51,7 +51,7 @@ export class Consumer extends EventEmitter {
   private heartbeatInterval: number;
   private sqs: SQSClient;
   private shouldDeleteMessages: boolean;
-  private pollingTimeoutId: NodeJS.Timeout | undefined;
+  private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -62,7 +62,6 @@ export class Consumer extends EventEmitter {
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
-    this.stopped = true;
     this.batchSize = options.batchSize || 1;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout =
@@ -73,7 +72,6 @@ export class Consumer extends EventEmitter {
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
-    this.pollingTimeoutId = undefined;
 
     this.sqs =
       options.sqs ||
