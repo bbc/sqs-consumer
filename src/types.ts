@@ -92,8 +92,11 @@ export interface ConsumerOptions {
   /**
    * An `async` function (or function that returns a `Promise`) to be called whenever
    * a message is received.
+   *
+   * In the case that you need to acknowledge the message, return an object containing
+   * the MessageId that you'd like to acknowledge.
    */
-  handleMessage?(message: Message): Promise<void>;
+  handleMessage?(message: Message): Promise<Message | void>;
   /**
    * An `async` function (or function that returns a `Promise`) to be called whenever
    * a batch of messages is received. Similar to `handleMessage` but will receive the
