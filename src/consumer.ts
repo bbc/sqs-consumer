@@ -35,23 +35,24 @@ const debug = Debug('sqs-consumer');
  * [Usage](https://bbc.github.io/sqs-consumer/index.html#usage)
  */
 export class Consumer extends EventEmitter {
+  private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
+  private heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+  private stopped = true;
   private queueUrl: string;
   private handleMessage: (message: Message) => Promise<Message | void>;
   private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
+  private sqs: SQSClient;
   private handleMessageTimeout: number;
   private attributeNames: string[];
   private messageAttributeNames: string[];
-  private stopped = true;
+  private shouldDeleteMessages: boolean;
   private batchSize: number;
   private visibilityTimeout: number;
+  private terminateVisibilityTimeout: boolean;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
-  private terminateVisibilityTimeout: boolean;
   private heartbeatInterval: number;
-  private sqs: SQSClient;
-  private shouldDeleteMessages: boolean;
-  private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -72,13 +73,11 @@ export class Consumer extends EventEmitter {
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
-
     this.sqs =
       options.sqs ||
       new SQSClient({
         region: options.region || process.env.AWS_REGION || 'eu-west-1'
       });
-
     autoBind(this);
   }
 
@@ -260,12 +259,11 @@ export class Consumer extends EventEmitter {
    * @param message The message that was delivered from SQS
    */
   private async processMessage(message: Message): Promise<void> {
-    this.emit('message_received', message);
-
-    let heartbeat;
     try {
+      this.emit('message_received', message);
+
       if (this.heartbeatInterval) {
-        heartbeat = this.startHeartbeat(async () => {
+        this.heartbeatTimeoutId = this.startHeartbeat(async () => {
           return this.changeVisibilityTimeout(message, this.visibilityTimeout);
         });
       }
@@ -284,7 +282,8 @@ export class Consumer extends EventEmitter {
         await this.changeVisibilityTimeout(message, 0);
       }
     } finally {
-      clearInterval(heartbeat);
+      clearInterval(this.heartbeatTimeoutId);
+      this.heartbeatTimeoutId = undefined;
     }
   }
 
@@ -293,29 +292,29 @@ export class Consumer extends EventEmitter {
    * @param messages The messages that were delivered from SQS
    */
   private async processMessageBatch(messages: Message[]): Promise<void> {
-    messages.forEach((message) => {
-      this.emit('message_received', message);
-    });
-
-    let heartbeat;
     try {
+      messages.forEach((message) => {
+        this.emit('message_received', message);
+      });
+
       if (this.heartbeatInterval) {
-        heartbeat = this.startHeartbeat(async () => {
+        this.heartbeatTimeoutId = this.startHeartbeat(async () => {
           return this.changeVisibilityTimeoutBatch(
             messages,
             this.visibilityTimeout
           );
         });
       }
+
       const ackedMessages = await this.executeBatchHandler(messages);
 
-      if (ackedMessages.length > 0) {
+      if (ackedMessages?.length > 0) {
         await this.deleteMessageBatch(ackedMessages);
-      }
 
-      ackedMessages.forEach((message) => {
-        this.emit('message_processed', message);
-      });
+        ackedMessages.forEach((message) => {
+          this.emit('message_processed', message);
+        });
+      }
     } catch (err) {
       this.emit('error', err, messages);
 
@@ -323,7 +322,8 @@ export class Consumer extends EventEmitter {
         await this.changeVisibilityTimeoutBatch(messages, 0);
       }
     } finally {
-      clearInterval(heartbeat);
+      clearInterval(this.heartbeatTimeoutId);
+      this.heartbeatTimeoutId = undefined;
     }
   }
 
