@@ -1,11 +1,6 @@
 import { SQSClient, Message } from '@aws-sdk/client-sqs';
 import { EventEmitter } from 'events';
 
-export interface TimeoutResponse {
-  timeout: NodeJS.Timeout;
-  pending: Promise<void>;
-}
-
 export interface ConsumerOptions {
   /**
    * The SQS queue URL.

@@ -18,7 +18,6 @@ import {
 import Debug from 'debug';
 
 import { ConsumerOptions, TypedEventEmitter } from './types';
-import { createTimeout } from './timeout';
 import { autoBind } from './bind';
 import {
   SQSError,
@@ -365,11 +364,14 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeHandler(message: Message): Promise<Message> {
     let timeout;
-    let pending;
     let result;
     try {
       if (this.handleMessageTimeout) {
-        [timeout, pending] = createTimeout(this.handleMessageTimeout);
+        const pending = new Promise((_, reject) => {
+          timeout = setTimeout((): void => {
+            reject(new TimeoutError());
+          }, this.handleMessageTimeout);
+        });
         result = await Promise.race([this.handleMessage(message), pending]);
       } else {
         result = await this.handleMessage(message);
