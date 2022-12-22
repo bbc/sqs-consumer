@@ -236,17 +236,16 @@ export class Consumer extends EventEmitter {
   private async handleSqsResponse(
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
-    if (response) {
-      if (hasMessages(response)) {
-        if (this.handleMessageBatch) {
-          await this.processMessageBatch(response.Messages);
-        } else {
-          await Promise.all(response.Messages.map(this.processMessage));
-        }
-        this.emit('response_processed');
+    if (hasMessages(response)) {
+      if (this.handleMessageBatch) {
+        await this.processMessageBatch(response.Messages);
       } else {
-        this.emit('empty');
+        await Promise.all(response.Messages.map(this.processMessage));
       }
+
+      this.emit('response_processed');
+    } else if (response) {
+      this.emit('empty');
     }
   }
 
