@@ -366,7 +366,7 @@ export class Consumer extends TypedEventEmitter {
   private async executeHandler(message: Message): Promise<Message> {
     try {
       let result;
-      
+
       if (this.handleMessageTimeout) {
         const pending = new Promise((_, reject) => {
           this.handleMessageTimeoutId = setTimeout((): void => {
