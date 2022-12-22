@@ -16,9 +16,8 @@ import {
   ReceiveMessageCommandOutput
 } from '@aws-sdk/client-sqs';
 import Debug from 'debug';
-import { EventEmitter } from 'events';
 
-import { ConsumerOptions, Events } from './types';
+import { ConsumerOptions, TypedEventEmitter } from './types';
 import { createTimeout } from './timeout';
 import { autoBind } from './bind';
 import {
@@ -34,7 +33,7 @@ const debug = Debug('sqs-consumer');
 /**
  * [Usage](https://bbc.github.io/sqs-consumer/index.html#usage)
  */
-export class Consumer extends EventEmitter {
+export class Consumer extends TypedEventEmitter {
   private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
   private heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
   private stopped = true;
@@ -79,38 +78,6 @@ export class Consumer extends EventEmitter {
         region: options.region || process.env.AWS_REGION || 'eu-west-1'
       });
     autoBind(this);
-  }
-
-  /**
-   * Emits an event with the provided arguments
-   * @param event The name of the event to emit
-   */
-  emit<T extends keyof Events>(event: T, ...args: Events[T]) {
-    return super.emit(event, ...args);
-  }
-
-  /**
-   * Trigger a listener on all emitted events
-   * @param event The name of the event to listen to
-   * @param listener A function to trigger when the event is emitted
-   */
-  on<T extends keyof Events>(
-    event: T,
-    listener: (...args: Events[T]) => void
-  ): this {
-    return super.on(event, listener);
-  }
-
-  /**
-   * Trigger a listener only once for an emitted event
-   * @param event The name of the event to listen to
-   * @param listener A function to trigger when the event is emitted
-   */
-  once<T extends keyof Events>(
-    event: T,
-    listener: (...args: Events[T]) => void
-  ): this {
-    return super.once(event, listener);
   }
 
   /**
