@@ -399,9 +399,8 @@ export class Consumer extends EventEmitter {
   private async executeHandler(message: Message): Promise<Message> {
     let timeout;
     let pending;
+    let result;
     try {
-      let result;
-
       if (this.handleMessageTimeout) {
         [timeout, pending] = createTimeout(this.handleMessageTimeout);
         result = await Promise.race([this.handleMessage(message), pending]);
@@ -409,17 +408,12 @@ export class Consumer extends EventEmitter {
         result = await this.handleMessage(message);
       }
 
-      if (result instanceof Object) {
-        return result;
-      }
-
-      return message;
+      return result instanceof Object ? result : message;
     } catch (err) {
-      if (err instanceof TimeoutError) {
-        err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
-      } else if (err instanceof Error) {
-        err.message = `Unexpected message handler failure: ${err.message}`;
-      }
+      err.message =
+        err instanceof TimeoutError
+          ? `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`
+          : `Unexpected message handler failure: ${err.message}`;
       throw err;
     } finally {
       if (timeout) {
@@ -436,11 +430,7 @@ export class Consumer extends EventEmitter {
     try {
       const result = await this.handleMessageBatch(messages);
 
-      if (result instanceof Object) {
-        return result;
-      }
-
-      return messages;
+      return result instanceof Object ? result : messages;
     } catch (err) {
       err.message = `Unexpected message handler failure: ${err.message}`;
       throw err;
