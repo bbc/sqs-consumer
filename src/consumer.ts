@@ -119,6 +119,13 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
+   * Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
+   */
+  public get isRunning(): boolean {
+    return !this.stopped;
+  }
+
+  /**
    * Emit one of the consumer's error events depending on the error received.
    * @param err The error object to forward on
    * @param message The message that the error occurred on
@@ -133,13 +140,6 @@ export class Consumer extends TypedEventEmitter {
     } else {
       this.emit('processing_error', err, message);
     }
-  }
-
-  /**
-   * Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
-   */
-  public get isRunning(): boolean {
-    return !this.stopped;
   }
 
   /**
