@@ -22,6 +22,10 @@ class TimeoutError extends Error {
   }
 }
 
+/**
+ * Checks if the error provided should be treated as a connection error.
+ * @param err The error that was received.
+ */
 function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
     return (
@@ -34,6 +38,11 @@ function isConnectionError(err: Error): boolean {
   return false;
 }
 
+/**
+ * Formats an AWSError the the SQSError type.
+ * @param err The error object that was received.
+ * @param message The message that the error occurred on.
+ */
 function toSQSError(err: AWSError, message: string): SQSError {
   const sqsError = new SQSError(message);
   sqsError.code = err.name;

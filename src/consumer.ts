@@ -84,6 +84,7 @@ export class Consumer extends EventEmitter {
 
   /**
    * Emits an event with the provided arguments
+   * @param event The name of the event to emit
    */
   emit<T extends keyof Events>(event: T, ...args: Events[T]) {
     return super.emit(event, ...args);
@@ -91,6 +92,8 @@ export class Consumer extends EventEmitter {
 
   /**
    * Trigger a listener on all emitted events
+   * @param event The name of the event to listen to
+   * @param listener A function to trigger when the event is emitted
    */
   on<T extends keyof Events>(
     event: T,
@@ -101,6 +104,8 @@ export class Consumer extends EventEmitter {
 
   /**
    * Trigger a listener only once for an emitted event
+   * @param event The name of the event to listen to
+   * @param listener A function to trigger when the event is emitted
    */
   once<T extends keyof Events>(
     event: T,
@@ -142,6 +147,11 @@ export class Consumer extends EventEmitter {
     this.stopped = true;
   }
 
+  /**
+   * Handles the response from AWS SQS, determining if we should proceed to
+   * the message handler.
+   * @param response The output from AWS SQS
+   */
   private async handleSqsResponse(
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
@@ -151,7 +161,6 @@ export class Consumer extends EventEmitter {
     if (response) {
       if (hasMessages(response)) {
         if (this.handleMessageBatch) {
-          // prefer handling messages in batch when available
           await this.processMessageBatch(response.Messages);
         } else {
           await Promise.all(response.Messages.map(this.processMessage));
@@ -163,6 +172,11 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Process a message that has been received from SQS. This will execute the message
+   * handler and delete the message once complete.
+   * @param message The message that was delivered from SQS
+   */
   private async processMessage(message: Message): Promise<void> {
     this.emit('message_received', message);
 
@@ -192,6 +206,10 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Send a request to SQS to retrieve messages
+   * @param params The required params to receive messages from SQS
+   */
   private async receiveMessage(
     params: ReceiveMessageCommandInput
   ): Promise<ReceiveMessageCommandOutput> {
@@ -202,6 +220,10 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Delete a single message from SQS
+   * @param message The message to delete from the SQS queue
+   */
   private async deleteMessage(message: Message): Promise<void> {
     if (!this.shouldDeleteMessages) {
       debug(
@@ -223,6 +245,10 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Trigger the applications handleMessage function
+   * @param message The message that was received from SQS
+   */
   private async executeHandler(message: Message): Promise<Message> {
     let timeout;
     let pending;
@@ -253,6 +279,11 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Change the visibility timeout on a message
+   * @param message The message to change the value of
+   * @param timeout The new timeout that should be set
+   */
   private async changeVisibilityTimeout(
     message: Message,
     timeout: number
@@ -273,6 +304,11 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Emit one of the consumer's error events depending on the error received.
+   * @param err The error object to forward on
+   * @param message The message that the error occurred on
+   */
   private emitError(err: Error, message: Message): void {
     if (err.name === SQSError.name) {
       this.emit('error', err, message);
@@ -283,6 +319,9 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Poll for new messages from SQS
+   */
   private poll(): void {
     if (this.stopped) {
       this.emit('stopped');
@@ -318,6 +357,10 @@ export class Consumer extends EventEmitter {
       });
   }
 
+  /**
+   * Process a batch of messages from the SQS queue.
+   * @param message The messages that were delivered from SQS
+   */
   private async processMessageBatch(messages: Message[]): Promise<void> {
     messages.forEach((message) => {
       this.emit('message_received', message);
@@ -353,6 +396,10 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Delete a batch of messages from the SQS queue.
+   * @param message The messages that should be deleted from SQS
+   */
   private async deleteMessageBatch(messages: Message[]): Promise<void> {
     if (!this.shouldDeleteMessages) {
       debug(
@@ -380,6 +427,10 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Execute the application's message batch handler
+   * @param message The messages that should be forwarded from the SQS queue
+   */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
       const result = await this.handleMessageBatch(messages);
@@ -395,6 +446,11 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Change the visibility timeout on a batch of messages
+   * @param message The messages to change the value of
+   * @param timeout The new timeout that should be set
+   */
   private async changeVisibilityTimeoutBatch(
     messages: Message[],
     timeout: number
@@ -420,6 +476,10 @@ export class Consumer extends EventEmitter {
     }
   }
 
+  /**
+   * Trigger a function on a set interval
+   * @param heartbeatFn The function that should be triggered
+   */
   private startHeartbeat(heartbeatFn: () => void): NodeJS.Timeout {
     return setInterval(() => {
       heartbeatFn();

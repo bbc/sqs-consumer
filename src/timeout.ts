@@ -1,6 +1,10 @@
 import { TimeoutResponse } from './types';
 import { TimeoutError } from './errors';
 
+/**
+ * Create a timeout.
+ * @param duration The duration of the timeout.
+ */
 function createTimeout(duration: number): TimeoutResponse[] {
   let timeout;
   const pending = new Promise((_, reject) => {
