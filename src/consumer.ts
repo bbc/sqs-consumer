@@ -236,9 +236,6 @@ export class Consumer extends EventEmitter {
   private async handleSqsResponse(
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
-    debug('Received SQS response');
-    debug(response);
-
     if (response) {
       if (hasMessages(response)) {
         if (this.handleMessageBatch) {
