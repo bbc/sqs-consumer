@@ -398,13 +398,14 @@ export class Consumer extends EventEmitter {
   private async executeHandler(message: Message): Promise<Message> {
     let timeout;
     let pending;
+    let result;
     try {
-      [timeout, pending] = this.handleMessageTimeout
-        ? createTimeout(this.handleMessageTimeout)
-        : [null, null];
-      const result = this.handleMessageTimeout
-        ? await Promise.race([this.handleMessage(message), pending])
-        : await this.handleMessage(message);
+      if (this.handleMessageTimeout) {
+        [timeout, pending] = createTimeout(this.handleMessageTimeout);
+        result = await Promise.race([this.handleMessage(message), pending]);
+      } else {
+        result = await this.handleMessage(message);
+      }
 
       return result instanceof Object ? result : message;
     } catch (err) {
