@@ -80,9 +80,7 @@
   "eslintConfig": {
     "extends": [
       "iplayer-ts",
-      "prettier",
-      "prettier/react",
-      "prettier/@typescript-eslint"
+      "prettier"
     ],
     "parserOptions": {
       "sourceType": "module"
