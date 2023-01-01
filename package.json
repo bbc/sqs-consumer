@@ -38,27 +38,27 @@
     "@types/chai": "^4.3.4",
     "@types/debug": "^4.1.7",
     "@types/mocha": "^10.0.1",
-    "@types/node": "^16.18.7",
+    "@types/node": "^18.11.18",
     "@types/sinon": "^10.0.13",
     "chai": "^4.3.7",
-    "eslint": "^8.29.0",
+    "eslint": "^8.31.0",
     "eslint-config-iplayer-ts": "^4.1.0",
-    "eslint-config-prettier": "^4.3.0",
-    "mocha": "^10.1.0",
+    "eslint-config-prettier": "^8.5.0",
+    "mocha": "^10.2.0",
     "nyc": "^15.1.0",
     "p-event": "^4.2.0",
     "prettier": "^2.8.1",
-    "sinon": "^15.0.0",
+    "sinon": "^15.0.1",
     "ts-node": "^10.9.1",
     "typedoc": "^0.23.23",
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.226.0",
+    "@aws-sdk/client-sqs": "^3.241.0",
     "debug": "^4.3.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.226.0"
+    "@aws-sdk/client-sqs": "^3.241.0"
   },
   "mocha": {
     "spec": "test/**/**/*.test.ts",
@@ -80,9 +80,7 @@
   "eslintConfig": {
     "extends": [
       "iplayer-ts",
-      "prettier",
-      "prettier/react",
-      "prettier/@typescript-eslint"
+      "prettier"
     ],
     "parserOptions": {
       "sourceType": "module"
