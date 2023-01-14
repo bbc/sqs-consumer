@@ -38,6 +38,7 @@ export class Consumer extends TypedEventEmitter {
   private handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
   private stopped = true;
   private queueUrl: string;
+  private messagesInQueue: string[];
   private handleMessage: (message: Message) => Promise<Message | void>;
   private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
   private sqs: SQSClient;
@@ -57,6 +58,7 @@ export class Consumer extends TypedEventEmitter {
     super();
     assertOptions(options);
     this.queueUrl = options.queueUrl;
+    this.messagesInQueue = [];
     this.handleMessage = options.handleMessage;
     this.handleMessageBatch = options.handleMessageBatch;
     this.handleMessageTimeout = options.handleMessageTimeout;
@@ -151,9 +153,23 @@ export class Consumer extends TypedEventEmitter {
       return;
     }
 
+    let currentPollingTimeout = this.pollingWaitTimeMs;
+
+    if (this.messagesInQueue.length > 0) {
+      debug(
+        "Messages are still in the consumer's queue, cancelling this poll occurrence"
+      );
+
+      if (this.pollingTimeoutId) {
+        clearTimeout(this.pollingTimeoutId);
+      }
+      this.pollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
+
+      return;
+    }
+
     debug('Polling for messages');
 
-    let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
@@ -205,6 +221,10 @@ export class Consumer extends TypedEventEmitter {
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
     if (hasMessages(response)) {
+      response.Messages.forEach(({ MessageId }) =>
+        this.messagesInQueue.push(MessageId)
+      );
+
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
@@ -234,6 +254,11 @@ export class Consumer extends TypedEventEmitter {
 
       if (ackedMessage?.MessageId === message.MessageId) {
         await this.deleteMessage(message);
+
+        const queueIndex = this.messagesInQueue.indexOf(message.MessageId);
+        if (queueIndex > -1) {
+          this.messagesInQueue.splice(queueIndex, 1);
+        }
 
         this.emit('message_processed', message);
       }
@@ -269,6 +294,11 @@ export class Consumer extends TypedEventEmitter {
         await this.deleteMessageBatch(ackedMessages);
 
         ackedMessages.forEach((message) => {
+          const queueIndex = this.messagesInQueue.indexOf(message.MessageId);
+          if (queueIndex > -1) {
+            this.messagesInQueue.splice(queueIndex, 1);
+          }
+
           this.emit('message_processed', message);
         });
       }
