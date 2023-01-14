@@ -106,6 +106,15 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
+export interface StopOptions {
+  /**
+   * Default to `false`, if want the stop action to also abort requests to SQS
+   * set this to `true`.
+   * @defaultvalue `false`
+   */
+  abort?: boolean;
+}
+
 export interface Events {
   /**
    * Fired after one batch of items (up to `batchSize`) has been successfully processed.

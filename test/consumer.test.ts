@@ -1150,7 +1150,7 @@ describe('Consumer', () => {
       consumer.on('aborted', handleAbort);
 
       consumer.start();
-      consumer.stop(true);
+      consumer.stop({ abort: true });
 
       await clock.runAllAsync();
 

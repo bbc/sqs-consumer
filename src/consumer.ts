@@ -17,7 +17,7 @@ import {
 } from '@aws-sdk/client-sqs';
 import Debug from 'debug';
 
-import { ConsumerOptions, TypedEventEmitter } from './types';
+import { ConsumerOptions, TypedEventEmitter, StopOptions } from './types';
 import { autoBind } from './bind';
 import {
   SQSError,
@@ -102,7 +102,7 @@ export class Consumer extends TypedEventEmitter {
   /**
    * Stop polling the queue for messages (pre existing requests will still be made until concluded).
    */
-  public stop(abort = false): void {
+  public stop(options: StopOptions): void {
     if (this.stopped) {
       debug('Consumer was already stopped');
       return;
@@ -116,7 +116,7 @@ export class Consumer extends TypedEventEmitter {
       this.pollingTimeoutId = undefined;
     }
 
-    if (abort) {
+    if (options?.abort) {
       debug('Aborting SQS requests');
 
       abortController.abort();

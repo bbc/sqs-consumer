@@ -144,7 +144,7 @@ expressApp.post('/stop-consumer', async (_, res) => {
 });
 
 expressApp.post('/stop-and-abort-consumer', async (_, res) => {
-  consumer.stop(true);
+  consumer.stop({ abort: true });
 
   res.send({
     message: 'SQS Consumer was stopped successfully!'
