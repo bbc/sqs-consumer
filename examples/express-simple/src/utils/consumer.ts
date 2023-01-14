@@ -1,4 +1,4 @@
-const { Consumer } = require('sqs-consumer');
+const { Consumer } = require('../../../../src/consumer');
 
 const { QUEUE_URL, sqs } = require('./sqs');
 
@@ -62,7 +62,12 @@ consumer.on('response_processed', () => {
 
 consumer.on('stopped', () => {
   // eslint-disable-next-line no-console
-  console.log('RECEIVED SQS STOPPED:');
+  console.log('RECEIVED STOP:');
+});
+
+consumer.on('aborted', () => {
+  // eslint-disable-next-line no-console
+  console.log('RECEIVED ABORT:');
 });
 
 consumer.on('empty', () => {

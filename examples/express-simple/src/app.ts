@@ -31,6 +31,27 @@ expressApp.post('/sample', async (_, res) => {
   });
 });
 
+expressApp.post('/big-sample', async (_, res) => {
+  // send messages to the queue
+  const messages = await producer.send([
+    'msg1',
+    'msg2',
+    'msg3',
+    'msg4',
+    'msg5',
+    'msg6',
+    'msg7',
+    'msg8',
+    'msg9',
+    'msg10'
+  ]);
+
+  res.send({
+    message: 'Sample messages sent successfully!',
+    data: messages
+  });
+});
+
 expressApp.post('/sample-with-id', async (_, res) => {
   // send a message to the queue with a specific ID (by default the body is used as the ID)
   const messages = await producer.send([
@@ -103,6 +124,30 @@ expressApp.post('/sample-with-fido', async (_, res) => {
   res.send({
     message: 'Sample messages sent successfully!',
     data: messages
+  });
+});
+
+expressApp.post('/start-consumer', async (_, res) => {
+  consumer.start();
+
+  res.send({
+    message: 'SQS Consumer was started successfully!'
+  });
+});
+
+expressApp.post('/stop-consumer', async (_, res) => {
+  consumer.stop();
+
+  res.send({
+    message: 'SQS Consumer was stopped successfully!'
+  });
+});
+
+expressApp.post('/stop-and-abort-consumer', async (_, res) => {
+  consumer.stop(true);
+
+  res.send({
+    message: 'SQS Consumer was stopped successfully!'
   });
 });
 

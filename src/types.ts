@@ -139,6 +139,10 @@ export interface Events {
    */
   processing_error: [Error, Message];
   /**
+   * Fired when requests to SQS were aborted.
+   */
+  aborted: [];
+  /**
    * Fired when the consumer finally stops its work.
    */
   stopped: [];

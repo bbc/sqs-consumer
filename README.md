@@ -110,9 +110,11 @@ Creates a new SQS consumer using the [defined options](https://bbc.github.io/sqs
 
 Start polling the queue for messages.
 
-### `consumer.stop()`
+### `consumer.stop(abort)`
 
-Stop polling the queue for messages (pre existing requests will still be made until concluded).
+Stop polling the queue for messages.
+
+By default, the value of `abort` is set to `false` which means pre existing requests to AWS SQS will still be made until they have concluded. If you would like to abort these requests instead, pass the abort value as `true`.
 
 ### `consumer.isRunning`
 
