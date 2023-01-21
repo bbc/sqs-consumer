@@ -237,6 +237,13 @@ export class Consumer extends TypedEventEmitter {
     }
   }
 
+  private async clearMessageFromQueue(messageId: Message["MessageId"]): Promise<void> {
+    const queueIndex = this.messagesInQueue.indexOf(messageId);
+        if (queueIndex > -1) {
+          this.messagesInQueue.splice(queueIndex, 1);
+        }
+  }
+
   /**
    * Process a message that has been received from SQS. This will execute the message
    * handler and delete the message once complete.
@@ -255,10 +262,7 @@ export class Consumer extends TypedEventEmitter {
       if (ackedMessage?.MessageId === message.MessageId) {
         await this.deleteMessage(message);
 
-        const queueIndex = this.messagesInQueue.indexOf(message.MessageId);
-        if (queueIndex > -1) {
-          this.messagesInQueue.splice(queueIndex, 1);
-        }
+        await this.clearMessageFromQueue(message.MessageId);
 
         this.emit('message_processed', message);
       }
@@ -293,11 +297,8 @@ export class Consumer extends TypedEventEmitter {
       if (ackedMessages?.length > 0) {
         await this.deleteMessageBatch(ackedMessages);
 
-        ackedMessages.forEach((message) => {
-          const queueIndex = this.messagesInQueue.indexOf(message.MessageId);
-          if (queueIndex > -1) {
-            this.messagesInQueue.splice(queueIndex, 1);
-          }
+        ackedMessages.forEach(async (message) => {
+          await this.clearMessageFromQueue(message.MessageId);
 
           this.emit('message_processed', message);
         });
