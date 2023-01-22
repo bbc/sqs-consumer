@@ -55,23 +55,27 @@ Given('message batches are sent to the SQS queue', async () => {
   assert.strictEqual(size, 6);
 });
 
-Then('the message batches should be consumed without error', {timeout: 2 * 5000}, async () => {
-  consumer.start();
+Then(
+  'the message batches should be consumed without error',
+  { timeout: 2 * 5000 },
+  async () => {
+    consumer.start();
 
-  const isRunning = consumer.isRunning;
+    const isRunning = consumer.isRunning;
 
-  assert.strictEqual(isRunning, true);
+    assert.strictEqual(isRunning, true);
 
-  await pEvent(consumer, 'message_received');
+    await pEvent(consumer, 'message_received');
 
-  const size = await producer.queueSize();
-  assert.strictEqual(size, 1);
+    const size = await producer.queueSize();
+    assert.strictEqual(size, 1);
 
-  await pEvent(consumer, 'message_received');
+    await pEvent(consumer, 'message_received');
 
-  const size2 = await producer.queueSize();
-  assert.strictEqual(size2, 0);
+    const size2 = await producer.queueSize();
+    assert.strictEqual(size2, 0);
 
-  consumer.stop();
-  assert.strictEqual(consumer.isRunning, false);
-});
+    consumer.stop();
+    assert.strictEqual(consumer.isRunning, false);
+  }
+);
