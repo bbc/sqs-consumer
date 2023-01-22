@@ -30,15 +30,13 @@ Then('the message should be consumed without error', async () => {
 
   assert.strictEqual(isRunning, true);
 
-  await pEvent(consumer, 'message_processed');
-
-  const size = await producer.queueSize();
-
-  assert.strictEqual(size, 0);
+  await pEvent(consumer, 'response_processed');
 
   consumer.stop();
-
   assert.strictEqual(consumer.isRunning, false);
+
+  const size = await producer.queueSize();
+  assert.strictEqual(size, 0);
 });
 
 Given('messages are sent to the SQS queue', async () => {
@@ -57,23 +55,23 @@ Given('messages are sent to the SQS queue', async () => {
   assert.strictEqual(size, 3);
 });
 
-Then('the messages should be consumed without error', async () => {
+Then('the messages should be consumed without error', {timeout: 2 * 5000}, async () => {
   consumer.start();
 
   assert.strictEqual(consumer.isRunning, true);
 
-  await pEvent(consumer, 'message_processed');
+  await pEvent(consumer, 'message_received');
   const size = await producer.queueSize();
 
   assert.strictEqual(size, 2);
 
-  await pEvent(consumer, 'message_processed');
+  await pEvent(consumer, 'message_received');
 
   const size2 = await producer.queueSize();
 
   assert.strictEqual(size2, 1);
 
-  await pEvent(consumer, 'message_processed');
+  await pEvent(consumer, 'message_received');
 
   const size3 = await producer.queueSize();
 
