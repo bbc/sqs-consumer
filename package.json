@@ -9,8 +9,11 @@
     "watch": "tsc --watch",
     "clean": "rm -fr dist/*",
     "prepublishOnly": "npm run build",
-    "pretest": "npm run build",
-    "test": "mocha --recursive --full-trace --exit",
+    "test:unit": "mocha --recursive --full-trace --exit",
+    "pretest:integration:init": "npm run build",
+    "test:integration:init": "sh ./test/scripts/initIntTests.sh",
+    "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.js",
+    "test": "npm run test:unit && npm run test:integration",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
     "lint": "eslint . --ext .ts",
@@ -22,10 +25,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/BBC/sqs-consumer.git"
+    "url": "https://github.com/bbc/sqs-consumer.git"
   },
   "bugs": {
-    "url": "https://github.com/BBC/sqs-consumer/issues"
+    "url": "https://github.com/bbc/sqs-consumer/issues"
   },
   "homepage": "https://bbc.github.io/sqs-consumer/",
   "keywords": [
@@ -35,6 +38,7 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
+    "@cucumber/cucumber": "^8.10.0",
     "@types/chai": "^4.3.4",
     "@types/debug": "^4.1.7",
     "@types/mocha": "^10.0.1",
@@ -49,6 +53,7 @@
     "p-event": "^4.2.0",
     "prettier": "^2.8.1",
     "sinon": "^15.0.1",
+    "sqs-producer": "^3.1.0",
     "ts-node": "^10.9.1",
     "typedoc": "^0.23.23",
     "typescript": "^4.9.4"
@@ -61,7 +66,7 @@
     "@aws-sdk/client-sqs": "^3.241.0"
   },
   "mocha": {
-    "spec": "test/**/**/*.test.ts",
+    "spec": "test/tests/**/**/*.test.ts",
     "require": "ts-node/register"
   },
   "nyc": {

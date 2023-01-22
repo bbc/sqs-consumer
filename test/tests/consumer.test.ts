@@ -10,9 +10,9 @@ import { assert } from 'chai';
 import * as sinon from 'sinon';
 import * as pEvent from 'p-event';
 
-import { AWSError } from '../src/types';
-import { Consumer } from '../src/consumer';
-import { abortController } from '../src/controllers';
+import { AWSError } from '../../src/types';
+import { Consumer } from '../../src/consumer';
+import { abortController } from '../../src/controllers';
 
 const sandbox = sinon.createSandbox();
 
