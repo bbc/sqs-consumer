@@ -237,6 +237,10 @@ export class Consumer extends TypedEventEmitter {
     }
   }
 
+  /**
+   * Clears the provided message ID from the Consumer's internal queue.
+   * @param messageId The ID of the message to remove from the queue
+   */
   public async clearMessageFromQueue(
     messageId: Message['MessageId']
   ): Promise<void> {
