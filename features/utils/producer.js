@@ -9,5 +9,3 @@ const producer = Producer.create({
 });
 
 exports.producer = producer;
-
-export {};

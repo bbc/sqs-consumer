@@ -1,12 +1,12 @@
 version: '3'
 services:
   localstack:
-    container_name: local_aws
-    hostname: local_aws
+    container_name: local_sqs_aws
+    hostname: local_sqs_aws
     image: localstack/localstack:1.2.0@sha256:41216e34e25546654c58b8075b133027eab3d958e605ef2e7af168d1f05a9364
     command: sh -c "/usr/local/bin/init.sh && exec myexecutable"
     environment:
-      - AWS_DEFAULT_REGION=eu-west-2
+      - AWS_DEFAULT_REGION=eu-west-1
       - EDGE_PORT=4566
       - SERVICES=sqs
       - AWS_ACCESS_KEY_ID=key
