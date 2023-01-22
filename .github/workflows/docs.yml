@@ -36,6 +36,9 @@ jobs:
         with:
           node-version: 18.x
 
+      - name: NPM Audit
+        run: npx audit-ci
+
       - name: Get npm cache directory
         id: npm-cache
         run: |

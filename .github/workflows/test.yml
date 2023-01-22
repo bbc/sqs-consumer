@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: NPM Audit
+        run: npx audit-ci
+
       - name: Get npm cache directory
         id: npm-cache
         run: |
@@ -38,9 +41,6 @@ jobs:
 
       - name: Install Node Modules
         run: npm ci
-
-      - name: NPM Audit
-        run: npx audit-ci
 
       - name: Run Tests and Linting
         run: npm run test

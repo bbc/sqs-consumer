@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: NPM Audit
+        run: npx audit-ci
+
       - name: Get npm cache directory
         id: npm-cache
         run: |
