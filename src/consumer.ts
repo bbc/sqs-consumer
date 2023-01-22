@@ -237,7 +237,7 @@ export class Consumer extends TypedEventEmitter {
     }
   }
 
-  private async clearMessageFromQueue(
+  public async clearMessageFromQueue(
     messageId: Message['MessageId']
   ): Promise<void> {
     const queueIndex = this.messagesInQueue.indexOf(messageId);

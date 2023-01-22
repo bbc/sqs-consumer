@@ -13,6 +13,10 @@ import * as pEvent from 'p-event';
 import { AWSError } from '../src/types';
 import { Consumer } from '../src/consumer';
 
+function delay(ms) {
+  return new Promise((res) => setTimeout(res, ms));
+}
+
 const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
@@ -307,6 +311,114 @@ describe('Consumer', () => {
 
       assert.equal(err.message, 'SQS delete message failed: Processing error');
       assert.equal(message.MessageId, '123');
+    });
+
+    it('adds a message to the queue when one is received from SQS', async () => {
+      consumer.start();
+
+      await pEvent(consumer, 'message_received');
+
+      assert.equal(consumer.messagesInQueue.length, 1);
+      assert.equal(consumer.messagesInQueue[0], '123');
+
+      await clock.tickAsync(POLLING_TIMEOUT);
+      consumer.stop();
+
+      assert.equal(consumer.messagesInQueue.length, 0);
+    });
+
+    it('waits before repolling when there is still a message in the queue', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async (message) => {
+          await delay(POLLING_TIMEOUT + 1000);
+
+          return message;
+        },
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+
+      await pEvent(consumer, 'message_received');
+
+      assert.equal(consumer.messagesInQueue.length, 1);
+      assert.equal(consumer.messagesInQueue[0], '123');
+
+      await clock.tickAsync(1000);
+
+      assert.equal(consumer.messagesInQueue.length, 1);
+      assert.equal(consumer.messagesInQueue[0], '123');
+
+      await clock.tickAsync(POLLING_TIMEOUT);
+
+      assert.equal(consumer.messagesInQueue.length, 0);
+
+      consumer.stop();
+
+      sqs.send.calledOnceWith(mockReceiveMessage);
+    });
+
+    it('waits before repolling a batch when there is still a message in the queue', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          {
+            ReceiptHandle: 'receipt-handle-1',
+            MessageId: '1',
+            Body: 'body-1'
+          },
+          {
+            ReceiptHandle: 'receipt-handle-2',
+            MessageId: '2',
+            Body: 'body-2'
+          },
+          {
+            ReceiptHandle: 'receipt-handle-3',
+            MessageId: '3',
+            Body: 'body-3'
+          }
+        ]
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async (messages) => {
+          return await Promise.all(
+            messages.map(async (message) => {
+              if (message.MessageId !== '2') {
+                return message;
+              }
+
+              return {};
+            })
+          );
+        },
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+
+      await pEvent(consumer, 'message_received');
+
+      assert.equal(consumer.messagesInQueue.length, 3);
+      assert.equal(consumer.messagesInQueue[0], '1');
+      assert.equal(consumer.messagesInQueue[1], '2');
+      assert.equal(consumer.messagesInQueue[2], '3');
+
+      await clock.tickAsync(POLLING_TIMEOUT);
+
+      assert.equal(consumer.messagesInQueue.length, 1);
+      assert.equal(consumer.messagesInQueue[0], '2');
+
+      await clock.tickAsync(POLLING_TIMEOUT);
+
+      consumer.stop();
+
+      sqs.send.calledOnceWith(mockReceiveMessage);
     });
 
     it('waits before repolling when a credentials error occurs', async () => {

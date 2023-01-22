@@ -118,6 +118,10 @@ Stop polling the queue for messages (pre existing requests will still be made un
 
 Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
 
+### `consumer.clearMessageFromQueue(messageId)`
+
+Clears message ID from SQS Consumer's internal queue.
+
 ### Events
 
 Each consumer is an [`EventEmitter`](https://nodejs.org/api/events.html) and [emits these events](https://bbc.github.io/sqs-consumer/interfaces/Events.html).
