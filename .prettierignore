@@ -3,3 +3,4 @@ coverage
 bake-scripts
 dist
 public
+test/reports
