@@ -120,7 +120,7 @@ Returns the current polling state of the consumer: `true` if it is actively poll
 
 ### `consumer.clearMessageFromQueue(messageId)`
 
-Clears message ID from SQS Consumer's internal queue.
+Clears the provided message id from SQS Consumer's internal queue.
 
 ### Events
 
