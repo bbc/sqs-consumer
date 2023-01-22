@@ -10,8 +10,8 @@ import { assert } from 'chai';
 import * as sinon from 'sinon';
 import * as pEvent from 'p-event';
 
-import { AWSError } from '../src/types';
-import { Consumer } from '../src/consumer';
+import { AWSError } from '../../src/types';
+import { Consumer } from '../../src/consumer';
 
 const sandbox = sinon.createSandbox();
 

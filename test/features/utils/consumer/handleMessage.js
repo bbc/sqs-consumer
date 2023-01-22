@@ -1,4 +1,4 @@
-const { Consumer } = require('../../../dist/consumer');
+const { Consumer } = require('../../../../dist/consumer');
 
 const { QUEUE_URL, sqs } = require('../sqs');
 

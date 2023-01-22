@@ -11,8 +11,8 @@
     "prepublishOnly": "npm run build",
     "test:unit": "mocha --recursive --full-trace --exit",
     "pretest:integration:init": "npm run build",
-    "test:integration:init": "sh ./scripts/initIntTests.sh",
-    "test:integration": "npm run test:integration:init && cucumber-js --publish-quiet",
+    "test:integration:init": "sh ./test/scripts/initIntTests.sh",
+    "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.js",
     "test": "npm run test:unit && npm run test:integration",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
@@ -66,7 +66,7 @@
     "@aws-sdk/client-sqs": "^3.241.0"
   },
   "mocha": {
-    "spec": "tests/**/**/*.test.ts",
+    "spec": "test/tests/**/**/*.test.ts",
     "require": "ts-node/register"
   },
   "nyc": {
