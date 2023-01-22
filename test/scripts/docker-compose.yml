@@ -20,3 +20,9 @@ services:
       - '${TMPDIR:-/tmp/localstack}:/tmp/localstack'
       - '/var/run/docker.sock:/var/run/docker.sock'
       - ./localstack:/docker-entrypoint-initaws.d
+    healthcheck:
+      test: curl http://localhost:4566/health || exit 1
+      interval: 20s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
