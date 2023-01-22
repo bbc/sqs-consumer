@@ -27,6 +27,10 @@ Given('a message is sent to the SQS queue', async () => {
 
 When('SQS Consumer is started', () => {
   consumer.start();
+
+  const isRunning = consumer.isRunning;
+
+  assert.strictEqual(isRunning, true);
 });
 
 Then('the message should be consumed without error', async () => {
@@ -35,6 +39,12 @@ Then('the message should be consumed without error', async () => {
   await delay(POLLING_TIMEOUT);
 
   assert.strictEqual(size, 0);
+});
 
+Then('SQS Consumer should stop', () => {
   consumer.stop();
+
+  const isRunning = consumer.isRunning;
+
+  assert.strictEqual(isRunning, false);
 });
