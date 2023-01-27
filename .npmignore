@@ -5,3 +5,4 @@ coverage
 examples
 test
 public
+.nyc_output
