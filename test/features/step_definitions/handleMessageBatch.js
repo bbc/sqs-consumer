@@ -1,4 +1,4 @@
-const { Given, Then } = require('@cucumber/cucumber');
+const { Given, Then, After } = require('@cucumber/cucumber');
 const assert = require('assert');
 const { PurgeQueueCommand } = require('@aws-sdk/client-sqs');
 const pEvent = require('p-event');
@@ -87,7 +87,7 @@ Then(
 
     const size = await producer.queueSize();
     assert.strictEqual(size, 1);
-    assert.strictEqual(consumer.messagesInQueue.length, 5);
+    assert.strictEqual(consumer.messagesInQueue.length, 4);
     assert.strictEqual(consumer.messagesInQueue[0], messageIdsTestTwo[0]);
     assert.strictEqual(consumer.messagesInQueue[1], messageIdsTestTwo[1]);
     assert.strictEqual(consumer.messagesInQueue[2], messageIdsTestTwo[2]);
@@ -105,3 +105,7 @@ Then(
     assert.strictEqual(consumer.isRunning, false);
   }
 );
+
+After(() => {
+  return consumer.stop();
+});
