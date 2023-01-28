@@ -87,7 +87,7 @@ Then(
 
     const size = await producer.queueSize();
     assert.strictEqual(size, 1);
-    assert.strictEqual(consumer.messagesInQueue.length, 4);
+    assert.strictEqual(consumer.messagesInQueue.length, 5);
     assert.strictEqual(consumer.messagesInQueue[0], messageIdsTestTwo[0]);
     assert.strictEqual(consumer.messagesInQueue[1], messageIdsTestTwo[1]);
     assert.strictEqual(consumer.messagesInQueue[2], messageIdsTestTwo[2]);
