@@ -108,6 +108,10 @@ export interface ConsumerOptions {
 
 export interface Events {
   /**
+   * Fired after one batch of items (up to `batchSize`) has been received processed.
+   */
+  response_received: [];
+  /**
    * Fired after one batch of items (up to `batchSize`) has been successfully processed.
    */
   response_processed: [];

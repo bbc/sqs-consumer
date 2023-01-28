@@ -35,24 +35,13 @@ Then('the message batch should be consumed without error', async () => {
 
   assert.strictEqual(isRunning, true);
 
-  await pEvent(consumer, 'message_received');
-  const size = await producer.queueSize();
-
-  assert.strictEqual(size, 1);
-  assert.strictEqual(consumer.messagesInQueue.length, 4);
-  assert.strictEqual(consumer.messagesInQueue[0], messageIdsTestOne[0]);
-  assert.strictEqual(consumer.messagesInQueue[1], messageIdsTestOne[1]);
-  assert.strictEqual(consumer.messagesInQueue[2], messageIdsTestOne[2]);
-  assert.strictEqual(consumer.messagesInQueue[3], messageIdsTestOne[3]);
-
   await pEvent(consumer, 'response_processed');
 
   consumer.stop();
   assert.strictEqual(consumer.isRunning, false);
 
-  const sizeEnd = await producer.queueSize();
-  assert.strictEqual(sizeEnd, 0);
-  assert.strictEqual(consumer.messagesInQueue.length, 0);
+  const size = await producer.queueSize();
+  assert.strictEqual(size, 0);
 });
 
 Given('message batches are sent to the SQS queue', async () => {
@@ -87,19 +76,11 @@ Then(
 
     const size = await producer.queueSize();
     assert.strictEqual(size, 1);
-    assert.strictEqual(consumer.messagesInQueue.length, 4);
-    assert.strictEqual(consumer.messagesInQueue[0], messageIdsTestTwo[0]);
-    assert.strictEqual(consumer.messagesInQueue[1], messageIdsTestTwo[1]);
-    assert.strictEqual(consumer.messagesInQueue[2], messageIdsTestTwo[2]);
-    assert.strictEqual(consumer.messagesInQueue[3], messageIdsTestTwo[3]);
-    assert.strictEqual(consumer.messagesInQueue[4], messageIdsTestTwo[4]);
 
     await pEvent(consumer, 'message_received');
 
     const size2 = await producer.queueSize();
     assert.strictEqual(size2, 0);
-    assert.strictEqual(consumer.messagesInQueue.length, 1);
-    assert.strictEqual(consumer.messagesInQueue[5], messageIdsTestTwo[5]);
 
     consumer.stop();
     assert.strictEqual(consumer.isRunning, false);

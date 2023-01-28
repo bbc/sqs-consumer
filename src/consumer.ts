@@ -221,6 +221,8 @@ export class Consumer extends TypedEventEmitter {
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
     if (hasMessages(response)) {
+      this.emit('response_received');
+      
       response.Messages.forEach(({ MessageId }) =>
         this.messagesInQueue.push(MessageId)
       );

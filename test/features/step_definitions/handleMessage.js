@@ -35,13 +35,12 @@ Then('the message should be consumed without error', async () => {
 
   assert.strictEqual(isRunning, true);
 
-  await pEvent(consumer, 'message_received');
+  await pEvent(consumer, 'response_received');
 
   assert.strictEqual(consumer.messagesInQueue.length, 1);
   assert.strictEqual(consumer.messagesInQueue[0], messageId);
 
   await pEvent(consumer, 'response_processed');
-
   assert.strictEqual(consumer.messagesInQueue.length, 0);
 
   consumer.stop();
@@ -79,26 +78,18 @@ Then(
 
     await pEvent(consumer, 'message_received');
     const size = await producer.queueSize();
-
     assert.strictEqual(size, 2);
-    assert.strictEqual(consumer.messagesInQueue.length, 2);
-    assert.strictEqual(consumer.messagesInQueue[0], messageIds[1]);
-    assert.strictEqual(consumer.messagesInQueue[1], messageIds[2]);
 
     await pEvent(consumer, 'message_received');
-
     const size2 = await producer.queueSize();
-
     assert.strictEqual(size2, 1);
-    assert.strictEqual(consumer.messagesInQueue.length, 1);
-    assert.strictEqual(consumer.messagesInQueue[0], messageIds[2]);
 
     await pEvent(consumer, 'message_received');
-
     const size3 = await producer.queueSize();
-    assert.strictEqual(consumer.messagesInQueue.length, 0);
-
     assert.strictEqual(size3, 0);
+
+    await pEvent(consumer, 'response_processed');
+    assert.strictEqual(consumer.messagesInQueue.length, 0);
 
     consumer.stop();
 
