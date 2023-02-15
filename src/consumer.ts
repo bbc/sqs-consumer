@@ -152,6 +152,13 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
+   * A reusable options object for sqs.send that's used to avoid duplication.
+   */
+  private sqsSendOptions = {
+    abortSignal: abortController.signal
+  };
+
+  /**
    * Poll for new messages from SQS
    */
   private poll(): void {
@@ -199,9 +206,10 @@ export class Consumer extends TypedEventEmitter {
     params: ReceiveMessageCommandInput
   ): Promise<ReceiveMessageCommandOutput> {
     try {
-      return await this.sqs.send(new ReceiveMessageCommand(params), {
-        abortSignal: abortController.signal
-      });
+      return await this.sqs.send(
+        new ReceiveMessageCommand(params),
+        this.sqsSendOptions
+      );
     } catch (err) {
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
@@ -330,9 +338,10 @@ export class Consumer extends TypedEventEmitter {
         ReceiptHandle: message.ReceiptHandle,
         VisibilityTimeout: timeout
       };
-      return await this.sqs.send(new ChangeMessageVisibilityCommand(input), {
-        abortSignal: abortController.signal
-      });
+      return await this.sqs.send(
+        new ChangeMessageVisibilityCommand(input),
+        this.sqsSendOptions
+      );
     } catch (err) {
       this.emit(
         'error',
@@ -362,9 +371,7 @@ export class Consumer extends TypedEventEmitter {
     try {
       return await this.sqs.send(
         new ChangeMessageVisibilityBatchCommand(params),
-        {
-          abortSignal: abortController.signal
-        }
+        this.sqsSendOptions
       );
     } catch (err) {
       this.emit(
@@ -442,9 +449,10 @@ export class Consumer extends TypedEventEmitter {
     };
 
     try {
-      await this.sqs.send(new DeleteMessageCommand(deleteParams), {
-        abortSignal: abortController.signal
-      });
+      await this.sqs.send(
+        new DeleteMessageCommand(deleteParams),
+        this.sqsSendOptions
+      );
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
@@ -475,9 +483,10 @@ export class Consumer extends TypedEventEmitter {
     };
 
     try {
-      await this.sqs.send(new DeleteMessageBatchCommand(deleteParams), {
-        abortSignal: abortController.signal
-      });
+      await this.sqs.send(
+        new DeleteMessageBatchCommand(deleteParams),
+        this.sqsSendOptions
+      );
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
