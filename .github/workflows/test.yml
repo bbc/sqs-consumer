@@ -23,21 +23,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
       - name: NPM Audit
         run: npx audit-ci
-
-      - name: Get npm cache directory
-        id: npm-cache
-        run: |
-          echo "::set-output name=dir::$(npm config get cache)"
-
-      - uses: actions/cache@v3
-        with:
-          path: ${{ steps.npm-cache.outputs.dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
 
       - name: Install Node Modules
         run: npm ci
@@ -47,5 +36,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: test-reports
+          name: test-reports-${{ matrix.node-version }}
           path: test/reports/
