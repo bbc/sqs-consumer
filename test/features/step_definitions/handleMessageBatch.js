@@ -1,4 +1,4 @@
-const { Given, Then } = require('@cucumber/cucumber');
+const { Given, Then, After } = require('@cucumber/cucumber');
 const assert = require('assert');
 const { PurgeQueueCommand } = require('@aws-sdk/client-sqs');
 const pEvent = require('p-event');
@@ -79,3 +79,7 @@ Then(
     assert.strictEqual(consumer.isRunning, false);
   }
 );
+
+After(() => {
+  return consumer.stop();
+});
