@@ -4,6 +4,9 @@
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=16.19.0"
+  },
   "scripts": {
     "build": "npm run clean && tsc",
     "watch": "tsc --watch",
