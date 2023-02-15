@@ -12,6 +12,7 @@ import * as pEvent from 'p-event';
 
 import { AWSError } from '../../src/types';
 import { Consumer } from '../../src/consumer';
+import { abortController } from '../../src/controllers';
 
 const sandbox = sinon.createSandbox();
 
@@ -1138,6 +1139,25 @@ describe('Consumer', () => {
       await clock.runAllAsync();
 
       sandbox.assert.calledTwice(handleStop);
+    });
+
+    it('aborts requests when the abort param is true', async () => {
+      const handleStop = sandbox.stub().returns(null);
+      const handleAbort = sandbox.stub().returns(null);
+      const abortControllerAbort = sandbox.stub(abortController, 'abort');
+
+      consumer.on('stopped', handleStop);
+      consumer.on('aborted', handleAbort);
+
+      consumer.start();
+      consumer.stop({ abort: true });
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledOnce(handleMessage);
+      sandbox.assert.calledOnce(abortControllerAbort);
+      sandbox.assert.calledOnce(handleAbort);
+      sandbox.assert.calledOnce(handleStop);
     });
   });
 
