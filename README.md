@@ -22,6 +22,12 @@ npm install --save-dev sqs-consumer
 > npm install sqs-consumer@5.8.0 --save-dev
 > ```
 
+### Node version
+
+From v7 and above, this library will only support Node v16 or above. If you are still using Node 14, please use a previous version of the library.
+
+This decision was made due to the removal of security support from the Node.JS team from April 30th, 2023.
+
 ## Usage
 
 ```js
