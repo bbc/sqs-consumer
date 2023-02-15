@@ -108,7 +108,7 @@ export interface ConsumerOptions {
 
 export interface StopOptions {
   /**
-   * Default to `false`, if want the stop action to also abort requests to SQS
+   * Default to `false`, if you want the stop action to also abort requests to SQS
    * set this to `true`.
    * @defaultvalue `false`
    */
