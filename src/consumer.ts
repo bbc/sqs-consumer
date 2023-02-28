@@ -102,7 +102,7 @@ export class Consumer extends TypedEventEmitter {
   /**
    * Stop polling the queue for messages (pre existing requests will still be made until concluded).
    */
-  public stop(options: StopOptions): void {
+  public stop(options?: StopOptions): void {
     if (this.stopped) {
       debug('Consumer was already stopped');
       return;
