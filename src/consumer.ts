@@ -242,11 +242,12 @@ export class Consumer extends TypedEventEmitter {
    * @param message The message that was delivered from SQS
    */
   private async processMessage(message: Message): Promise<void> {
+    let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined
     try {
       this.emit('message_received', message);
 
       if (this.heartbeatInterval) {
-        this.heartbeatTimeoutId = this.startHeartbeat(message);
+        heartbeatTimeoutId = this.startHeartbeat(message);
       }
 
       const ackedMessage = await this.executeHandler(message);
@@ -263,8 +264,7 @@ export class Consumer extends TypedEventEmitter {
         await this.changeVisibilityTimeout(message, 0);
       }
     } finally {
-      clearInterval(this.heartbeatTimeoutId);
-      this.heartbeatTimeoutId = undefined;
+      clearInterval(heartbeatTimeoutId);
     }
   }
 
