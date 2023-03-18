@@ -1176,7 +1176,7 @@ describe('Consumer', () => {
   });
 
   describe('updateOption', async () => {
-    it('updates the visibilityTimeout option and emits an event', async () => {
+    it('updates the visibilityTimeout option and emits an event', () => {
       const optionUpdatedListener = sandbox.stub();
       consumer.on('option_updated', optionUpdatedListener);
 
@@ -1189,6 +1189,43 @@ describe('Consumer', () => {
         'visibilityTimeout',
         45
       );
+    });
+
+    it('does not update the visibilityTimeout if the value is not a number', () => {
+      consumer = new Consumer({
+        region: REGION,
+        queueUrl: QUEUE_URL,
+        handleMessage,
+        visibilityTimeout: 60
+      });
+
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('visibilityTimeout', 'value');
+
+      assert.equal(consumer.visibilityTimeout, 60);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the visibilityTimeout if the value is less than the heartbeatInterval', () => {
+      consumer = new Consumer({
+        region: REGION,
+        queueUrl: QUEUE_URL,
+        handleMessage,
+        heartbeatInterval: 30,
+        visibilityTimeout: 60
+      });
+
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('visibilityTimeout', 30);
+
+      assert.equal(consumer.visibilityTimeout, 60);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
     });
   });
 

@@ -150,13 +150,18 @@ export class Consumer extends TypedEventEmitter {
   ) {
     switch (option) {
       case 'visibilityTimeout':
-        if (typeof value === 'number') {
-          debug(`Updating the visibilityTimeout option to the value ${value}`);
-
-          this.visibilityTimeout = value;
-
-          this.emit('option_updated', option, value);
+        if (
+          typeof value !== 'number' ||
+          (this.heartbeatInterval && value <= this.heartbeatInterval)
+        ) {
+          break;
         }
+
+        debug(`Updating the visibilityTimeout option to the value ${value}`);
+
+        this.visibilityTimeout = value;
+
+        this.emit('option_updated', option, value);
 
         break;
       default:
