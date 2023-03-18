@@ -144,7 +144,10 @@ export class Consumer extends TypedEventEmitter {
    * @param option The option that you want to update
    * @param value The value to set the option to
    */
-  public updateOption(option: UpdatableOptions, value: ConsumerOptions[UpdatableOptions]) {
+  public updateOption(
+    option: UpdatableOptions,
+    value: ConsumerOptions[UpdatableOptions]
+  ) {
     switch (option) {
       case 'visibilityTimeout':
         if (typeof value === 'number') {

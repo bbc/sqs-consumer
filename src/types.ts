@@ -106,7 +106,7 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
-export type UpdatableOptions = 'visibilityTimeout'
+export type UpdatableOptions = 'visibilityTimeout';
 
 export interface StopOptions {
   /**
@@ -160,7 +160,7 @@ export interface Events {
   /**
    * Fired when an option is updated
    */
-  option_updated: [UpdatableOptions, ConsumerOptions[UpdatableOptions]]
+  option_updated: [UpdatableOptions, ConsumerOptions[UpdatableOptions]];
 }
 
 export class TypedEventEmitter extends EventEmitter {
