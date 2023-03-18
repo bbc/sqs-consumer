@@ -35,7 +35,6 @@ const debug = Debug('sqs-consumer');
  */
 export class Consumer extends TypedEventEmitter {
   private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
-  private handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
   private stopped = true;
   private queueUrl: string;
   private handleMessage: (message: Message) => Promise<Message | void>;
@@ -388,12 +387,14 @@ export class Consumer extends TypedEventEmitter {
    * @param message The message that was received from SQS
    */
   private async executeHandler(message: Message): Promise<Message> {
+    let handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
+
     try {
       let result;
 
       if (this.handleMessageTimeout) {
         const pending = new Promise((_, reject) => {
-          this.handleMessageTimeoutId = setTimeout((): void => {
+          handleMessageTimeoutId = setTimeout((): void => {
             reject(new TimeoutError());
           }, this.handleMessageTimeout);
         });
@@ -410,8 +411,8 @@ export class Consumer extends TypedEventEmitter {
           : `Unexpected message handler failure: ${err.message}`;
       throw err;
     } finally {
-      if (this.handleMessageTimeoutId) {
-        clearTimeout(this.handleMessageTimeoutId);
+      if (handleMessageTimeoutId) {
+        clearTimeout(handleMessageTimeoutId);
       }
     }
   }
