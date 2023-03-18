@@ -69,7 +69,7 @@ export interface ConsumerOptions {
   sqs?: SQSClient;
   /**
    * The AWS region.
-   * @defaultValue `eu-west-1`
+   * @defaultValue process.env.AWS_REGION || `eu-west-1`
    */
   region?: string;
   /**
