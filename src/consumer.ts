@@ -35,7 +35,6 @@ const debug = Debug('sqs-consumer');
  */
 export class Consumer extends TypedEventEmitter {
   private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
-  private heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
   private handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
   private stopped = true;
   private queueUrl: string;
@@ -242,11 +241,13 @@ export class Consumer extends TypedEventEmitter {
    * @param message The message that was delivered from SQS
    */
   private async processMessage(message: Message): Promise<void> {
+    let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+
     try {
       this.emit('message_received', message);
 
       if (this.heartbeatInterval) {
-        this.heartbeatTimeoutId = this.startHeartbeat(message);
+        heartbeatTimeoutId = this.startHeartbeat(message);
       }
 
       const ackedMessage = await this.executeHandler(message);
@@ -263,8 +264,7 @@ export class Consumer extends TypedEventEmitter {
         await this.changeVisibilityTimeout(message, 0);
       }
     } finally {
-      clearInterval(this.heartbeatTimeoutId);
-      this.heartbeatTimeoutId = undefined;
+      clearInterval(heartbeatTimeoutId);
     }
   }
 
@@ -273,13 +273,15 @@ export class Consumer extends TypedEventEmitter {
    * @param messages The messages that were delivered from SQS
    */
   private async processMessageBatch(messages: Message[]): Promise<void> {
+    let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+
     try {
       messages.forEach((message) => {
         this.emit('message_received', message);
       });
 
       if (this.heartbeatInterval) {
-        this.heartbeatTimeoutId = this.startHeartbeat(null, messages);
+        heartbeatTimeoutId = this.startHeartbeat(null, messages);
       }
 
       const ackedMessages = await this.executeBatchHandler(messages);
@@ -298,8 +300,7 @@ export class Consumer extends TypedEventEmitter {
         await this.changeVisibilityTimeoutBatch(messages, 0);
       }
     } finally {
-      clearInterval(this.heartbeatTimeoutId);
-      this.heartbeatTimeoutId = undefined;
+      clearInterval(heartbeatTimeoutId);
     }
   }
 
