@@ -1175,6 +1175,23 @@ describe('Consumer', () => {
     });
   });
 
+  describe('updateOption', async () => {
+    it('updates the visibilityTimeout option and emits an event', async () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('visibilityTimeout', 45);
+
+      assert.equal(consumer.visibilityTimeout, 45);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        'visibilityTimeout',
+        45
+      );
+    });
+  });
+
   describe('delete messages property', () => {
     beforeEach(() => {
       consumer = new Consumer({

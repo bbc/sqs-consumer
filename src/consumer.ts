@@ -17,7 +17,12 @@ import {
 } from '@aws-sdk/client-sqs';
 import Debug from 'debug';
 
-import { ConsumerOptions, TypedEventEmitter, StopOptions } from './types';
+import {
+  ConsumerOptions,
+  TypedEventEmitter,
+  StopOptions,
+  UpdatableOptions
+} from './types';
 import { autoBind } from './bind';
 import {
   SQSError,
@@ -132,6 +137,28 @@ export class Consumer extends TypedEventEmitter {
    */
   public get isRunning(): boolean {
     return !this.stopped;
+  }
+
+  /**
+   * Updates the provided option to the provided value.
+   * @param option The option that you want to update
+   * @param value The value to set the option to
+   */
+  public updateOption(option: UpdatableOptions, value: ConsumerOptions[UpdatableOptions]) {
+    switch (option) {
+      case 'visibilityTimeout':
+        if (typeof value === 'number') {
+          debug(`Updating the visibilityTimeout option to the value ${value}`);
+
+          this.visibilityTimeout = value;
+
+          this.emit('option_updated', option, value);
+        }
+
+        break;
+      default:
+        break;
+    }
   }
 
   /**
