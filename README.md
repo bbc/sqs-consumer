@@ -12,14 +12,14 @@ Build SQS-based applications without the boilerplate. Just define an async funct
 To install this package, simply enter the following command into your terminal (or the variant of whatever package manager you are using):
 
 ```bash
-npm install --save-dev sqs-consumer
+npm install sqs-consumer
 ```
 
 > **Note**
 > This library assumes you are using [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/index.html). If you are using v2, please install v5.8.0:
 >
 > ```bash
-> npm install sqs-consumer@5.8.0 --save-dev
+> npm install sqs-consumer@5.8.0
 > ```
 
 ### Node version
