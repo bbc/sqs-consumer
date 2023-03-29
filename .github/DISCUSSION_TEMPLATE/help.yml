@@ -1,0 +1,13 @@
+body:
+  - type: textarea
+    attributes:
+      label: Summary
+      description: What do you need help with?
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Example
+      description: A link to a minimal reproduction is helpful for debugging!
+    validations:
+      required: false

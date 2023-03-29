@@ -1,0 +1,17 @@
+body:
+  - type: textarea
+    attributes:
+      label: Background
+      description: Why do you think this feature is needed? Are there current alternatives?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Objectives
+      description: What should this feature request aim to address?
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
