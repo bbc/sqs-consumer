@@ -140,6 +140,31 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
+   * Updates visibilityTimeout to the provided value.
+   * @param value The value to set visibilityTimeout to
+   */
+  private updateVisibilityTimeout(
+    value: ConsumerOptions['visibilityTimeout']
+  ) {
+    if (typeof value !== 'number') {
+      throw new Error('visibilityTimeout must be a number');
+    }
+
+    if (
+      typeof value !== 'number' ||
+      (this.heartbeatInterval && value <= this.heartbeatInterval)
+    ) {
+      throw new Error('heartbeatInterval must be less than visibilityTimeout.');
+    }
+
+    debug(`Updating the visibilityTimeout option to the value ${value}`);
+
+    this.visibilityTimeout = value;
+
+    this.emit('option_updated', 'visibilityTimeout', value);
+  }
+
+  /**
    * Updates the provided option to the provided value.
    * @param option The option that you want to update
    * @param value The value to set the option to
@@ -150,25 +175,7 @@ export class Consumer extends TypedEventEmitter {
   ) {
     switch (option) {
       case 'visibilityTimeout':
-        if (typeof value !== 'number') {
-          throw new Error('visibilityTimeout must be a number');
-        }
-
-        if (
-          typeof value !== 'number' ||
-          (this.heartbeatInterval && value <= this.heartbeatInterval)
-        ) {
-          throw new Error(
-            'heartbeatInterval must be less than visibilityTimeout.'
-          );
-        }
-
-        debug(`Updating the visibilityTimeout option to the value ${value}`);
-
-        this.visibilityTimeout = value;
-
-        this.emit('option_updated', option, value);
-
+        this.updateVisibilityTimeout(value);
         break;
       default:
         throw new Error(`The update ${option} cannot be updated`);
