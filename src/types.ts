@@ -1,7 +1,7 @@
 import { SQSClient, Message } from '@aws-sdk/client-sqs';
 import { EventEmitter } from 'events';
 
-export interface ConsumerOptions {
+interface ConsumerOptions {
   /**
    * The SQS queue URL.
    */
@@ -106,9 +106,9 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
-export type UpdatableOptions = 'visibilityTimeout';
+type UpdatableOptions = 'visibilityTimeout';
 
-export interface StopOptions {
+interface StopOptions {
   /**
    * Default to `false`, if you want the stop action to also abort requests to SQS
    * set this to `true`.
@@ -117,7 +117,7 @@ export interface StopOptions {
   abort?: boolean;
 }
 
-export interface Events {
+interface Events {
   /**
    * Fired after one batch of items (up to `batchSize`) has been successfully processed.
    */
@@ -163,7 +163,7 @@ export interface Events {
   option_updated: [UpdatableOptions, ConsumerOptions[UpdatableOptions]];
 }
 
-export class TypedEventEmitter extends EventEmitter {
+class TypedEventEmitter extends EventEmitter {
   /**
    * Trigger a listener on all emitted events
    * @param event The name of the event to listen to
@@ -264,4 +264,13 @@ export type AWSError = {
      */
     totalRetryDelay?: number;
   };
+};
+
+export {
+  Message,
+  ConsumerOptions,
+  UpdatableOptions,
+  StopOptions,
+  Events,
+  TypedEventEmitter
 };

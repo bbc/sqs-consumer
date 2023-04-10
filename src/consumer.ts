@@ -1,6 +1,5 @@
 import {
   SQSClient,
-  Message,
   ChangeMessageVisibilityCommand,
   ChangeMessageVisibilityCommandInput,
   ChangeMessageVisibilityCommandOutput,
@@ -18,6 +17,7 @@ import {
 import Debug from 'debug';
 
 import {
+  Message,
   ConsumerOptions,
   TypedEventEmitter,
   StopOptions,
