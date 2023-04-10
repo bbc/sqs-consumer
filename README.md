@@ -131,7 +131,7 @@ Returns the current polling state of the consumer: `true` if it is actively poll
 
 Updates the provided option with the provided value.
 
-You can [find out more about this here](https://bbc.github.io/sqs-consumer/public/classes/Consumer.html#updateOption).
+You can [find out more about this here](https://bbc.github.io/sqs-consumer/classes/Consumer.html#updateOption).
 
 ### Events
 
