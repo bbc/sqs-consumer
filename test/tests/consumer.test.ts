@@ -101,7 +101,7 @@ describe('Consumer', () => {
         region: REGION,
         queueUrl: QUEUE_URL
       });
-    });
+    }, `Missing SQS consumer option [ handleMessage or handleMessageBatch ].`);
   });
 
   it('requires the batchSize option to be no greater than 10', () => {
@@ -112,7 +112,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: 11
       });
-    });
+    }, 'SQS batchSize option must be between 1 and 10.');
   });
 
   it('requires the batchSize option to be greater than 0', () => {
@@ -123,7 +123,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: -1
       });
-    });
+    }, 'SQS batchSize option must be between 1 and 10.');
   });
 
   it('requires visibilityTimeout to be set with heartbeatInterval', () => {
@@ -134,7 +134,7 @@ describe('Consumer', () => {
         handleMessage,
         heartbeatInterval: 30
       });
-    });
+    }, 'heartbeatInterval must be less than visibilityTimeout.');
   });
 
   it('requires heartbeatInterval to be less than visibilityTimeout', () => {
@@ -146,7 +146,7 @@ describe('Consumer', () => {
         heartbeatInterval: 30,
         visibilityTimeout: 30
       });
-    });
+    }, 'heartbeatInterval must be less than visibilityTimeout.');
   });
 
   describe('.create', () => {
@@ -1172,6 +1172,77 @@ describe('Consumer', () => {
       consumer.start();
       consumer.stop();
       assert.isFalse(consumer.isRunning);
+    });
+  });
+
+  describe('updateOption', async () => {
+    it('updates the visibilityTimeout option and emits an event', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('visibilityTimeout', 45);
+
+      assert.equal(consumer.visibilityTimeout, 45);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        'visibilityTimeout',
+        45
+      );
+    });
+
+    it('does not update the visibilityTimeout if the value is not a number', () => {
+      consumer = new Consumer({
+        region: REGION,
+        queueUrl: QUEUE_URL,
+        handleMessage,
+        visibilityTimeout: 60
+      });
+
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('visibilityTimeout', 'value');
+      }, 'visibilityTimeout must be a number');
+
+      assert.equal(consumer.visibilityTimeout, 60);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the visibilityTimeout if the value is less than the heartbeatInterval', () => {
+      consumer = new Consumer({
+        region: REGION,
+        queueUrl: QUEUE_URL,
+        handleMessage,
+        heartbeatInterval: 30,
+        visibilityTimeout: 60
+      });
+
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('visibilityTimeout', 30);
+      }, 'heartbeatInterval must be less than visibilityTimeout.');
+
+      assert.equal(consumer.visibilityTimeout, 60);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('throws an error for an unknown option', () => {
+      consumer = new Consumer({
+        region: REGION,
+        queueUrl: QUEUE_URL,
+        handleMessage,
+        visibilityTimeout: 60
+      });
+
+      assert.throws(() => {
+        consumer.updateOption('unknown', 'value');
+      }, `The update unknown cannot be updated`);
     });
   });
 

@@ -127,6 +127,12 @@ By default, the value of `abort` is set to `false` which means pre existing requ
 
 Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
 
+### `consumer.updateOption(option, value)`
+
+Updates the provided option with the provided value.
+
+You can [find out more about this here](https://bbc.github.io/sqs-consumer/public/classes/Consumer.html#updateOption).
+
 ### Events
 
 Each consumer is an [`EventEmitter`](https://nodejs.org/api/events.html) and [emits these events](https://bbc.github.io/sqs-consumer/interfaces/Events.html).

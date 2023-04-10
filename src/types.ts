@@ -106,6 +106,8 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
+export type UpdatableOptions = 'visibilityTimeout';
+
 export interface StopOptions {
   /**
    * Default to `false`, if you want the stop action to also abort requests to SQS
@@ -155,6 +157,10 @@ export interface Events {
    * Fired when the consumer finally stops its work.
    */
   stopped: [];
+  /**
+   * Fired when an option is updated
+   */
+  option_updated: [UpdatableOptions, ConsumerOptions[UpdatableOptions]];
 }
 
 export class TypedEventEmitter extends EventEmitter {
