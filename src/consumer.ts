@@ -143,9 +143,7 @@ export class Consumer extends TypedEventEmitter {
    * Updates visibilityTimeout to the provided value.
    * @param value The value to set visibilityTimeout to
    */
-  private updateVisibilityTimeout(
-    value: ConsumerOptions['visibilityTimeout']
-  ) {
+  private updateVisibilityTimeout(value: ConsumerOptions['visibilityTimeout']) {
     if (typeof value !== 'number') {
       throw new Error('visibilityTimeout must be a number');
     }
