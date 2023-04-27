@@ -154,6 +154,10 @@ export interface Events {
    */
   aborted: [];
   /**
+   * Fired when the consumer starts its work..
+   */
+  started: [];
+  /**
    * Fired when the consumer finally stops its work.
    */
   stopped: [];

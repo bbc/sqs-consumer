@@ -165,6 +165,17 @@ describe('Consumer', () => {
   });
 
   describe('.start', () => {
+    it('fires an event when the consumer is started', async () => {
+      const handleStart = sandbox.stub().returns(null);
+
+      consumer.on('started', handleStart);
+      
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.calledOnce(handleStart);
+    })
+
     it('fires an error event when an error occurs receiving a message', async () => {
       const receiveErr = new Error('Receive error');
 
