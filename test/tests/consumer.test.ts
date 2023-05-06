@@ -1281,6 +1281,84 @@ describe('Consumer', () => {
       sandbox.assert.notCalled(optionUpdatedListener);
     });
 
+    it('updates the batchSize option and emits an event', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('batchSize', 4);
+
+      assert.equal(consumer.batchSize, 4);
+
+      sandbox.assert.calledWithMatch(optionUpdatedListener, 'batchSize', 4);
+    });
+
+    it('does not update the batchSize if the value is not a number', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('batchSize', 'value');
+      }, 'batchSize must be a number');
+
+      assert.equal(consumer.batchSize, 1);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the batchSize if the value is more than 10', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('batchSize', 13);
+      }, 'batchSize must be between 1 and 10.');
+
+      assert.equal(consumer.batchSize, 1);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the batchSize if the value is less than 1', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('batchSize', 0);
+      }, 'batchSize must be between 1 and 10.');
+
+      assert.equal(consumer.batchSize, 1);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('updates the waitTimeSeconds option and emits an event', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('waitTimeSeconds', 56);
+
+      assert.equal(consumer.waitTimeSeconds, 56);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        'waitTimeSeconds',
+        56
+      );
+    });
+
+    it('does not update the waitTimeSeconds if the value is not a number', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('waitTimeSeconds', 'value');
+      }, 'waitTimeSeconds must be a number');
+
+      assert.equal(consumer.waitTimeSeconds, 20);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
     it('throws an error for an unknown option', () => {
       consumer = new Consumer({
         region: REGION,

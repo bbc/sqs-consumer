@@ -162,6 +162,42 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
+   * Updates batchSize to the provided value.
+   * @param value The value to set batchSize to
+   */
+  private updateBatchSize(value: ConsumerOptions['batchSize']) {
+    if (typeof value !== 'number') {
+      throw new Error('batchSize must be a number');
+    }
+
+    if (value > 10 || value < 1) {
+      throw new Error('batchSize must be between 1 and 10.');
+    }
+
+    debug(`Updating the batchSize option to the value ${value}`);
+
+    this.batchSize = value;
+
+    this.emit('option_updated', 'batchSize', value);
+  }
+
+  /**
+   * Updates waitTimeSeconds to the provided value.
+   * @param value The value to set waitTimeSeconds to
+   */
+  private updateWaitTimeSeconds(value: ConsumerOptions['waitTimeSeconds']) {
+    if (typeof value !== 'number') {
+      throw new Error('waitTimeSeconds must be a number');
+    }
+
+    debug(`Updating the waitTimeSeconds option to the value ${value}`);
+
+    this.waitTimeSeconds = value;
+
+    this.emit('option_updated', 'waitTimeSeconds', value);
+  }
+
+  /**
    * Updates the provided option to the provided value.
    * @param option The option that you want to update
    * @param value The value to set the option to
@@ -173,6 +209,12 @@ export class Consumer extends TypedEventEmitter {
     switch (option) {
       case 'visibilityTimeout':
         this.updateVisibilityTimeout(value);
+        break;
+      case 'batchSize':
+        this.updateBatchSize(value);
+        break;
+      case `waitTimeSeconds`:
+        this.updateWaitTimeSeconds(value);
         break;
       default:
         throw new Error(`The update ${option} cannot be updated`);
