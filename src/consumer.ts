@@ -98,6 +98,7 @@ export class Consumer extends TypedEventEmitter {
     if (this.stopped) {
       debug('Starting consumer');
       this.stopped = false;
+      this.emit('started');
       this.poll();
     }
   }
