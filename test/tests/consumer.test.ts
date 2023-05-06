@@ -112,7 +112,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: 11
       });
-    }, 'SQS batchSize option must be between 1 and 10.');
+    }, 'batchSize must be between 1 and 10.');
   });
 
   it('requires the batchSize option to be greater than 0', () => {
@@ -123,7 +123,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: -1
       });
-    }, 'SQS batchSize option must be between 1 and 10.');
+    }, 'batchSize must be between 1 and 10.');
   });
 
   it('requires visibilityTimeout to be set with heartbeatInterval', () => {
@@ -1240,26 +1240,6 @@ describe('Consumer', () => {
       );
     });
 
-    it('does not update the visibilityTimeout if the value is not a number', () => {
-      consumer = new Consumer({
-        region: REGION,
-        queueUrl: QUEUE_URL,
-        handleMessage,
-        visibilityTimeout: 60
-      });
-
-      const optionUpdatedListener = sandbox.stub();
-      consumer.on('option_updated', optionUpdatedListener);
-
-      assert.throws(() => {
-        consumer.updateOption('visibilityTimeout', 'value');
-      }, 'visibilityTimeout must be a number');
-
-      assert.equal(consumer.visibilityTimeout, 60);
-
-      sandbox.assert.notCalled(optionUpdatedListener);
-    });
-
     it('does not update the visibilityTimeout if the value is less than the heartbeatInterval', () => {
       consumer = new Consumer({
         region: REGION,
@@ -1292,19 +1272,6 @@ describe('Consumer', () => {
       sandbox.assert.calledWithMatch(optionUpdatedListener, 'batchSize', 4);
     });
 
-    it('does not update the batchSize if the value is not a number', () => {
-      const optionUpdatedListener = sandbox.stub();
-      consumer.on('option_updated', optionUpdatedListener);
-
-      assert.throws(() => {
-        consumer.updateOption('batchSize', 'value');
-      }, 'batchSize must be a number');
-
-      assert.equal(consumer.batchSize, 1);
-
-      sandbox.assert.notCalled(optionUpdatedListener);
-    });
-
     it('does not update the batchSize if the value is more than 10', () => {
       const optionUpdatedListener = sandbox.stub();
       consumer.on('option_updated', optionUpdatedListener);
@@ -1335,24 +1302,37 @@ describe('Consumer', () => {
       const optionUpdatedListener = sandbox.stub();
       consumer.on('option_updated', optionUpdatedListener);
 
-      consumer.updateOption('waitTimeSeconds', 56);
+      consumer.updateOption('waitTimeSeconds', 18);
 
-      assert.equal(consumer.waitTimeSeconds, 56);
+      assert.equal(consumer.waitTimeSeconds, 18);
 
       sandbox.assert.calledWithMatch(
         optionUpdatedListener,
         'waitTimeSeconds',
-        56
+        18
       );
     });
 
-    it('does not update the waitTimeSeconds if the value is not a number', () => {
+    it('does not update the batchSize if the value is less than 0', () => {
       const optionUpdatedListener = sandbox.stub();
       consumer.on('option_updated', optionUpdatedListener);
 
       assert.throws(() => {
-        consumer.updateOption('waitTimeSeconds', 'value');
-      }, 'waitTimeSeconds must be a number');
+        consumer.updateOption('waitTimeSeconds', -1);
+      }, 'waitTimeSeconds must be between 0 and 20.');
+
+      assert.equal(consumer.waitTimeSeconds, 20);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the batchSize if the value is more than 20', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('waitTimeSeconds', 27);
+      }, 'waitTimeSeconds must be between 0 and 20.');
 
       assert.equal(consumer.waitTimeSeconds, 20);
 
