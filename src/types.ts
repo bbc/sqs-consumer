@@ -106,7 +106,10 @@ export interface ConsumerOptions {
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
 }
 
-export type UpdatableOptions = 'visibilityTimeout';
+export type UpdatableOptions =
+  | 'visibilityTimeout'
+  | 'batchSize'
+  | 'waitTimeSeconds';
 
 export interface StopOptions {
   /**

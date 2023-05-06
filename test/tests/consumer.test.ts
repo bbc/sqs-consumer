@@ -112,7 +112,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: 11
       });
-    }, 'SQS batchSize option must be between 1 and 10.');
+    }, 'batchSize must be between 1 and 10.');
   });
 
   it('requires the batchSize option to be greater than 0', () => {
@@ -123,7 +123,7 @@ describe('Consumer', () => {
         handleMessage,
         batchSize: -1
       });
-    }, 'SQS batchSize option must be between 1 and 10.');
+    }, 'batchSize must be between 1 and 10.');
   });
 
   it('requires visibilityTimeout to be set with heartbeatInterval', () => {
@@ -1240,26 +1240,6 @@ describe('Consumer', () => {
       );
     });
 
-    it('does not update the visibilityTimeout if the value is not a number', () => {
-      consumer = new Consumer({
-        region: REGION,
-        queueUrl: QUEUE_URL,
-        handleMessage,
-        visibilityTimeout: 60
-      });
-
-      const optionUpdatedListener = sandbox.stub();
-      consumer.on('option_updated', optionUpdatedListener);
-
-      assert.throws(() => {
-        consumer.updateOption('visibilityTimeout', 'value');
-      }, 'visibilityTimeout must be a number');
-
-      assert.equal(consumer.visibilityTimeout, 60);
-
-      sandbox.assert.notCalled(optionUpdatedListener);
-    });
-
     it('does not update the visibilityTimeout if the value is less than the heartbeatInterval', () => {
       consumer = new Consumer({
         region: REGION,
@@ -1277,6 +1257,84 @@ describe('Consumer', () => {
       }, 'heartbeatInterval must be less than visibilityTimeout.');
 
       assert.equal(consumer.visibilityTimeout, 60);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('updates the batchSize option and emits an event', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('batchSize', 4);
+
+      assert.equal(consumer.batchSize, 4);
+
+      sandbox.assert.calledWithMatch(optionUpdatedListener, 'batchSize', 4);
+    });
+
+    it('does not update the batchSize if the value is more than 10', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('batchSize', 13);
+      }, 'batchSize must be between 1 and 10.');
+
+      assert.equal(consumer.batchSize, 1);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the batchSize if the value is less than 1', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('batchSize', 0);
+      }, 'batchSize must be between 1 and 10.');
+
+      assert.equal(consumer.batchSize, 1);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('updates the waitTimeSeconds option and emits an event', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('waitTimeSeconds', 18);
+
+      assert.equal(consumer.waitTimeSeconds, 18);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        'waitTimeSeconds',
+        18
+      );
+    });
+
+    it('does not update the batchSize if the value is less than 0', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('waitTimeSeconds', -1);
+      }, 'waitTimeSeconds must be between 0 and 20.');
+
+      assert.equal(consumer.waitTimeSeconds, 20);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it('does not update the batchSize if the value is more than 20', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('waitTimeSeconds', 27);
+      }, 'waitTimeSeconds must be between 0 and 20.');
+
+      assert.equal(consumer.waitTimeSeconds, 20);
 
       sandbox.assert.notCalled(optionUpdatedListener);
     });

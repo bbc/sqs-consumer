@@ -8,6 +8,51 @@ const requiredOptions = [
   'handleMessage|handleMessageBatch'
 ];
 
+function validateOption(
+  option: string,
+  value: any,
+  allOptions: { [key: string]: any },
+  strict?: boolean
+): void {
+  switch (option) {
+    case 'batchSize':
+      if (value > 10 || value < 1) {
+        throw new Error('batchSize must be between 1 and 10.');
+      }
+      break;
+    case 'heartbeatInterval':
+      if (
+        !allOptions.visibilityTimeout ||
+        value >= allOptions.visibilityTimeout
+      ) {
+        throw new Error(
+          'heartbeatInterval must be less than visibilityTimeout.'
+        );
+      }
+      break;
+    case 'visibilityTimeout':
+      if (
+        allOptions.heartbeatInterval &&
+        value <= allOptions.heartbeatInterval
+      ) {
+        throw new Error(
+          'heartbeatInterval must be less than visibilityTimeout.'
+        );
+      }
+      break;
+    case 'waitTimeSeconds':
+      if (value < 1 || value > 20) {
+        throw new Error('waitTimeSeconds must be between 0 and 20.');
+      }
+      break;
+    default:
+      if (strict) {
+        throw new Error(`The update ${option} cannot be updated`);
+      }
+      break;
+  }
+}
+
 /**
  * Ensure that the required options have been set.
  * @param options The options that have been set by the application.
@@ -22,15 +67,11 @@ function assertOptions(options: ConsumerOptions): void {
     }
   });
 
-  if (options.batchSize > 10 || options.batchSize < 1) {
-    throw new Error('SQS batchSize option must be between 1 and 10.');
+  if (options.batchSize) {
+    validateOption('batchSize', options.batchSize, options);
   }
-
-  if (
-    options.heartbeatInterval &&
-    !(options.heartbeatInterval < options.visibilityTimeout)
-  ) {
-    throw new Error('heartbeatInterval must be less than visibilityTimeout.');
+  if (options.heartbeatInterval) {
+    validateOption('heartbeatInterval', options.heartbeatInterval, options);
   }
 }
 
@@ -42,4 +83,4 @@ function hasMessages(response: ReceiveMessageCommandOutput): boolean {
   return response.Messages && response.Messages.length > 0;
 }
 
-export { hasMessages, assertOptions };
+export { hasMessages, assertOptions, validateOption };
