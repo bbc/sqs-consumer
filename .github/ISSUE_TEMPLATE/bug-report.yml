@@ -32,7 +32,7 @@ body:
         Please add a link to a minimal reproduction.
         Note:
         - Please keep your example as simple and reproduceable as possible, try leaving out dependencies that are not required for reproduction.
-        - To create a shareable code example for web, you can use CodeSandbox (https://codesandbox.io/s/new) or Stackblitz (https://stackblitz.com/).
+        - To create a shareable code example for web, you can use Stackblitz (https://stackblitz.com/edit/sqs-consumer-starter).
         - Please make sure the example is complete and runnable - e.g. avoid localhost URLs.
       placeholder: |
         e.g. Code Sandbox, Stackblitz, Expo Snack or TypeScript playground
