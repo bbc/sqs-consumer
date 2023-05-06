@@ -184,7 +184,7 @@ export class TypedEventEmitter extends EventEmitter {
     event: E,
     listener: (...args: Events[E]) => void
   ): this {
-    return super.on(event, listener);
+    return super.once(event, listener);
   }
   /**
    * Emits an event with the provided arguments
