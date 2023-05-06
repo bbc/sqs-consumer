@@ -1097,6 +1097,44 @@ describe('Consumer', () => {
     });
   });
 
+  describe('event listeners', () => {
+    it('fires the event multiple times', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({});
+
+      const handleEmpty = sandbox.stub().returns(null);
+
+      consumer.on('empty', handleEmpty);
+
+      consumer.start();
+
+      await clock.tickAsync(0);
+
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledTwice(handleEmpty);
+    });
+
+    it('fires the events only once', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({});
+
+      const handleEmpty = sandbox.stub().returns(null);
+
+      consumer.once('empty', handleEmpty);
+
+      consumer.start();
+
+      await clock.tickAsync(0);
+
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledOnce(handleEmpty);
+    });
+  });
+
   describe('.stop', () => {
     it('stops the consumer polling for messages', async () => {
       const handleStop = sandbox.stub().returns(null);
