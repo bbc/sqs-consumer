@@ -141,7 +141,7 @@ export class Consumer extends TypedEventEmitter {
   /**
    * Validates and then updates the provided option to the provided value.
    * @param option The option to validate and then update
-   * @param value The value to set visibilityTimeout to
+   * @param value The value to set the provided option to
    */
   public updateOption(
     option: UpdatableOptions,
