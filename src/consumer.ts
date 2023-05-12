@@ -16,12 +16,8 @@ import {
   ReceiveMessageCommandOutput
 } from '@aws-sdk/client-sqs';
 
-import {
-  ConsumerOptions,
-  TypedEventEmitter,
-  StopOptions,
-  UpdatableOptions
-} from './types';
+import { ConsumerOptions, StopOptions, UpdatableOptions } from './types';
+import { TypedEventEmitter } from './emitter';
 import { autoBind } from './bind';
 import {
   SQSError,
