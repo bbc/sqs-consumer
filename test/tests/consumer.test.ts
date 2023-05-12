@@ -13,6 +13,7 @@ import * as pEvent from 'p-event';
 import { AWSError } from '../../src/types';
 import { Consumer } from '../../src/consumer';
 import { abortController } from '../../src/controllers';
+import { logger } from '../../src/logger';
 
 const sandbox = sinon.createSandbox();
 
@@ -94,59 +95,61 @@ describe('Consumer', () => {
     sandbox.restore();
   });
 
-  it('requires a handleMessage or handleMessagesBatch function to be set', () => {
-    assert.throws(() => {
-      new Consumer({
-        handleMessage: undefined,
-        region: REGION,
-        queueUrl: QUEUE_URL
-      });
-    }, `Missing SQS consumer option [ handleMessage or handleMessageBatch ].`);
-  });
+  describe('options validation', () => {
+    it('requires a handleMessage or handleMessagesBatch function to be set', () => {
+      assert.throws(() => {
+        new Consumer({
+          handleMessage: undefined,
+          region: REGION,
+          queueUrl: QUEUE_URL
+        });
+      }, `Missing SQS consumer option [ handleMessage or handleMessageBatch ].`);
+    });
 
-  it('requires the batchSize option to be no greater than 10', () => {
-    assert.throws(() => {
-      new Consumer({
-        region: REGION,
-        queueUrl: QUEUE_URL,
-        handleMessage,
-        batchSize: 11
-      });
-    }, 'batchSize must be between 1 and 10.');
-  });
+    it('requires the batchSize option to be no greater than 10', () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          batchSize: 11
+        });
+      }, 'batchSize must be between 1 and 10.');
+    });
 
-  it('requires the batchSize option to be greater than 0', () => {
-    assert.throws(() => {
-      new Consumer({
-        region: REGION,
-        queueUrl: QUEUE_URL,
-        handleMessage,
-        batchSize: -1
-      });
-    }, 'batchSize must be between 1 and 10.');
-  });
+    it('requires the batchSize option to be greater than 0', () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          batchSize: -1
+        });
+      }, 'batchSize must be between 1 and 10.');
+    });
 
-  it('requires visibilityTimeout to be set with heartbeatInterval', () => {
-    assert.throws(() => {
-      new Consumer({
-        region: REGION,
-        queueUrl: QUEUE_URL,
-        handleMessage,
-        heartbeatInterval: 30
-      });
-    }, 'heartbeatInterval must be less than visibilityTimeout.');
-  });
+    it('requires visibilityTimeout to be set with heartbeatInterval', () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          heartbeatInterval: 30
+        });
+      }, 'heartbeatInterval must be less than visibilityTimeout.');
+    });
 
-  it('requires heartbeatInterval to be less than visibilityTimeout', () => {
-    assert.throws(() => {
-      new Consumer({
-        region: REGION,
-        queueUrl: QUEUE_URL,
-        handleMessage,
-        heartbeatInterval: 30,
-        visibilityTimeout: 30
-      });
-    }, 'heartbeatInterval must be less than visibilityTimeout.');
+    it('requires heartbeatInterval to be less than visibilityTimeout', () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          heartbeatInterval: 30,
+          visibilityTimeout: 30
+        });
+      }, 'heartbeatInterval must be less than visibilityTimeout.');
+    });
   });
 
   describe('.create', () => {
@@ -460,6 +463,25 @@ describe('Consumer', () => {
           ReceiptHandle: 'receipt-handle'
         })
       );
+    });
+
+    it('does not delete the message if shouldDeleteMessages is false', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        shouldDeleteMessages: false
+      });
+
+      handleMessage.resolves();
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
     });
 
     it("doesn't delete the message when a processing error is reported", async () => {
@@ -947,7 +969,7 @@ describe('Consumer', () => {
           VisibilityTimeout: 40
         })
       );
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      sandbox.assert.calledTwice(clearIntervalSpy);
     });
 
     it('passes in the correct visibility timeout for long running batch handler functions', async () => {
@@ -1031,7 +1053,7 @@ describe('Consumer', () => {
           ]
         })
       );
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      sandbox.assert.calledTwice(clearIntervalSpy);
     });
 
     it('emit error when changing visibility timeout fails', async () => {
@@ -1353,26 +1375,47 @@ describe('Consumer', () => {
     });
   });
 
-  describe('delete messages property', () => {
-    beforeEach(() => {
+  describe('logger', () => {
+    it('logs a debug event when an event is emitted', async () => {
+      const loggerDebug = sandbox.stub(logger, 'debug');
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.callCount(loggerDebug, 5);
+      sandbox.assert.calledWithMatch(loggerDebug, 'starting');
+      sandbox.assert.calledWithMatch(loggerDebug, 'started');
+      sandbox.assert.calledWithMatch(loggerDebug, 'polling');
+      sandbox.assert.calledWithMatch(loggerDebug, 'stopping');
+      sandbox.assert.calledWithMatch(loggerDebug, 'stopped');
+    });
+
+    it('logs a debug event while the handler is processing, for every second', async () => {
+      const loggerDebug = sandbox.stub(logger, 'debug');
+      const clearIntervalSpy = sinon.spy(global, 'clearInterval');
+
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
-        handleMessage,
-        sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
-        shouldDeleteMessages: false
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(resolve, 4000)),
+        sqs
       });
-    });
-
-    it('do not deletes the message when the handleMessage function is called', async () => {
-      handleMessage.resolves();
 
       consumer.start();
-      await pEvent(consumer, 'message_processed');
+      await Promise.all([clock.tickAsync(5000)]);
+      sandbox.assert.calledOnce(clearIntervalSpy);
       consumer.stop();
 
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      sandbox.assert.callCount(loggerDebug, 15);
+      sandbox.assert.calledWith(loggerDebug, 'handler_processing', {
+        detail: 'The handler is still processing the message(s)...'
+      });
     });
   });
 });

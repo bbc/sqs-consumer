@@ -1,6 +1,8 @@
 import { SQSClient, Message } from '@aws-sdk/client-sqs';
 import { EventEmitter } from 'events';
 
+import { logger } from './logger';
+
 export interface ConsumerOptions {
   /**
    * The SQS queue URL.
@@ -198,6 +200,7 @@ export class TypedEventEmitter extends EventEmitter {
    * @param event The name of the event to emit
    */
   emit<E extends keyof Events>(event: E, ...args: Events[E]): boolean {
+    logger.debug(event, ...args);
     return super.emit(event, ...args);
   }
 }
