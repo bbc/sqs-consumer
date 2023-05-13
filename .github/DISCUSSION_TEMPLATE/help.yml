@@ -8,6 +8,6 @@ body:
   - type: input
     attributes:
       label: Example
-      description: A link to a minimal reproduction is helpful for debugging!
+      description: A link to a minimal reproduction is helpful for debugging! You can fork [this stackblitz setup](https://stackblitz.com/edit/sqs-consumer-starter) to get a reproduction setup quickly.
     validations:
       required: false
