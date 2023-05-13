@@ -15,14 +15,9 @@ import {
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput
 } from '@aws-sdk/client-sqs';
-import Debug from 'debug';
 
-import {
-  ConsumerOptions,
-  TypedEventEmitter,
-  StopOptions,
-  UpdatableOptions
-} from './types';
+import { ConsumerOptions, StopOptions, UpdatableOptions } from './types';
+import { TypedEventEmitter } from './emitter';
 import { autoBind } from './bind';
 import {
   SQSError,
@@ -32,8 +27,7 @@ import {
 } from './errors';
 import { validateOption, assertOptions, hasMessages } from './validation';
 import { abortController } from './controllers';
-
-const debug = Debug('sqs-consumer');
+import { logger } from './logger';
 
 /**
  * [Usage](https://bbc.github.io/sqs-consumer/index.html#usage)
@@ -96,7 +90,7 @@ export class Consumer extends TypedEventEmitter {
    */
   public start(): void {
     if (this.stopped) {
-      debug('Starting consumer');
+      logger.debug('starting');
       this.stopped = false;
       this.emit('started');
       this.poll();
@@ -108,11 +102,11 @@ export class Consumer extends TypedEventEmitter {
    */
   public stop(options?: StopOptions): void {
     if (this.stopped) {
-      debug('Consumer was already stopped');
+      logger.debug('already_stopped');
       return;
     }
 
-    debug('Stopping consumer');
+    logger.debug('stopping');
     this.stopped = true;
 
     if (this.pollingTimeoutId) {
@@ -121,10 +115,8 @@ export class Consumer extends TypedEventEmitter {
     }
 
     if (options?.abort) {
-      debug('Aborting SQS requests');
-
+      logger.debug('aborting');
       abortController.abort();
-
       this.emit('aborted');
     }
 
@@ -148,8 +140,6 @@ export class Consumer extends TypedEventEmitter {
     value: ConsumerOptions[UpdatableOptions]
   ) {
     validateOption(option, value, this, true);
-
-    debug(`Updating the ${option} option to the value ${value}`);
 
     this[option] = value;
 
@@ -185,11 +175,13 @@ export class Consumer extends TypedEventEmitter {
    */
   private poll(): void {
     if (this.stopped) {
-      debug('Poll was called while consumer was stopped, cancelling poll...');
+      logger.debug('cancelling_poll', {
+        detail: 'Poll was called while consumer was stopped, cancelling poll...'
+      });
       return;
     }
 
-    debug('Polling for messages');
+    logger.debug('polling');
 
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
@@ -204,7 +196,10 @@ export class Consumer extends TypedEventEmitter {
       .catch((err) => {
         this.emitError(err);
         if (isConnectionError(err)) {
-          debug('There was an authentication error. Pausing before retrying.');
+          logger.debug('authentication_error', {
+            detail:
+              'There was an authentication error. Pausing before retrying.'
+          });
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
         return;
@@ -246,11 +241,19 @@ export class Consumer extends TypedEventEmitter {
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
     if (hasMessages(response)) {
+      const handlerProcessingDebugger = setInterval(() => {
+        logger.debug('handler_processing', {
+          detail: 'The handler is still processing the message(s)...'
+        });
+      }, 1000);
+
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
         await Promise.all(response.Messages.map(this.processMessage));
       }
+
+      clearInterval(handlerProcessingDebugger);
 
       this.emit('response_processed');
     } else if (response) {
@@ -287,7 +290,9 @@ export class Consumer extends TypedEventEmitter {
         await this.changeVisibilityTimeout(message, 0);
       }
     } finally {
-      clearInterval(heartbeatTimeoutId);
+      if (this.heartbeatInterval) {
+        clearInterval(heartbeatTimeoutId);
+      }
     }
   }
 
@@ -462,12 +467,13 @@ export class Consumer extends TypedEventEmitter {
    */
   private async deleteMessage(message: Message): Promise<void> {
     if (!this.shouldDeleteMessages) {
-      debug(
-        'Skipping message delete since shouldDeleteMessages is set to false'
-      );
+      logger.debug('skipping_delete', {
+        detail:
+          'Skipping message delete since shouldDeleteMessages is set to false'
+      });
       return;
     }
-    debug('Deleting message %s', message.MessageId);
+    logger.debug('deleting_message', { messageId: message.MessageId });
 
     const deleteParams: DeleteMessageCommandInput = {
       QueueUrl: this.queueUrl,
@@ -490,15 +496,15 @@ export class Consumer extends TypedEventEmitter {
    */
   private async deleteMessageBatch(messages: Message[]): Promise<void> {
     if (!this.shouldDeleteMessages) {
-      debug(
-        'Skipping message delete since shouldDeleteMessages is set to false'
-      );
+      logger.debug('skipping_delete', {
+        detail:
+          'Skipping message delete since shouldDeleteMessages is set to false'
+      });
       return;
     }
-    debug(
-      'Deleting messages %s',
-      messages.map((msg) => msg.MessageId).join(' ,')
-    );
+    logger.debug('deleting_messages', {
+      messageIds: messages.map((msg) => msg.MessageId)
+    });
 
     const deleteParams: DeleteMessageBatchCommandInput = {
       QueueUrl: this.queueUrl,
