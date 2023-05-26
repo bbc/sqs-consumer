@@ -25,7 +25,12 @@ import {
   toSQSError,
   isConnectionError
 } from './errors';
-import { validateOption, assertOptions, hasMessages } from './validation';
+import {
+  MAX_BATCH_SIZE,
+  validateOption,
+  assertOptions,
+  hasMessages
+} from './validation';
 import { abortController } from './controllers';
 import { logger } from './logger';
 
@@ -44,6 +49,7 @@ export class Consumer extends TypedEventEmitter {
   private messageAttributeNames: string[];
   private shouldDeleteMessages: boolean;
   private batchSize: number;
+  private concurrency: number;
   private visibilityTimeout: number;
   private terminateVisibilityTimeout: boolean;
   private waitTimeSeconds: number;
@@ -61,6 +67,7 @@ export class Consumer extends TypedEventEmitter {
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.batchSize = options.batchSize || 1;
+    this.concurrency = options.concurrency || this.batchSize;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout =
       options.terminateVisibilityTimeout || false;
@@ -174,6 +181,25 @@ export class Consumer extends TypedEventEmitter {
    * Poll for new messages from SQS
    */
   private poll(): void {
+    /**
+     * Start a number of polling workers, the amount to spin up:
+     * this.concurrency / MAX_BATCH_SIZE
+     *
+     * Each one runs it's own receive message handler, need to work out how to ensure
+     * that workers do not process messages at the same time.
+     *
+     * Build a task manager to track the amount of messages being queued and the status
+     * of the queue. Each message received would be added to the manager's queue,
+     *
+     * MaxNumberOfMessages sent to SQS receive message would be the available slots in
+     * the queue (the concurrency - the current queue count) if less than the max batch size,
+     * else the max batch size.
+     *
+     * As the message are handled, they should be removed from the queue.
+     *
+     * Add public methods for getting current queue status and number of messages in the
+     * queue.
+     */
     if (this.stopped) {
       logger.debug('cancelling_poll', {
         detail: 'Poll was called while consumer was stopped, cancelling poll...'

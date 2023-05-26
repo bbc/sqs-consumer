@@ -8,6 +8,11 @@ const requiredOptions = [
   'handleMessage|handleMessageBatch'
 ];
 
+const MIN_BATCH_SIZE = 1;
+const MAX_BATCH_SIZE = 10;
+const MIN_WAIT_TIME_SECONDS = 1;
+const MAX_WAIT_TIME_SECONDS = 20;
+
 function validateOption(
   option: string,
   value: any,
@@ -16,8 +21,15 @@ function validateOption(
 ): void {
   switch (option) {
     case 'batchSize':
-      if (value > 10 || value < 1) {
+      if (value > MAX_BATCH_SIZE || value < MIN_BATCH_SIZE) {
         throw new Error('batchSize must be between 1 and 10.');
+      }
+      break;
+    case 'concurrency':
+      if (value < allOptions.batchSize) {
+        throw new Error(
+          'concurrency must not be less than the batchSize value.'
+        );
       }
       break;
     case 'heartbeatInterval':
@@ -41,7 +53,7 @@ function validateOption(
       }
       break;
     case 'waitTimeSeconds':
-      if (value < 1 || value > 20) {
+      if (value < MIN_WAIT_TIME_SECONDS || value > MAX_WAIT_TIME_SECONDS) {
         throw new Error('waitTimeSeconds must be between 0 and 20.');
       }
       break;
@@ -70,6 +82,9 @@ function assertOptions(options: ConsumerOptions): void {
   if (options.batchSize) {
     validateOption('batchSize', options.batchSize, options);
   }
+  if (options.concurrency) {
+    validateOption('concurrency', options.concurrency, options);
+  }
   if (options.heartbeatInterval) {
     validateOption('heartbeatInterval', options.heartbeatInterval, options);
   }
@@ -83,4 +98,10 @@ function hasMessages(response: ReceiveMessageCommandOutput): boolean {
   return response.Messages && response.Messages.length > 0;
 }
 
-export { hasMessages, assertOptions, validateOption };
+export {
+  MIN_BATCH_SIZE,
+  MAX_BATCH_SIZE,
+  hasMessages,
+  assertOptions,
+  validateOption
+};

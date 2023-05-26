@@ -27,6 +27,14 @@ export interface ConsumerOptions {
    */
   batchSize?: number;
   /**
+   * The maximum number of messages that can be processed during one polling occurrence.
+   *
+   * This must not be less than the batchSize and will default to the same value
+   * as the batchSize option.
+   * @defaultvalue `batchSize`
+   */
+  concurrency?: number;
+  /**
    * The duration (in seconds) that the received messages are hidden from subsequent
    * retrieve requests after being retrieved by a ReceiveMessage request.
    */
