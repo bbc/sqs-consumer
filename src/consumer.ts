@@ -185,8 +185,15 @@ export class Consumer extends TypedEventEmitter {
      * Start a number of polling workers, the amount to spin up:
      * this.concurrency / MAX_BATCH_SIZE
      *
-     * Each one runs it's own receive message handler, need to work out how to ensure
+     * Each one runs its own receive message handler, need to work out how to ensure
      * that workers do not process messages at the same time.
+     *
+     * Potentially something like this:
+     *
+     * Promise.all(Array.from({ length: concurrency }, worker))
+     *  .then(() => {
+     *     finishQueue()
+     *  });
      *
      * Build a task manager to track the amount of messages being queued and the status
      * of the queue. Each message received would be added to the manager's queue,
