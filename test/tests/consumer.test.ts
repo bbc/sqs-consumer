@@ -269,6 +269,37 @@ describe('Consumer', () => {
       );
     });
 
+    it('handles non-standard exceptions thrown by the handler function', async () => {
+      class CustomError {
+        private _message: string;
+
+        constructor(message) {
+          this._message = message;
+        }
+
+        get message() {
+          return this._message;
+        }
+      }
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () => {
+          throw new CustomError('unexpected parsing error');
+        },
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, 'processing_error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'unexpected parsing error');
+    });
+
     it('fires an error event when an error occurs deleting a message', async () => {
       const deleteErr = new Error('Delete error');
 
@@ -740,6 +771,63 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.callCount(handleMessageBatch, 1);
+    });
+
+    it('handles unexpected exceptions thrown by the handler batch function', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: REGION,
+        handleMessageBatch: () => {
+          throw new Error('unexpected parsing error');
+        },
+        batchSize: 2,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, 'error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(
+          err.message,
+          'Unexpected message handler failure: unexpected parsing error'
+      );
+    });
+
+    it('handles non-standard exceptions thrown by the handler batch function', async () => {
+      class CustomError {
+        private _message: string;
+
+        constructor(message) {
+          this._message = message
+        }
+
+        get message() {
+          return this._message;
+        }
+      }
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: REGION,
+        handleMessageBatch: () => {
+          throw new CustomError('unexpected parsing error');
+        },
+        batchSize: 2,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, 'error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, 'unexpected parsing error');
     });
 
     it('prefers handleMessagesBatch over handleMessage when both are set', async () => {
