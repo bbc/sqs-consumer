@@ -792,8 +792,8 @@ describe('Consumer', () => {
 
       assert.ok(err);
       assert.equal(
-          err.message,
-          'Unexpected message handler failure: unexpected parsing error'
+        err.message,
+        'Unexpected message handler failure: unexpected parsing error'
       );
     });
 
@@ -802,7 +802,7 @@ describe('Consumer', () => {
         private _message: string;
 
         constructor(message) {
-          this._message = message
+          this._message = message;
         }
 
         get message() {
