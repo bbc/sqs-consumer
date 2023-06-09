@@ -434,11 +434,10 @@ export class Consumer extends TypedEventEmitter {
 
       return result instanceof Object ? result : message;
     } catch (err) {
-      if (err instanceof Error) {
-        err.message =
-          err instanceof TimeoutError
-            ? `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`
-            : `Unexpected message handler failure: ${err.message}`;
+      if (err instanceof TimeoutError) {
+        err.message = `Unexpected message handler failure: ${err.message}`;
+      } else if (err instanceof Error) {
+        err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
       }
       throw err;
     } finally {
