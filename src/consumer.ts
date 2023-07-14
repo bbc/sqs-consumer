@@ -437,7 +437,7 @@ export class Consumer extends TypedEventEmitter {
       if (err instanceof TimeoutError) {
         err.message = `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`;
       } else if (err instanceof Error) {
-        err.message = `Unexpected message handler failure: ${err.message}`;
+        wrapUnexpectedErrorMessage(err);
       }
       throw err;
     } finally {
@@ -458,7 +458,7 @@ export class Consumer extends TypedEventEmitter {
       return result instanceof Object ? result : messages;
     } catch (err) {
       if (err instanceof Error) {
-        err.message = `Unexpected message handler failure: ${err.message}`;
+        wrapUnexpectedErrorMessage(err);
       }
       throw err;
     }
@@ -526,4 +526,10 @@ export class Consumer extends TypedEventEmitter {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
   }
+}
+
+function wrapUnexpectedErrorMessage(err: Error) {
+  try {
+    err.message = `Unexpected message handler failure: ${err.message}`
+  } catch {}
 }
