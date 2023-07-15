@@ -530,6 +530,6 @@ export class Consumer extends TypedEventEmitter {
 
 function wrapUnexpectedErrorMessage(err: Error) {
   try {
-    err.message = `Unexpected message handler failure: ${err.message}`
+    err.message = `Unexpected message handler failure: ${err.message}`;
   } catch {}
 }

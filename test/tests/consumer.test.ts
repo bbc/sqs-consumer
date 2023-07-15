@@ -303,7 +303,7 @@ describe('Consumer', () => {
     it('handles non-standard exceptions thrown by the handler function', async () => {
       const customError = new Error();
       Object.defineProperty(customError, 'message', {
-        get: () => 'unexpected parsing error',
+        get: () => 'unexpected parsing error'
       });
 
       consumer = new Consumer({
@@ -857,7 +857,7 @@ describe('Consumer', () => {
     it('handles non-standard exceptions thrown by the handler batch function', async () => {
       const customError = new Error();
       Object.defineProperty(customError, 'message', {
-        get: () => 'unexpected parsing error',
+        get: () => 'unexpected parsing error'
       });
 
       consumer = new Consumer({
