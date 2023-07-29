@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "7.2.2",
+  "version": "7.2.2-sqs-json.1",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -61,11 +61,11 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.363.0",
+    "@aws-sdk/client-sqs": "3.327.0",
     "debug": "^4.3.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.363.0"
+    "@aws-sdk/client-sqs": "3.327.0"
   },
   "mocha": {
     "spec": "test/tests/**/**/*.test.ts",
