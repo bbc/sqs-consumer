@@ -87,7 +87,7 @@ function toStandardError(err: Error, message: string): StandardError {
  * @param err The error object that was received.
  * @param message The message to send with the error.
  */
-function toTimeoutError(err: Error, message: string): TimeoutError {
+function toTimeoutError(err: TimeoutError, message: string): TimeoutError {
   const error = new TimeoutError(message);
   error.cause = err;
   error.time = new Date();
