@@ -15,10 +15,24 @@ class SQSError extends Error {
 }
 
 class TimeoutError extends Error {
+  cause: Error;
+  time: Date;
+
   constructor(message = 'Operation timed out.') {
     super(message);
     this.message = message;
     this.name = 'TimeoutError';
+  }
+}
+
+class StandardError extends Error {
+  cause: Error;
+  time: Date;
+
+  constructor(message = 'An unexpected error occurred:') {
+    super(message);
+    this.message = message;
+    this.name = 'StandardError';
   }
 }
 
@@ -41,7 +55,7 @@ function isConnectionError(err: Error): boolean {
 /**
  * Formats an AWSError the the SQSError type.
  * @param err The error object that was received.
- * @param message The message that the error occurred on.
+ * @param message The message to send with the error.
  */
 function toSQSError(err: AWSError, message: string): SQSError {
   const sqsError = new SQSError(message);
@@ -55,4 +69,37 @@ function toSQSError(err: AWSError, message: string): SQSError {
   return sqsError;
 }
 
-export { SQSError, TimeoutError, isConnectionError, toSQSError };
+/**
+ * Formats an Error to the StandardError type.
+ * @param err The error object that was received.
+ * @param message The message to send with the error.
+ */
+function toStandardError(err: Error, message: string): StandardError {
+  const error = new StandardError(message);
+  error.cause = err;
+  error.time = new Date();
+
+  return error;
+}
+
+/**
+ * Formats an Error to the TimeoutError type.
+ * @param err The error object that was received.
+ * @param message The message to send with the error.
+ */
+function toTimeoutError(err: Error, message: string): TimeoutError {
+  const error = new TimeoutError(message);
+  error.cause = err;
+  error.time = new Date();
+
+  return error;
+}
+
+export {
+  SQSError,
+  TimeoutError,
+  isConnectionError,
+  toSQSError,
+  toStandardError,
+  toTimeoutError
+};

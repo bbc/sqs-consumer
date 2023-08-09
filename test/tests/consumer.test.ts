@@ -321,7 +321,10 @@ describe('Consumer', () => {
       consumer.stop();
 
       assert.ok(err);
-      assert.equal(err.message, 'unexpected parsing error');
+      assert.equal(
+        err.message,
+        'Unexpected message handler failure: unexpected parsing error'
+      );
     });
 
     it('fires an error event when an error occurs deleting a message', async () => {
@@ -877,7 +880,10 @@ describe('Consumer', () => {
       consumer.stop();
 
       assert.ok(err);
-      assert.equal(err.message, 'unexpected parsing error');
+      assert.equal(
+        err.message,
+        'Unexpected message handler failure: unexpected parsing error'
+      );
     });
 
     it('prefers handleMessagesBatch over handleMessage when both are set', async () => {
