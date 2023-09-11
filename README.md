@@ -24,9 +24,7 @@ npm install sqs-consumer
 
 ### Node version
 
-From v7 and above, this library will only support Node v16 or above. If you are still using Node 14, please use a previous version of the library.
-
-This decision was made due to the removal of security support from the Node.JS team from April 30th, 2023.
+We will only support Node versions that are actively or security supported by the Node team. If you are still using an Node 14, please use a version of this library before the v7 release, if you are using Node 16, please use a version before the v7.3.0 release.
 
 ## Usage
 
