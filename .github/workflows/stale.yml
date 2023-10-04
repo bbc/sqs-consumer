@@ -18,3 +18,7 @@ jobs:
           days-before-issue-close: 5
           days-before-pr-close: 10
           operations-per-run: 90
+          exempt-issue-labels: keep
+          exempt-pr-labels: keep
+          exempt-all-assignees: true
+          exempt-all-milestones: true
