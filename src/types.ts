@@ -103,6 +103,22 @@ export interface ConsumerOptions {
    * the successful messages only.
    */
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
+  /**
+   * An `async` function (or function that returns a `Promise`) to be called right
+   * before the SQS Client sends a receive message command.
+   *
+   * This function is usefull if SQS Client module exports have been modified, for
+   * example to add middlewares.
+   */
+  preReceiveMessageCallback?(): Promise<void>;
+  /**
+   * An `async` function (or function that returns a `Promise`) to be called right
+   * after the SQS Client sends a receive message command.
+   *
+   * This function is usefull if SQS Client module exports have been modified, for
+   * example to add middlewares.
+   */
+  postReceiveMessageCallback?(): Promise<void>;
 }
 
 export type UpdatableOptions =
