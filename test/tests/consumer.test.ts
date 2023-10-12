@@ -480,7 +480,7 @@ describe('Consumer', () => {
     });
 
     it('calls the preReceiveMessageCallback and postReceiveMessageCallback function before receiving a message', async () => {
-      let callbackCalls = 0
+      let callbackCalls = 0;
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -489,10 +489,10 @@ describe('Consumer', () => {
         sqs,
         authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
         preReceiveMessageCallback: async () => {
-          callbackCalls++
+          callbackCalls++;
         },
         postReceiveMessageCallback: async () => {
-          callbackCalls++
+          callbackCalls++;
         }
       });
 
@@ -501,7 +501,7 @@ describe('Consumer', () => {
       consumer.stop();
 
       assert.equal(callbackCalls, 2);
-    })
+    });
 
     it('deletes the message when the handleMessage function is called', async () => {
       handleMessage.resolves();
