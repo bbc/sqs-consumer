@@ -104,7 +104,8 @@ export class Consumer extends TypedEventEmitter {
    */
   private get sqsSendOptions(): { abortSignal: AbortSignal } {
     return {
-      // return the current abortController signal or a generic not aborted signal
+      // return the current abortController signal or a fresh signal that has not been aborted.
+      // This effectively defaults the signal sent to the AWS SDK to not aborted
       abortSignal: this.abortController?.signal || new AbortController().signal
     };
   }
