@@ -104,7 +104,8 @@ export class Consumer extends TypedEventEmitter {
    */
   private get sqsSendOptions(): { abortSignal: AbortSignal } {
     return {
-      abortSignal: this.abortController?.signal
+      // return the current abortController signal or a generic not aborted signal
+      abortSignal: this.abortController?.signal || new AbortController().signal
     };
   }
 
