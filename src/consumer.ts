@@ -26,7 +26,6 @@ import {
   isConnectionError
 } from './errors';
 import { validateOption, assertOptions, hasMessages } from './validation';
-import { abortController } from './controllers';
 import { logger } from './logger';
 
 /**
@@ -52,6 +51,7 @@ export class Consumer extends TypedEventEmitter {
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private heartbeatInterval: number;
+  public abortController: AbortController;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -94,11 +94,24 @@ export class Consumer extends TypedEventEmitter {
    */
   public start(): void {
     if (this.stopped) {
+      // Create a new abort controller each time the consumer is started
+      this.abortController = new AbortController();
       logger.debug('starting');
       this.stopped = false;
       this.emit('started');
       this.poll();
     }
+  }
+
+  /**
+   * A reusable options object for sqs.send that's used to avoid duplication.
+   */
+  private get sqsSendOptions(): { abortSignal: AbortSignal } {
+    return {
+      // return the current abortController signal or a fresh signal that has not been aborted.
+      // This effectively defaults the signal sent to the AWS SDK to not aborted
+      abortSignal: this.abortController?.signal || new AbortController().signal
+    };
   }
 
   /**
@@ -120,7 +133,7 @@ export class Consumer extends TypedEventEmitter {
 
     if (options?.abort) {
       logger.debug('aborting');
-      abortController.abort();
+      this.abortController.abort();
       this.emit('aborted');
     }
 
@@ -166,13 +179,6 @@ export class Consumer extends TypedEventEmitter {
       this.emit('processing_error', err, message);
     }
   }
-
-  /**
-   * A reusable options object for sqs.send that's used to avoid duplication.
-   */
-  private sqsSendOptions = {
-    abortSignal: abortController.signal
-  };
 
   /**
    * Poll for new messages from SQS
