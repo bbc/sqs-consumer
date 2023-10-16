@@ -48,7 +48,7 @@
     "@types/sinon": "^10.0.19",
     "chai": "^4.3.10",
     "eslint": "^8.51.0",
-    "eslint-config-iplayer-ts": "^4.1.1",
+    "eslint-config-iplayer": "^9.1.0",
     "eslint-config-prettier": "^9.0.0",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
@@ -86,7 +86,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "iplayer-ts",
+      "iplayer/ts",
       "prettier"
     ],
     "parserOptions": {
