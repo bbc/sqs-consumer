@@ -480,7 +480,8 @@ describe('Consumer', () => {
     });
 
     it('calls the preReceiveMessageCallback and postReceiveMessageCallback function before receiving a message', async () => {
-      let callbackCalls = 0;
+      const preReceiveMessageCallbackStub = sandbox.stub().resolves(null);
+      const postReceiveMessageCallbackStub = sandbox.stub().resolves(null);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -488,19 +489,16 @@ describe('Consumer', () => {
         handleMessage,
         sqs,
         authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
-        preReceiveMessageCallback: async () => {
-          callbackCalls++;
-        },
-        postReceiveMessageCallback: async () => {
-          callbackCalls++;
-        }
+        preReceiveMessageCallback: preReceiveMessageCallbackStub,
+        postReceiveMessageCallback: postReceiveMessageCallbackStub
       });
 
       consumer.start();
       await pEvent(consumer, 'message_processed');
       consumer.stop();
 
-      assert.equal(callbackCalls, 2);
+      sandbox.assert.calledOnce(preReceiveMessageCallbackStub);
+      sandbox.assert.calledOnce(postReceiveMessageCallbackStub);
     });
 
     it('deletes the message when the handleMessage function is called', async () => {
