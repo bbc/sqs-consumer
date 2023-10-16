@@ -86,6 +86,7 @@
   },
   "eslintConfig": {
     "extends": [
+      "iplayer/base",
       "iplayer/ts",
       "prettier"
     ],
