@@ -479,6 +479,30 @@ describe('Consumer', () => {
       sandbox.assert.calledWith(handleMessage, response.Messages[0]);
     });
 
+    it('calls the preReceiveMessageCallback and postReceiveMessageCallback function before receiving a message', async () => {
+      let callbackCalls = 0;
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        preReceiveMessageCallback: async () => {
+          callbackCalls++;
+        },
+        postReceiveMessageCallback: async () => {
+          callbackCalls++;
+        }
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      assert.equal(callbackCalls, 2);
+    });
+
     it('deletes the message when the handleMessage function is called', async () => {
       handleMessage.resolves();
 

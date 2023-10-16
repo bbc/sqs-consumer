@@ -38,6 +38,8 @@ export class Consumer extends TypedEventEmitter {
   private queueUrl: string;
   private handleMessage: (message: Message) => Promise<Message | void>;
   private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
+  private preReceiveMessageCallback?: () => Promise<void>;
+  private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
   private handleMessageTimeout: number;
   private attributeNames: string[];
@@ -57,6 +59,8 @@ export class Consumer extends TypedEventEmitter {
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;
     this.handleMessageBatch = options.handleMessageBatch;
+    this.preReceiveMessageCallback = options.preReceiveMessageCallback;
+    this.postReceiveMessageCallback = options.postReceiveMessageCallback;
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
@@ -223,10 +227,18 @@ export class Consumer extends TypedEventEmitter {
     params: ReceiveMessageCommandInput
   ): Promise<ReceiveMessageCommandOutput> {
     try {
-      return await this.sqs.send(
+      if (this.preReceiveMessageCallback) {
+        await this.preReceiveMessageCallback();
+      }
+      const result = await this.sqs.send(
         new ReceiveMessageCommand(params),
         this.sqsSendOptions
       );
+      if (this.postReceiveMessageCallback) {
+        await this.postReceiveMessageCallback();
+      }
+
+      return result;
     } catch (err) {
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
