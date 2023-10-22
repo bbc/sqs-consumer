@@ -17,8 +17,8 @@
     "test:integration:init": "sh ./test/scripts/initIntTests.sh",
     "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.js",
     "test": "npm run test:unit && npm run test:integration",
-    "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
-    "lcov": "nyc mocha && nyc report --reporter=lcov",
+    "coverage": "c8 mocha && c8 report --reporter=html && c8 report --reporter=json-summary",
+    "lcov": "c8 mocha && c8 report --reporter=lcov",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --fix",
     "format": "prettier --loglevel warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
@@ -41,21 +41,21 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
-    "@cucumber/cucumber": "10.0.0",
-    "@types/chai": "^4.3.8",
-    "@types/mocha": "^10.0.2",
-    "@types/node": "^20.8.6",
-    "@types/sinon": "^10.0.19",
+    "@cucumber/cucumber": "10.0.1",
+    "@types/chai": "^4.3.9",
+    "@types/mocha": "^10.0.3",
+    "@types/node": "^20.8.7",
+    "@types/sinon": "^10.0.20",
     "chai": "^4.3.10",
-    "eslint": "^8.51.0",
+    "eslint": "^8.52.0",
     "eslint-config-iplayer": "^9.1.0",
     "eslint-config-prettier": "^9.0.0",
     "mocha": "^10.2.0",
-    "nyc": "^15.1.0",
+    "c8": "^8.0.1",
     "p-event": "^4.2.0",
     "prettier": "^3.0.3",
-    "sinon": "^16.1.0",
-    "sqs-producer": "^3.3.0",
+    "sinon": "^17.0.0",
+    "sqs-producer": "^3.4.0",
     "ts-node": "^10.9.1",
     "typedoc": "^0.25.2",
     "typescript": "^5.2.2"
@@ -71,7 +71,7 @@
     "spec": "test/tests/**/**/*.test.ts",
     "require": "ts-node/register"
   },
-  "nyc": {
+  "c8": {
     "include": [
       "src/**/*.ts"
     ],
