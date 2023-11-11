@@ -12,7 +12,6 @@ import * as pEvent from 'p-event';
 
 import { AWSError } from '../../src/types';
 import { Consumer } from '../../src/consumer';
-import { abortController } from '../../src/controllers';
 import { logger } from '../../src/logger';
 
 const sandbox = sinon.createSandbox();
@@ -168,6 +167,32 @@ describe('Consumer', () => {
   });
 
   describe('.start', () => {
+    it('uses the correct abort signal', async () => {
+      sqs.send
+        .withArgs(mockReceiveMessage)
+        .resolves(new Promise((res) => setTimeout(res, 100)));
+
+      // Starts and abort is false
+      consumer.start();
+      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+
+      // normal stop without an abort and abort is false
+      consumer.stop();
+      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+
+      // Starts and abort is false
+      consumer.start();
+      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+
+      // Stop with abort and abort is true
+      consumer.stop({ abort: true });
+      assert.isTrue(sqs.send.lastCall.lastArg.abortSignal.aborted);
+
+      // Starts and abort is false
+      consumer.start();
+      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+    });
+
     it('fires an event when the consumer is started', async () => {
       const handleStart = sandbox.stub().returns(null);
 
@@ -504,6 +529,28 @@ describe('Consumer', () => {
       consumer.stop();
 
       sandbox.assert.calledWith(handleMessage, response.Messages[0]);
+    });
+
+    it('calls the preReceiveMessageCallback and postReceiveMessageCallback function before receiving a message', async () => {
+      const preReceiveMessageCallbackStub = sandbox.stub().resolves(null);
+      const postReceiveMessageCallbackStub = sandbox.stub().resolves(null);
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        preReceiveMessageCallback: preReceiveMessageCallbackStub,
+        postReceiveMessageCallback: postReceiveMessageCallbackStub
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'message_processed');
+      consumer.stop();
+
+      sandbox.assert.calledOnce(preReceiveMessageCallbackStub);
+      sandbox.assert.calledOnce(postReceiveMessageCallbackStub);
     });
 
     it('deletes the message when the handleMessage function is called', async () => {
@@ -1359,7 +1406,6 @@ describe('Consumer', () => {
     it('aborts requests when the abort param is true', async () => {
       const handleStop = sandbox.stub().returns(null);
       const handleAbort = sandbox.stub().returns(null);
-      const abortControllerAbort = sandbox.stub(abortController, 'abort');
 
       consumer.on('stopped', handleStop);
       consumer.on('aborted', handleAbort);
@@ -1369,8 +1415,8 @@ describe('Consumer', () => {
 
       await clock.runAllAsync();
 
+      assert.isTrue(consumer.abortController.signal.aborted);
       sandbox.assert.calledOnce(handleMessage);
-      sandbox.assert.calledOnce(abortControllerAbort);
       sandbox.assert.calledOnce(handleAbort);
       sandbox.assert.calledOnce(handleStop);
     });
