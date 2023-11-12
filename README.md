@@ -129,6 +129,8 @@ Returns the current polling state of the consumer: `true` if it is actively poll
 
 Updates the provided option with the provided value.
 
+Please note that any update of the option `pollingWaitTimeMs` will take effect only on next polling cycle.
+
 You can [find out more about this here](https://bbc.github.io/sqs-consumer/classes/Consumer.html#updateOption).
 
 ### Events
