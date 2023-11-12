@@ -124,7 +124,8 @@ export interface ConsumerOptions {
 export type UpdatableOptions =
   | 'visibilityTimeout'
   | 'batchSize'
-  | 'waitTimeSeconds';
+  | 'waitTimeSeconds'
+  | 'pollingWaitTimeMs';
 
 export interface StopOptions {
   /**

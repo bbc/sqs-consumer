@@ -45,6 +45,11 @@ function validateOption(
         throw new Error('waitTimeSeconds must be between 0 and 20.');
       }
       break;
+    case 'pollingWaitTimeMs':
+      if (value < 0) {
+        throw new Error('pollingWaitTimeMs must be greater than 0.');
+      }
+      break;
     default:
       if (strict) {
         throw new Error(`The update ${option} cannot be updated`);

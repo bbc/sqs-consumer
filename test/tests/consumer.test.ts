@@ -1495,6 +1495,34 @@ describe('Consumer', () => {
       sandbox.assert.notCalled(optionUpdatedListener);
     });
 
+    it('updates the pollingWaitTimeMs option and emits an event', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      consumer.updateOption('pollingWaitTimeMs', 1000);
+
+      assert.equal(consumer.pollingWaitTimeMs, 1000);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        'pollingWaitTimeMs',
+        1000
+      );
+    });
+
+    it('does not update the pollingWaitTimeMs if the value is less than 0', () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on('option_updated', optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption('pollingWaitTimeMs', -1);
+      }, 'pollingWaitTimeMs must be greater than 0.');
+
+      assert.equal(consumer.pollingWaitTimeMs, 0);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
     it('throws an error for an unknown option', () => {
       consumer = new Consumer({
         region: REGION,
