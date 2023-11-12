@@ -294,7 +294,7 @@ describe('Consumer', () => {
       );
     });
 
-    it('handles non-standard exceptions thrown by the handler function', async () => {
+    it('handles non-standard objects thrown by the handler function', async () => {
       class CustomError {
         private _message: string;
 
@@ -323,6 +323,33 @@ describe('Consumer', () => {
 
       assert.ok(err);
       assert.equal(err.message, 'unexpected parsing error');
+    });
+
+    it('handles non-standard exceptions thrown by the handler function', async () => {
+      const customError = new Error();
+      Object.defineProperty(customError, 'message', {
+        get: () => 'unexpected parsing error'
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () => {
+          throw customError;
+        },
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, 'processing_error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(
+        err.message,
+        'Unexpected message handler failure: unexpected parsing error'
+      );
     });
 
     it('fires an error event when an error occurs deleting a message', async () => {
@@ -844,7 +871,7 @@ describe('Consumer', () => {
       );
     });
 
-    it('handles non-standard exceptions thrown by the handler batch function', async () => {
+    it('handles non-standard objects thrown by the handler batch function', async () => {
       class CustomError {
         private _message: string;
 
@@ -875,6 +902,35 @@ describe('Consumer', () => {
 
       assert.ok(err);
       assert.equal(err.message, 'unexpected parsing error');
+    });
+
+    it('handles non-standard exceptions thrown by the handler batch function', async () => {
+      const customError = new Error();
+      Object.defineProperty(customError, 'message', {
+        get: () => 'unexpected parsing error'
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        messageAttributeNames: ['attribute-1', 'attribute-2'],
+        region: REGION,
+        handleMessageBatch: () => {
+          throw customError;
+        },
+        batchSize: 2,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, 'error');
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(
+        err.message,
+        'Unexpected message handler failure: unexpected parsing error'
+      );
     });
 
     it('prefers handleMessagesBatch over handleMessage when both are set', async () => {
