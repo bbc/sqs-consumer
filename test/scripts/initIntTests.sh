@@ -1,4 +1,4 @@
-docker-compose --file ./test/scripts/docker-compose.yml up -d
+docker compose --file ./test/scripts/docker-compose.yml up -d
 
 if [ $? -eq 0 ]
 then

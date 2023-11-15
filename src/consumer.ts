@@ -13,7 +13,8 @@ import {
   DeleteMessageBatchCommandInput,
   ReceiveMessageCommand,
   ReceiveMessageCommandInput,
-  ReceiveMessageCommandOutput
+  ReceiveMessageCommandOutput,
+  QueueAttributeName
 } from '@aws-sdk/client-sqs';
 
 import { ConsumerOptions, StopOptions, UpdatableOptions } from './types';
@@ -198,7 +199,7 @@ export class Consumer extends TypedEventEmitter {
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
-      AttributeNames: this.attributeNames,
+      AttributeNames: this.attributeNames as QueueAttributeName[],
       MessageAttributeNames: this.messageAttributeNames,
       MaxNumberOfMessages: this.batchSize,
       WaitTimeSeconds: this.waitTimeSeconds,

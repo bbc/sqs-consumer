@@ -2,8 +2,7 @@ version: '3'
 services:
   localstack:
     container_name: local_sqs_aws
-    image: localstack/localstack:1.2.0@sha256:41216e34e25546654c58b8075b133027eab3d958e605ef2e7af168d1f05a9364
-    command: sh -c "/usr/local/bin/init.sh && exec myexecutable"
+    image: localstack/localstack:latest@sha256:da35c19b83b646b2f4511b62f39689bc73cf0fe53ac4159dfd513e9774356324
     environment:
       - AWS_DEFAULT_REGION=eu-west-1
       - EDGE_PORT=4566
@@ -17,11 +16,10 @@ services:
     ports:
       - "4566-4599:4566-4599"
     volumes:
-      - '${TMPDIR:-/tmp/localstack}:/tmp/localstack'
       - '/var/run/docker.sock:/var/run/docker.sock'
-      - ./localstack:/docker-entrypoint-initaws.d
+      - ./localstack:/etc/localstack/init/ready.d
     healthcheck:
-      test: curl http://localhost:4566/health || exit 1
+      test: curl http://localhost:4566/_localstack/health || exit 1
       interval: 20s
       retries: 5
       start_period: 20s
