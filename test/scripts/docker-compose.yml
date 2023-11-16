@@ -17,7 +17,7 @@ services:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - ./localstack:/etc/localstack/init/ready.d
     healthcheck:
-      test: curl http://localhost:4566/_localstack/health || exit 1
+      test: curl http://localhost:4566/_localstack/health | jq '.services.sqs' | grep -q -x 'running'
       interval: 20s
       retries: 5
       start_period: 20s
