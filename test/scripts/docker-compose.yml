@@ -9,8 +9,6 @@ services:
       - SERVICES=sqs
       - AWS_ACCESS_KEY_ID=key
       - AWS_SECRET_ACCESS_KEY=secret
-      - DATA_DIR=/tmp/localstack/data
-      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
       - DOCKER_HOST=unix:///var/run/docker.sock
       - DEBUG=1
     ports:
