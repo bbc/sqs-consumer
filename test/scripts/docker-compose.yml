@@ -2,7 +2,7 @@ version: '3'
 services:
   localstack:
     container_name: local_sqs_aws
-    image: localstack/localstack:latest@sha256:da35c19b83b646b2f4511b62f39689bc73cf0fe53ac4159dfd513e9774356324
+    image: localstack/localstack:3.0.1@sha256:de413eee81c94bfd9b2206c016b82e83a3b2b8abd5775d05dbf829be2b02afb4
     environment:
       - AWS_DEFAULT_REGION=eu-west-1
       - EDGE_PORT=4566
