@@ -1047,6 +1047,33 @@ describe('Consumer', () => {
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
     });
 
+    it('deletes the message if alwaysAcknowledge is `true` and handleMessage returns an empty object', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async () => {
+          return {};
+        },
+        sqs,
+        alwaysAcknowledge: true
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: 'receipt-handle'
+        })
+      );
+    });
+
     it('does not call deleteMessageBatch if handleMessagesBatch returns an empty array', async () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1062,6 +1089,35 @@ describe('Consumer', () => {
 
       sandbox.assert.callCount(sqs.send, 1);
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+    });
+
+    it('calls deleteMessageBatch if alwaysAcknowledge is `true` and handleMessagesBatch returns an empty array', async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => [],
+        batchSize: 2,
+        sqs,
+        alwaysAcknowledge: true
+      });
+
+      consumer.start();
+      await pEvent(consumer, 'response_processed');
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(
+        sqs.send.secondCall,
+        mockDeleteMessageBatch
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          Entries: [{ Id: '123', ReceiptHandle: 'receipt-handle' }]
+        })
+      );
     });
 
     it('ack all messages if handleMessageBatch returns void', async () => {

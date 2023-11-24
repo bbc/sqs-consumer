@@ -56,7 +56,7 @@ app.start();
 - By default, messages that are sent to the `handleMessage` and `handleMessageBatch` functions will be considered as processed if they return without an error.
   - To acknowledge individual messages, please return the message that you want to acknowledge if you are using `handleMessage` or the messages for `handleMessageBatch`.
     - To note, returning an empty object or an empty array will be considered an acknowledgement of no message(s) and will result in no messages being deleted.
-    - By default, if an object or an array is not returned, all messages will be acknowledged.
+    - By default, if an object or an array is not returned, all messages will be acknowledged. If you would like to change this behaviour, please use the `alwaysAcknowledge` option [detailed below](#options).
 - Messages are deleted from the queue once the handler function has completed successfully (the above items should also be taken into account).
 
 ### Credentials
