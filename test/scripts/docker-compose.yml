@@ -2,26 +2,22 @@ version: '3'
 services:
   localstack:
     container_name: local_sqs_aws
-    image: localstack/localstack:1.2.0@sha256:41216e34e25546654c58b8075b133027eab3d958e605ef2e7af168d1f05a9364
-    command: sh -c "/usr/local/bin/init.sh && exec myexecutable"
+    image: localstack/localstack:3.0.1@sha256:de413eee81c94bfd9b2206c016b82e83a3b2b8abd5775d05dbf829be2b02afb4
     environment:
       - AWS_DEFAULT_REGION=eu-west-1
       - EDGE_PORT=4566
       - SERVICES=sqs
       - AWS_ACCESS_KEY_ID=key
       - AWS_SECRET_ACCESS_KEY=secret
-      - DATA_DIR=/tmp/localstack/data
-      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
       - DOCKER_HOST=unix:///var/run/docker.sock
       - DEBUG=1
     ports:
       - "4566-4599:4566-4599"
     volumes:
-      - '${TMPDIR:-/tmp/localstack}:/tmp/localstack'
       - '/var/run/docker.sock:/var/run/docker.sock'
-      - ./localstack:/docker-entrypoint-initaws.d
+      - ./localstack:/etc/localstack/init/ready.d
     healthcheck:
-      test: curl http://localhost:4566/health || exit 1
+      test: curl http://localhost:4566/_localstack/health | jq '.services.sqs' | grep -q -x 'running'
       interval: 20s
       retries: 5
       start_period: 20s

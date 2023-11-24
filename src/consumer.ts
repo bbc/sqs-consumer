@@ -13,7 +13,8 @@ import {
   DeleteMessageBatchCommandInput,
   ReceiveMessageCommand,
   ReceiveMessageCommandInput,
-  ReceiveMessageCommandOutput
+  ReceiveMessageCommandOutput,
+  QueueAttributeName
 } from '@aws-sdk/client-sqs';
 
 import { ConsumerOptions, StopOptions, UpdatableOptions } from './types';
@@ -43,7 +44,7 @@ export class Consumer extends TypedEventEmitter {
   private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
   private handleMessageTimeout: number;
-  private attributeNames: string[];
+  private attributeNames: QueueAttributeName[];
   private messageAttributeNames: string[];
   private shouldDeleteMessages: boolean;
   private batchSize: number;

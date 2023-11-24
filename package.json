@@ -55,17 +55,17 @@
     "p-event": "^4.2.0",
     "prettier": "^3.0.3",
     "sinon": "^17.0.0",
-    "sqs-producer": "^3.4.0",
+    "sqs-producer": "^4.0.0",
     "ts-node": "^10.9.1",
     "typedoc": "^0.25.2",
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.428.0",
+    "@aws-sdk/client-sqs": "^3.447.0",
     "debug": "^4.3.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.428.0"
+    "@aws-sdk/client-sqs": "^3.447.0"
   },
   "mocha": {
     "spec": "test/tests/**/**/*.test.ts",
