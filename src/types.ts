@@ -1,4 +1,4 @@
-import { SQSClient, Message } from '@aws-sdk/client-sqs';
+import { SQSClient, Message, QueueAttributeName } from '@aws-sdk/client-sqs';
 
 export interface ConsumerOptions {
   /**
@@ -10,7 +10,7 @@ export interface ConsumerOptions {
    * `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
    * @defaultvalue `[]`
    */
-  attributeNames?: string[];
+  attributeNames?: QueueAttributeName[];
   /**
    * List of message attributes to retrieve (i.e. `['name', 'address']`).
    * @defaultvalue `[]`

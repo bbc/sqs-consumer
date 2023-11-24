@@ -44,7 +44,7 @@ export class Consumer extends TypedEventEmitter {
   private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
   private handleMessageTimeout: number;
-  private attributeNames: string[];
+  private attributeNames: QueueAttributeName[];
   private messageAttributeNames: string[];
   private shouldDeleteMessages: boolean;
   private batchSize: number;
@@ -199,7 +199,7 @@ export class Consumer extends TypedEventEmitter {
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
-      AttributeNames: this.attributeNames as QueueAttributeName[],
+      AttributeNames: this.attributeNames,
       MessageAttributeNames: this.messageAttributeNames,
       MaxNumberOfMessages: this.batchSize,
       WaitTimeSeconds: this.waitTimeSeconds,
