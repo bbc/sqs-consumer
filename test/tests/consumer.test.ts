@@ -4,7 +4,8 @@ import {
   DeleteMessageBatchCommand,
   DeleteMessageCommand,
   ReceiveMessageCommand,
-  SQSClient
+  SQSClient,
+  QueueAttributeName
 } from '@aws-sdk/client-sqs';
 import { assert } from 'chai';
 import * as sinon from 'sinon';
@@ -701,9 +702,13 @@ describe('Consumer', () => {
         Messages: [messageWithAttr]
       });
 
+      const attributeNames: QueueAttributeName[] = [
+        'ApproximateReceiveCount' as QueueAttributeName
+      ];
+
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
-        attributeNames: ['ApproximateReceiveCount'],
+        attributeNames,
         region: REGION,
         handleMessage,
         sqs
