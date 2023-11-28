@@ -47,6 +47,7 @@ export class Consumer extends TypedEventEmitter {
   private attributeNames: QueueAttributeName[];
   private messageAttributeNames: string[];
   private shouldDeleteMessages: boolean;
+  private alwaysAcknowledge: boolean;
   private batchSize: number;
   private visibilityTimeout: number;
   private terminateVisibilityTimeout: boolean;
@@ -77,6 +78,7 @@ export class Consumer extends TypedEventEmitter {
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
+    this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.sqs =
       options.sqs ||
       new SQSClient({
@@ -453,7 +455,9 @@ export class Consumer extends TypedEventEmitter {
         result = await this.handleMessage(message);
       }
 
-      return result instanceof Object ? result : message;
+      return !this.alwaysAcknowledge && result instanceof Object
+        ? result
+        : message;
     } catch (err) {
       if (err instanceof TimeoutError) {
         throw toTimeoutError(
@@ -482,7 +486,9 @@ export class Consumer extends TypedEventEmitter {
     try {
       const result = await this.handleMessageBatch(messages);
 
-      return result instanceof Object ? result : messages;
+      return !this.alwaysAcknowledge && result instanceof Object
+        ? result
+        : messages;
     } catch (err) {
       if (err instanceof Error) {
         throw toStandardError(

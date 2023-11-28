@@ -85,6 +85,14 @@ export interface ConsumerOptions {
    */
   shouldDeleteMessages?: boolean;
   /**
+   * By default, the consumer will treat an empty object or array from either of the
+   * handlers as a acknowledgement of no messages and will not delete those messages as
+   * a result. Set this to `true` to always acknowledge all messages no matter the returned
+   * value.
+   * @defaultvalue `false`
+   */
+  alwaysAcknowledge?: boolean;
+  /**
    * An `async` function (or function that returns a `Promise`) to be called whenever
    * a message is received.
    *
