@@ -5,12 +5,12 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable or canary?
+        description: latest or canary?
         required: true
         type: choice
         options:
           - canary
-          - stable
+          - latest
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,6 +25,6 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm publish --provenance --access public --tag ${{ github.event.inputs.releaseType || 'stable' }}
+      - run: npm publish --provenance --access public --tag ${{ github.event.inputs.releaseType || 'latest' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
