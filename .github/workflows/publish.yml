@@ -1,0 +1,30 @@
+name: Publish Package to npmjs
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: stable or canary?
+        required: true
+        type: choice
+        options:
+          - canary
+          - stable
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm publish --provenance --access public --tag ${{ github.event.inputs.releaseType || 'canary' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
