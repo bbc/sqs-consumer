@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "8.1.0",
+  "version": "8.1.1.canary.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,7 +28,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bbc/sqs-consumer.git"
+    "url": "git+https://github.com/bbc/sqs-consumer.git"
   },
   "bugs": {
     "url": "https://github.com/bbc/sqs-consumer/issues"
