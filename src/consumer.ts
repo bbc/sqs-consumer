@@ -90,6 +90,22 @@ export interface ConsumerOptions {
   handleMessageTimeout?: number;
   handleMessage?(message: SQSMessage): Promise<void>;
   handleMessageBatch?(messages: SQSMessage[]): Promise<void>;
+  /**
+   * An `async` function (or function that returns a `Promise`) to be called right
+   * before the SQS Client sends a receive message command.
+   *
+   * This function is usefull if SQS Client module exports have been modified, for
+   * example to add middlewares.
+   */
+  preReceiveMessageCallback?(): Promise<void>;
+  /**
+   * An `async` function (or function that returns a `Promise`) to be called right
+   * after the SQS Client sends a receive message command.
+   *
+   * This function is usefull if SQS Client module exports have been modified, for
+   * example to add middlewares.
+   */
+  postReceiveMessageCallback?(): Promise<void>;
 }
 
 interface Events {
@@ -119,6 +135,8 @@ export class Consumer extends EventEmitter {
   private terminateVisibilityTimeout: boolean;
   private heartbeatInterval: number;
   private sqs: SQS;
+  private preReceiveMessageCallback?: () => Promise<void>;
+  private postReceiveMessageCallback?: () => Promise<void>;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -141,6 +159,9 @@ export class Consumer extends EventEmitter {
     this.sqs = options.sqs || new SQS({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
     });
+
+    this.preReceiveMessageCallback = options.preReceiveMessageCallback;
+    this.postReceiveMessageCallback = options.postReceiveMessageCallback;
 
     autoBind(this);
   }
@@ -223,9 +244,18 @@ export class Consumer extends EventEmitter {
 
   private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceieveMessageResponse> {
     try {
-      return await this.sqs
+      if (this.preReceiveMessageCallback) {
+        await this.preReceiveMessageCallback();
+      }
+
+      const result = await this.sqs
         .receiveMessage(params)
         .promise();
+
+      if (this.postReceiveMessageCallback) {
+        await this.postReceiveMessageCallback();
+      }
+      return result;
     } catch (err) {
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
