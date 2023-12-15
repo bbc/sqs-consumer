@@ -25,6 +25,6 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm publish --provenance --access public --tag ${{ github.event.inputs.releaseType || 'canary' }}
+      - run: npm publish --provenance --access public --tag ${{ github.event.inputs.releaseType || 'stable' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
