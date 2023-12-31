@@ -153,9 +153,27 @@ export class Consumer extends TypedEventEmitter {
   /**
    * Returns the current polling state of the consumer: `true` if it is
    * actively polling, `false` if it is not.
+   * @deprecated Use getStatus instead, will be removed in v10
    */
   public get isRunning(): boolean {
     return !this.stopped;
+  }
+
+  /**
+   * Returns the current status of the consumer, including whether it is
+   * actively running, the current polling status, and the number of
+   * concurrent executions.
+   */
+  public get getStatus(): {
+    isRunning: boolean;
+    pollingStatus: POLLING_STATUS;
+    concurrentExecutions: number;
+  } {
+    return {
+      isRunning: this.isRunning,
+      pollingStatus: this.pollingStatus,
+      concurrentExecutions: this.concurrentExecutions
+    };
   }
 
   /**
@@ -306,12 +324,6 @@ export class Consumer extends TypedEventEmitter {
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
     if (hasMessages(response)) {
-      const handlerProcessingDebugger = setInterval(() => {
-        logger.debug('handler_processing', {
-          detail: 'The handler is still processing the message(s)...'
-        });
-      }, 1000);
-
       this.concurrentExecutions += 1;
 
       if (this.handleMessageBatch) {
@@ -321,8 +333,6 @@ export class Consumer extends TypedEventEmitter {
       }
 
       this.concurrentExecutions -= 1;
-
-      clearInterval(handlerProcessingDebugger);
 
       this.emit('response_processed');
     } else if (response) {

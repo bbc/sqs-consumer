@@ -1508,6 +1508,26 @@ describe('Consumer', () => {
     });
   });
 
+  describe('getStatus', async () => {
+    it('returns the status of the consumer when it is stopped', () => {
+      assert.equal(consumer.getStatus(), {
+        isRunning: false,
+        pollingStatus: 'stopped',
+        concurrentExecutions: 0
+      });
+    });
+
+    it('returns the status of the consumer when it is running', () => {
+      consumer.start();
+      assert.equal(consumer.getStatus(), {
+        isRunning: true,
+        pollingStatus: 'running',
+        concurrentExecutions: 1
+      });
+      consumer.stop();
+    });
+  });
+
   describe('updateOption', async () => {
     it('updates the visibilityTimeout option and emits an event', () => {
       const optionUpdatedListener = sandbox.stub();
@@ -1702,34 +1722,6 @@ describe('Consumer', () => {
       sandbox.assert.calledWithMatch(loggerDebug, 'polling');
       sandbox.assert.calledWithMatch(loggerDebug, 'stopping');
       sandbox.assert.calledWithMatch(loggerDebug, 'stopped');
-    });
-
-    it('logs a debug event while the handler is processing, for every second', async () => {
-      const loggerDebug = sandbox.stub(logger, 'debug');
-      const clearIntervalSpy = sinon.spy(global, 'clearInterval');
-
-      sqs.send.withArgs(mockReceiveMessage).resolves({
-        Messages: [
-          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
-        ]
-      });
-      consumer = new Consumer({
-        queueUrl: QUEUE_URL,
-        region: REGION,
-        handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 4000)),
-        sqs
-      });
-
-      consumer.start();
-      await Promise.all([clock.tickAsync(5000)]);
-      sandbox.assert.calledOnce(clearIntervalSpy);
-      consumer.stop();
-
-      sandbox.assert.callCount(loggerDebug, 15);
-      sandbox.assert.calledWith(loggerDebug, 'handler_processing', {
-        detail: 'The handler is still processing the message(s)...'
-      });
     });
   });
 });
