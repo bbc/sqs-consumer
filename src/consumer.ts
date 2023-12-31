@@ -18,6 +18,7 @@ import {
 } from '@aws-sdk/client-sqs';
 
 import { ConsumerOptions, StopOptions, UpdatableOptions } from './types';
+import { POLLING_STATUS } from './constants';
 import { TypedEventEmitter } from './emitter';
 import { autoBind } from './bind';
 import {
@@ -49,6 +50,9 @@ export class Consumer extends TypedEventEmitter {
   private shouldDeleteMessages: boolean;
   private alwaysAcknowledge: boolean;
   private batchSize: number;
+  private concurrency: number;
+  private concurrentExecutions: number;
+  private pollingStatus: POLLING_STATUS;
   private visibilityTimeout: number;
   private terminateVisibilityTimeout: boolean;
   private waitTimeSeconds: number;
@@ -69,6 +73,7 @@ export class Consumer extends TypedEventEmitter {
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
     this.batchSize = options.batchSize || 1;
+    this.concurrency = options.concurrency ?? 1;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout =
       options.terminateVisibilityTimeout || false;
@@ -146,7 +151,8 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
-   * Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
+   * Returns the current polling state of the consumer: `true` if it is
+   * actively polling, `false` if it is not.
    */
   public get isRunning(): boolean {
     return !this.stopped;
@@ -186,19 +192,49 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
+   * Queue a poll to be executed after a timeout
+   * @param timeout The timeout to wait before polling
+   * @returns The timeout id
+   */
+  private queuePoll(timeout?: number) {
+    if (this.pollingStatus !== POLLING_STATUS.WAITING) {
+      this.pollingStatus = POLLING_STATUS.WAITING;
+      if (this.pollingTimeoutId) {
+        clearTimeout(this.pollingTimeoutId);
+      }
+      this.pollingTimeoutId = setTimeout(this.poll, timeout);
+    }
+  }
+
+  /**
    * Poll for new messages from SQS
    */
   private poll(): void {
     if (this.stopped) {
+      this.pollingStatus = POLLING_STATUS.INACTIVE;
       logger.debug('cancelling_poll', {
         detail: 'Poll was called while consumer was stopped, cancelling poll...'
       });
       return;
     }
 
-    logger.debug('polling');
-
     let currentPollingTimeout = this.pollingWaitTimeMs;
+
+    const isConcurrencyReached = this.concurrentExecutions >= this.concurrency;
+
+    if (isConcurrencyReached) {
+      logger.debug('reached_concurrency_limit', {
+        detail:
+          'The concurrency limit has been reached. Pausing before retrying.'
+      });
+      this.pollingStatus = POLLING_STATUS.READY;
+      this.queuePoll(currentPollingTimeout);
+      return;
+    }
+
+    logger.debug('polling');
+    this.pollingStatus = POLLING_STATUS.ACTIVE;
+
     this.receiveMessage({
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
@@ -207,6 +243,10 @@ export class Consumer extends TypedEventEmitter {
       WaitTimeSeconds: this.waitTimeSeconds,
       VisibilityTimeout: this.visibilityTimeout
     })
+      .then((response) => {
+        this.queuePoll(currentPollingTimeout);
+        return response;
+      })
       .then(this.handleSqsResponse)
       .catch((err) => {
         this.emitError(err);
@@ -220,13 +260,15 @@ export class Consumer extends TypedEventEmitter {
         return;
       })
       .then(() => {
-        if (this.pollingTimeoutId) {
-          clearTimeout(this.pollingTimeoutId);
-        }
-        this.pollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
+        this.queuePoll(currentPollingTimeout);
       })
       .catch((err) => {
         this.emitError(err);
+      })
+      .finally(() => {
+        if (this.pollingStatus === POLLING_STATUS.ACTIVE) {
+          this.pollingStatus = POLLING_STATUS.INACTIVE;
+        }
       });
   }
 
@@ -270,11 +312,15 @@ export class Consumer extends TypedEventEmitter {
         });
       }, 1000);
 
+      this.concurrentExecutions += 1;
+
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
         await Promise.all(response.Messages.map(this.processMessage));
       }
+
+      this.concurrentExecutions -= 1;
 
       clearInterval(handlerProcessingDebugger);
 

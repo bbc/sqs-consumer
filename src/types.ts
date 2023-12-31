@@ -27,6 +27,11 @@ export interface ConsumerOptions {
    */
   batchSize?: number;
   /**
+   * The number of messages (or batches if `handleMessageBatch` is set) to
+   * process concurrently.
+   */
+  concurrency?: number;
+  /**
    * The duration (in seconds) that the received messages are hidden from subsequent
    * retrieve requests after being retrieved by a ReceiveMessage request.
    */

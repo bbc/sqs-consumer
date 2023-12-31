@@ -20,6 +20,11 @@ function validateOption(
         throw new Error('batchSize must be between 1 and 10.');
       }
       break;
+    case 'concurrency':
+      if (value < 1) {
+        throw new Error('concurrency must be greater than 0.');
+      }
+      break;
     case 'heartbeatInterval':
       if (
         !allOptions.visibilityTimeout ||
@@ -74,6 +79,9 @@ function assertOptions(options: ConsumerOptions): void {
 
   if (options.batchSize) {
     validateOption('batchSize', options.batchSize, options);
+  }
+  if (options.concurrency) {
+    validateOption('concurrency', options.concurrency, options);
   }
   if (options.heartbeatInterval) {
     validateOption('heartbeatInterval', options.heartbeatInterval, options);
