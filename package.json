@@ -40,6 +40,9 @@
     "consumer"
   ],
   "license": "Apache-2.0",
+  "publishConfig": {
+    "provenance": true
+  },
   "release": {
     "branches": [
       "main",
