@@ -6,8 +6,7 @@ export interface ConsumerOptions {
    */
   queueUrl: string;
   /**
-   * List of queue attributes to retrieve (i.e.
-   * `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
+   * List of queue attributes to retrieve, see [AWS docs](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-sqs/Variable/QueueAttributeName/).
    * @defaultvalue `[]`
    */
   attributeNames?: QueueAttributeName[];
