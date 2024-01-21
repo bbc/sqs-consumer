@@ -1,0 +1,40 @@
+name: Semantic Version and Create GitHub Release
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm version ${{ github.event.inputs.releaseType || 'latest' }}
+      - name: Generate Git Tag
+        id: generate_tag
+        run: |
+          VERSION_PREFIX="v"
+          VERSION_MAJOR_MINOR="1.0"
+          VERSION_PATCH=$(git tag --list "${VERSION_PREFIX}${VERSION_MAJOR_MINOR}.*" --sort=-version:refname | head -n 1 | grep -oE '[0-9]+$')
+          if [ -z "$VERSION_PATCH" ]; then
+            VERSION_PATCH=0
+          else
+            VERSION_PATCH=$((VERSION_PATCH + 1))
+          fi
+          NEW_TAG="${VERSION_PREFIX}${VERSION_MAJOR_MINOR}.${VERSION_PATCH}"
+          echo "Generated new tag: $NEW_TAG"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+      - name: Push Git Tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
