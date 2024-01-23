@@ -141,6 +141,20 @@ export interface StopOptions {
    * @defaultvalue `false`
    */
   abort?: boolean;
+
+  /**
+   * Default to `false`, if you want the stop action to wait for in-flight messages
+   * to be processed before emitting 'stopped' set this to `true`.
+   * @defaultvalue `false`
+   */
+  waitForInFlightMessages?: boolean;
+
+  /**
+   * if `waitForInFlightMessages` is set to `true`, this option will be used to
+   * determine how long to wait for in-flight messages to be processed before
+   * emitting 'stopped'.
+   */
+  waitTimeoutMs?: number;
 }
 
 export interface Events {
