@@ -143,18 +143,11 @@ export interface StopOptions {
   abort?: boolean;
 
   /**
-   * Default to `false`, if you want the stop action to wait for in-flight messages
-   * to be processed before emitting 'stopped' set this to `true`.
-   * @defaultvalue `false`
+   * If you want the stop action to wait for the final poll to complete and in-flight messages
+   * to be processed before emitting 'stopped' set this to the max amount of time to wait.
+   * @defaultvalue `undefined`
    */
-  waitForInFlightMessages?: boolean;
-
-  /**
-   * if `waitForInFlightMessages` is set to `true`, this option will be used to
-   * determine how long to wait for in-flight messages to be processed before
-   * emitting 'stopped'.
-   */
-  waitTimeoutMs?: number;
+  waitForInFlightMessagesMs?: number;
 }
 
 export interface Events {

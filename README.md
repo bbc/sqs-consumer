@@ -125,9 +125,13 @@ By default, the value of `abort` is set to `false` which means pre existing requ
 
 `consumer.stop({ abort: true })`
 
-Optionally, you can wait for any in flight messages to complete before stopping the consumer by passing `waitForInFlightMessages: true` in the options object.
+Optionally, you can wait for in flight messages to complete before stopping the consumer
+by passing a timeout `waitForInFlightMessagesMs` in the options object.
 
-`consumer.stop({ waitForInFlightMessages: true, waitTimeMs: 30000 });`
+This will allow the final in-progress `poll` to complete as well as any messages received during that poll.
+Be sure to account for the polling `waitTimeSeconds` plus any message processing time you want to allow.
+
+`consumer.stop({ waitForInFlightMessagesMs: 30000 });`
 
 ### `consumer.isRunning`
 

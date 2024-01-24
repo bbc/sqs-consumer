@@ -55,7 +55,7 @@ export class Consumer extends TypedEventEmitter {
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private heartbeatInterval: number;
-  private areMessagesInFlight: boolean;
+  private isPolling: boolean;
   public abortController: AbortController;
 
   constructor(options: ConsumerOptions) {
@@ -143,12 +143,12 @@ export class Consumer extends TypedEventEmitter {
       this.emit('aborted');
     }
 
-    if (options?.waitForInFlightMessages) {
-      this.waitForInFlightMessagesToComplete(options?.waitTimeoutMs || 0).then(
-        () => {
-          this.emit('stopped');
-        }
-      );
+    if (options?.waitForInFlightMessagesMs > 0) {
+      this.waitForInFlightMessagesToComplete(
+        options.waitForInFlightMessagesMs
+      ).then(() => {
+        this.emit('stopped');
+      });
     } else {
       this.emit('stopped');
     }
@@ -163,8 +163,8 @@ export class Consumer extends TypedEventEmitter {
     waitTimeoutMs: number
   ): Promise<void> {
     const startedAt = Date.now();
-    while (this.areMessagesInFlight) {
-      if (waitTimeoutMs && Date.now() - startedAt > waitTimeoutMs) {
+    while (this.isPolling) {
+      if (Date.now() - startedAt > waitTimeoutMs) {
         logger.debug(
           'waiting_for_in_flight_messages_to_complete_wait_timeout_exceeded'
         );
@@ -228,6 +228,8 @@ export class Consumer extends TypedEventEmitter {
 
     logger.debug('polling');
 
+    this.isPolling = true;
+
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
@@ -257,6 +259,9 @@ export class Consumer extends TypedEventEmitter {
       })
       .catch((err) => {
         this.emitError(err);
+      })
+      .finally(() => {
+        this.isPolling = false;
       });
   }
 
@@ -300,8 +305,6 @@ export class Consumer extends TypedEventEmitter {
         });
       }, 1000);
 
-      this.areMessagesInFlight = true;
-
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
@@ -311,7 +314,6 @@ export class Consumer extends TypedEventEmitter {
       clearInterval(handlerProcessingDebugger);
 
       this.emit('response_processed');
-      this.areMessagesInFlight = false;
     } else if (response) {
       this.emit('empty');
     }

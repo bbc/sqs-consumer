@@ -1482,7 +1482,7 @@ describe('Consumer', () => {
       sandbox.assert.calledOnce(handleStop);
     });
 
-    it('waits for in-flight messages before emitting stopped (no timeout)', async () => {
+    it('waits for in-flight messages before emitting stopped (within timeout)', async () => {
       const handleStop = sandbox.stub().returns(null);
       const handleResponseProcessed = sandbox.stub().returns(null);
 
@@ -1504,7 +1504,7 @@ describe('Consumer', () => {
 
       consumer.start();
       await clock.nextAsync();
-      consumer.stop({ waitForInFlightMessages: true });
+      consumer.stop({ waitForInFlightMessagesMs: 5000 });
 
       await clock.runAllAsync();
 
@@ -1540,7 +1540,7 @@ describe('Consumer', () => {
 
       consumer.start();
       await clock.nextAsync();
-      consumer.stop({ waitForInFlightMessages: true, waitTimeoutMs: 500 });
+      consumer.stop({ waitForInFlightMessagesMs: 500 });
 
       await clock.runAllAsync();
 
