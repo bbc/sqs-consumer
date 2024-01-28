@@ -146,9 +146,7 @@ export class Consumer extends TypedEventEmitter {
     }
 
     if (this.pollingCompleteWaitTimeMs > 0) {
-      this.waitForInFlightMessagesToComplete(
-        this.pollingCompleteWaitTimeMs
-      ).then(() => {
+      this.waitForPollingToComplete(this.pollingCompleteWaitTimeMs).then(() => {
         this.emit('stopped');
       });
     } else {
@@ -161,9 +159,7 @@ export class Consumer extends TypedEventEmitter {
    * @param {number} waitTimeoutMs
    * @private
    */
-  private async waitForInFlightMessagesToComplete(
-    waitTimeoutMs: number
-  ): Promise<void> {
+  private async waitForPollingToComplete(waitTimeoutMs: number): Promise<void> {
     const startedAt = Date.now();
     while (this.isPolling) {
       if (Date.now() - startedAt > waitTimeoutMs) {
