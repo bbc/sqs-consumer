@@ -57,6 +57,7 @@ export class Consumer extends TypedEventEmitter {
   private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
   private isPolling: boolean;
+  private beganWaitingForStop: number;
   public abortController: AbortController;
 
   constructor(options: ConsumerOptions) {
@@ -145,32 +146,30 @@ export class Consumer extends TypedEventEmitter {
       this.emit('aborted');
     }
 
-    if (this.pollingCompleteWaitTimeMs > 0) {
-      this.waitForPollingToComplete(this.pollingCompleteWaitTimeMs).then(() => {
-        this.emit('stopped');
-      });
-    } else {
-      this.emit('stopped');
-    }
+    this.beganWaitingForStop = Date.now();
+    this.waitForPollingToComplete();
   }
 
   /**
-   * Wait for in flight messages to complete.
-   * @param {number} waitTimeoutMs
+   * Wait for final poll and in flight messages to complete.
    * @private
    */
-  private async waitForPollingToComplete(waitTimeoutMs: number): Promise<void> {
-    const startedAt = Date.now();
-    while (this.isPolling) {
-      if (Date.now() - startedAt > waitTimeoutMs) {
-        logger.debug(
-          'waiting_for_in_flight_messages_to_complete_wait_timeout_exceeded'
-        );
-        return;
-      }
-      logger.debug('waiting_for_in_flight_messages_to_complete');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+  private waitForPollingToComplete(): void {
+    if (!this.isPolling || !(this.pollingCompleteWaitTimeMs > 0)) {
+      this.emit('stopped');
+      return;
     }
+
+    const exceededTimeout =
+      Date.now() - this.beganWaitingForStop > this.pollingCompleteWaitTimeMs;
+    if (exceededTimeout) {
+      logger.debug('waiting_for_polling_to_complete_timeout_exceeded');
+      this.emit('stopped');
+      return;
+    }
+
+    logger.debug('waiting_for_polling_to_complete');
+    setTimeout(this.waitForPollingToComplete, 1000);
   }
 
   /**
