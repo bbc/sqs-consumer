@@ -1496,6 +1496,7 @@ describe('Consumer', () => {
         region: REGION,
         handleMessage,
         sqs,
+        pollingCompleteWaitTimeMs: 5000,
         authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
       });
 
@@ -1504,7 +1505,7 @@ describe('Consumer', () => {
 
       consumer.start();
       await clock.nextAsync();
-      consumer.stop({ waitForInFlightMessagesMs: 5000 });
+      consumer.stop();
 
       await clock.runAllAsync();
 
@@ -1532,6 +1533,7 @@ describe('Consumer', () => {
         region: REGION,
         handleMessage,
         sqs,
+        pollingCompleteWaitTimeMs: 500,
         authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
       });
 
@@ -1540,7 +1542,7 @@ describe('Consumer', () => {
 
       consumer.start();
       await clock.nextAsync();
-      consumer.stop({ waitForInFlightMessagesMs: 500 });
+      consumer.stop();
 
       await clock.runAllAsync();
 

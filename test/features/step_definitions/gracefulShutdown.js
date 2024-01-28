@@ -29,7 +29,7 @@ Given('Several messages are sent to the SQS queue', async () => {
 Then('the application is stopped while messages are in flight', async () => {
   consumer.start();
 
-  consumer.stop({ waitForInFlightMessagesMs: 5000 });
+  consumer.stop();
 
   assert.strictEqual(consumer.isRunning, false);
 });

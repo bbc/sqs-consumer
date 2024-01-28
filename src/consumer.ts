@@ -54,6 +54,7 @@ export class Consumer extends TypedEventEmitter {
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
+  private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
   private isPolling: boolean;
   public abortController: AbortController;
@@ -78,6 +79,7 @@ export class Consumer extends TypedEventEmitter {
     this.authenticationErrorTimeout =
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
+    this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.sqs =
@@ -143,9 +145,9 @@ export class Consumer extends TypedEventEmitter {
       this.emit('aborted');
     }
 
-    if (options?.waitForInFlightMessagesMs > 0) {
+    if (this.pollingCompleteWaitTimeMs > 0) {
       this.waitForInFlightMessagesToComplete(
-        options.waitForInFlightMessagesMs
+        this.pollingCompleteWaitTimeMs
       ).then(() => {
         this.emit('stopped');
       });
