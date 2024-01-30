@@ -57,7 +57,7 @@ export class Consumer extends TypedEventEmitter {
   private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
   private isPolling: boolean;
-  private beganWaitingForStop: number;
+  private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
 
   constructor(options: ConsumerOptions) {
@@ -146,7 +146,7 @@ export class Consumer extends TypedEventEmitter {
       this.emit('aborted');
     }
 
-    this.beganWaitingForStop = Date.now();
+    this.stopRequestedAtTimestamp = Date.now();
     this.waitForPollingToComplete();
   }
 
@@ -161,7 +161,8 @@ export class Consumer extends TypedEventEmitter {
     }
 
     const exceededTimeout =
-      Date.now() - this.beganWaitingForStop > this.pollingCompleteWaitTimeMs;
+      Date.now() - this.stopRequestedAtTimestamp >
+      this.pollingCompleteWaitTimeMs;
     if (exceededTimeout) {
       logger.debug('waiting_for_polling_to_complete_timeout_exceeded');
       this.emit('stopped');
