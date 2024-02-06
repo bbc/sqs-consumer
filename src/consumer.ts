@@ -56,7 +56,7 @@ export class Consumer extends TypedEventEmitter {
   private pollingWaitTimeMs: number;
   private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
-  private isPolling: boolean;
+  private isPolling = false;
   private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
 
@@ -174,10 +174,17 @@ export class Consumer extends TypedEventEmitter {
   }
 
   /**
-   * Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
+   * Returns the current status of the consumer.
+   * This includes whether it is running or currently polling.
    */
-  public get isRunning(): boolean {
-    return !this.stopped;
+  public get status(): {
+    isRunning: boolean;
+    isPolling: boolean;
+  } {
+    return {
+      isRunning: !this.stopped,
+      isPolling: this.isPolling
+    };
   }
 
   /**
@@ -297,19 +304,11 @@ export class Consumer extends TypedEventEmitter {
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
     if (hasMessages(response)) {
-      const handlerProcessingDebugger = setInterval(() => {
-        logger.debug('handler_processing', {
-          detail: 'The handler is still processing the message(s)...'
-        });
-      }, 1000);
-
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
         await Promise.all(response.Messages.map(this.processMessage));
       }
-
-      clearInterval(handlerProcessingDebugger);
 
       this.emit('response_processed');
     } else if (response) {

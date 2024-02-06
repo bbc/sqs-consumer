@@ -1221,7 +1221,7 @@ describe('Consumer', () => {
           VisibilityTimeout: 40
         })
       );
-      sandbox.assert.calledTwice(clearIntervalSpy);
+      sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
     it('passes in the correct visibility timeout for long running batch handler functions', async () => {
@@ -1305,7 +1305,7 @@ describe('Consumer', () => {
           ]
         })
       );
-      sandbox.assert.calledTwice(clearIntervalSpy);
+      sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
     it('emit error when changing visibility timeout fails', async () => {
@@ -1556,17 +1556,44 @@ describe('Consumer', () => {
     });
   });
 
-  describe('isRunning', async () => {
-    it('returns true if the consumer is polling', () => {
+  describe('status', async () => {
+    it('returns the defaults before the consumer is started', () => {
+      assert.isFalse(consumer.status.isRunning);
+      assert.isFalse(consumer.status.isPolling);
+    });
+
+    it('returns true for `isRunning` if the consumer has not been stopped', () => {
       consumer.start();
-      assert.isTrue(consumer.isRunning);
+      assert.isTrue(consumer.status.isRunning);
       consumer.stop();
     });
 
-    it('returns false if the consumer is not polling', () => {
+    it('returns false for `isRunning` if the consumer has been stopped', () => {
       consumer.start();
       consumer.stop();
-      assert.isFalse(consumer.isRunning);
+      assert.isFalse(consumer.status.isRunning);
+    });
+
+    it('returns true for `isPolling` if the consumer is polling for messages', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 20)),
+        sqs
+      });
+
+      consumer.start();
+      await Promise.all([clock.tickAsync(1)]);
+      assert.isTrue(consumer.status.isPolling);
+      consumer.stop();
+      assert.isTrue(consumer.status.isPolling);
+      await Promise.all([clock.tickAsync(21)]);
+      assert.isFalse(consumer.status.isPolling);
     });
   });
 
@@ -1740,34 +1767,6 @@ describe('Consumer', () => {
       sandbox.assert.calledWithMatch(loggerDebug, 'polling');
       sandbox.assert.calledWithMatch(loggerDebug, 'stopping');
       sandbox.assert.calledWithMatch(loggerDebug, 'stopped');
-    });
-
-    it('logs a debug event while the handler is processing, for every second', async () => {
-      const loggerDebug = sandbox.stub(logger, 'debug');
-      const clearIntervalSpy = sinon.spy(global, 'clearInterval');
-
-      sqs.send.withArgs(mockReceiveMessage).resolves({
-        Messages: [
-          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
-        ]
-      });
-      consumer = new Consumer({
-        queueUrl: QUEUE_URL,
-        region: REGION,
-        handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 4000)),
-        sqs
-      });
-
-      consumer.start();
-      await Promise.all([clock.tickAsync(5000)]);
-      sandbox.assert.calledOnce(clearIntervalSpy);
-      consumer.stop();
-
-      sandbox.assert.callCount(loggerDebug, 15);
-      sandbox.assert.calledWith(loggerDebug, 'handler_processing', {
-        detail: 'The handler is still processing the message(s)...'
-      });
     });
   });
 });

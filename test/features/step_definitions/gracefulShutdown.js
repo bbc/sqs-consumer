@@ -31,7 +31,7 @@ Then('the application is stopped while messages are in flight', async () => {
 
   consumer.stop();
 
-  assert.strictEqual(consumer.isRunning, false);
+  assert.strictEqual(consumer.status.isRunning, false);
 });
 
 Then(
