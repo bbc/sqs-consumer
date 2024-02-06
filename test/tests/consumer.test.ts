@@ -1481,6 +1481,79 @@ describe('Consumer', () => {
       sandbox.assert.calledOnce(handleAbort);
       sandbox.assert.calledOnce(handleStop);
     });
+
+    it('waits for in-flight messages before emitting stopped (within timeout)', async () => {
+      const handleStop = sandbox.stub().returns(null);
+      const handleResponseProcessed = sandbox.stub().returns(null);
+
+      // A slow message handler
+      handleMessage = sandbox.stub().callsFake(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        pollingCompleteWaitTimeMs: 5000,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.on('stopped', handleStop);
+      consumer.on('response_processed', handleResponseProcessed);
+
+      consumer.start();
+      await clock.nextAsync();
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledOnce(handleStop);
+      sandbox.assert.calledOnce(handleResponseProcessed);
+      sandbox.assert.calledOnce(handleMessage);
+      assert.ok(handleMessage.calledBefore(handleStop));
+
+      // handleResponseProcessed is called after handleMessage, indicating
+      // messages were allowed to complete before 'stopped' was emitted
+      assert.ok(handleResponseProcessed.calledBefore(handleStop));
+    });
+
+    it('waits for in-flight messages before emitting stopped (timeout reached)', async () => {
+      const handleStop = sandbox.stub().returns(null);
+      const handleResponseProcessed = sandbox.stub().returns(null);
+
+      // A slow message handler
+      handleMessage = sandbox.stub().callsFake(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        pollingCompleteWaitTimeMs: 500,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.on('stopped', handleStop);
+      consumer.on('response_processed', handleResponseProcessed);
+
+      consumer.start();
+      await clock.nextAsync();
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledOnce(handleStop);
+      sandbox.assert.calledOnce(handleResponseProcessed);
+      sandbox.assert.calledOnce(handleMessage);
+      assert(handleMessage.calledBefore(handleStop));
+
+      // Stop was called before the message could be processed, because we reached timeout.
+      assert(handleStop.calledBefore(handleResponseProcessed));
+    });
   });
 
   describe('isRunning', async () => {

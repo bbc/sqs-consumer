@@ -54,7 +54,10 @@ export class Consumer extends TypedEventEmitter {
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
+  private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
+  private isPolling: boolean;
+  private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
 
   constructor(options: ConsumerOptions) {
@@ -77,6 +80,7 @@ export class Consumer extends TypedEventEmitter {
     this.authenticationErrorTimeout =
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
+    this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.sqs =
@@ -142,7 +146,31 @@ export class Consumer extends TypedEventEmitter {
       this.emit('aborted');
     }
 
-    this.emit('stopped');
+    this.stopRequestedAtTimestamp = Date.now();
+    this.waitForPollingToComplete();
+  }
+
+  /**
+   * Wait for final poll and in flight messages to complete.
+   * @private
+   */
+  private waitForPollingToComplete(): void {
+    if (!this.isPolling || !(this.pollingCompleteWaitTimeMs > 0)) {
+      this.emit('stopped');
+      return;
+    }
+
+    const exceededTimeout =
+      Date.now() - this.stopRequestedAtTimestamp >
+      this.pollingCompleteWaitTimeMs;
+    if (exceededTimeout) {
+      logger.debug('waiting_for_polling_to_complete_timeout_exceeded');
+      this.emit('stopped');
+      return;
+    }
+
+    logger.debug('waiting_for_polling_to_complete');
+    setTimeout(this.waitForPollingToComplete, 1000);
   }
 
   /**
@@ -198,6 +226,8 @@ export class Consumer extends TypedEventEmitter {
 
     logger.debug('polling');
 
+    this.isPolling = true;
+
     let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
@@ -227,6 +257,9 @@ export class Consumer extends TypedEventEmitter {
       })
       .catch((err) => {
         this.emitError(err);
+      })
+      .finally(() => {
+        this.isPolling = false;
       });
   }
 

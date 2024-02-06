@@ -47,6 +47,12 @@ export interface ConsumerOptions {
    */
   pollingWaitTimeMs?: number;
   /**
+   * If you want the stop action to wait for the final poll to complete and in-flight messages
+   * to be processed before emitting 'stopped' set this to the max amount of time to wait.
+   * @defaultvalue `0`
+   */
+  pollingCompleteWaitTimeMs?: number;
+  /**
    * If true, sets the message visibility timeout to 0 after a `processing_error`.
    * @defaultvalue `false`
    */
