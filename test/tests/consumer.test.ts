@@ -1221,7 +1221,7 @@ describe('Consumer', () => {
           VisibilityTimeout: 40
         })
       );
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      sandbox.assert.calledTwice(clearIntervalSpy);
     });
 
     it('passes in the correct visibility timeout for long running batch handler functions', async () => {
@@ -1305,7 +1305,7 @@ describe('Consumer', () => {
           ]
         })
       );
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      sandbox.assert.calledTwice(clearIntervalSpy);
     });
 
     it('emit error when changing visibility timeout fails', async () => {
@@ -1767,6 +1767,33 @@ describe('Consumer', () => {
       sandbox.assert.calledWithMatch(loggerDebug, 'polling');
       sandbox.assert.calledWithMatch(loggerDebug, 'stopping');
       sandbox.assert.calledWithMatch(loggerDebug, 'stopped');
+    });
+  });
+
+  it('logs a debug event while the handler is processing, for every second', async () => {
+    const loggerDebug = sandbox.stub(logger, 'debug');
+    const clearIntervalSpy = sinon.spy(global, 'clearInterval');
+
+    sqs.send.withArgs(mockReceiveMessage).resolves({
+      Messages: [
+        { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+      ]
+    });
+    consumer = new Consumer({
+      queueUrl: QUEUE_URL,
+      region: REGION,
+      handleMessage: () => new Promise((resolve) => setTimeout(resolve, 4000)),
+      sqs
+    });
+
+    consumer.start();
+    await Promise.all([clock.tickAsync(5000)]);
+    sandbox.assert.calledOnce(clearIntervalSpy);
+    consumer.stop();
+
+    sandbox.assert.callCount(loggerDebug, 15);
+    sandbox.assert.calledWith(loggerDebug, 'handler_processing', {
+      detail: 'The handler is still processing the message(s)...'
     });
   });
 });

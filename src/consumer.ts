@@ -304,11 +304,19 @@ export class Consumer extends TypedEventEmitter {
     response: ReceiveMessageCommandOutput
   ): Promise<void> {
     if (hasMessages(response)) {
+      const handlerProcessingDebugger = setInterval(() => {
+        logger.debug('handler_processing', {
+          detail: 'The handler is still processing the message(s)...'
+        });
+      }, 1000);
+
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
         await Promise.all(response.Messages.map(this.processMessage));
       }
+
+      clearInterval(handlerProcessingDebugger);
 
       this.emit('response_processed');
     } else if (response) {
