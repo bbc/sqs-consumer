@@ -1232,7 +1232,7 @@ describe('Consumer', () => {
           VisibilityTimeout: 40
         })
       );
-      sandbox.assert.calledTwice(clearIntervalSpy);
+      sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
     it('passes in the correct visibility timeout for long running batch handler functions', async () => {
@@ -1316,7 +1316,7 @@ describe('Consumer', () => {
           ]
         })
       );
-      sandbox.assert.calledTwice(clearIntervalSpy);
+      sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
     it('emit error when changing visibility timeout fails', async () => {
@@ -1492,19 +1492,152 @@ describe('Consumer', () => {
       sandbox.assert.calledOnce(handleAbort);
       sandbox.assert.calledOnce(handleStop);
     });
+
+    it('waits for in-flight messages before emitting stopped (within timeout)', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
+      const handleStop = sandbox.stub().returns(null);
+      const handleResponseProcessed = sandbox.stub().returns(null);
+      const waitingForPollingComplete = sandbox.stub().returns(null);
+      const waitingForPollingCompleteTimeoutExceeded = sandbox
+        .stub()
+        .returns(null);
+
+      // A slow message handler
+      handleMessage = sandbox
+        .stub()
+        .resolves(new Promise((resolve) => setTimeout(resolve, 5000)));
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        pollingCompleteWaitTimeMs: 5000,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.on('stopped', handleStop);
+      consumer.on('response_processed', handleResponseProcessed);
+      consumer.on('waiting_for_polling_to_complete', waitingForPollingComplete);
+      consumer.on(
+        'waiting_for_polling_to_complete_timeout_exceeded',
+        waitingForPollingCompleteTimeoutExceeded
+      );
+
+      consumer.start();
+      await Promise.all([clock.tickAsync(1)]);
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledOnce(handleStop);
+      sandbox.assert.calledOnce(handleResponseProcessed);
+      sandbox.assert.calledOnce(handleMessage);
+      assert(waitingForPollingComplete.callCount === 5);
+      assert(waitingForPollingCompleteTimeoutExceeded.callCount === 0);
+
+      assert.ok(handleMessage.calledBefore(handleStop));
+
+      // handleResponseProcessed is called after handleMessage, indicating
+      // messages were allowed to complete before 'stopped' was emitted
+      assert.ok(handleResponseProcessed.calledBefore(handleStop));
+    });
+
+    it('waits for in-flight messages before emitting stopped (timeout reached)', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
+      const handleStop = sandbox.stub().returns(null);
+      const handleResponseProcessed = sandbox.stub().returns(null);
+      const waitingForPollingComplete = sandbox.stub().returns(null);
+      const waitingForPollingCompleteTimeoutExceeded = sandbox
+        .stub()
+        .returns(null);
+
+      // A slow message handler
+      handleMessage = sandbox
+        .stub()
+        .resolves(new Promise((resolve) => setTimeout(resolve, 5000)));
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        pollingCompleteWaitTimeMs: 500,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT
+      });
+
+      consumer.on('stopped', handleStop);
+      consumer.on('response_processed', handleResponseProcessed);
+      consumer.on('waiting_for_polling_to_complete', waitingForPollingComplete);
+      consumer.on(
+        'waiting_for_polling_to_complete_timeout_exceeded',
+        waitingForPollingCompleteTimeoutExceeded
+      );
+
+      consumer.start();
+      await Promise.all([clock.tickAsync(1)]);
+      consumer.stop();
+
+      await clock.runAllAsync();
+
+      sandbox.assert.calledOnce(handleStop);
+      sandbox.assert.calledOnce(handleResponseProcessed);
+      sandbox.assert.calledOnce(handleMessage);
+      sandbox.assert.calledOnce(waitingForPollingComplete);
+      sandbox.assert.calledOnce(waitingForPollingCompleteTimeoutExceeded);
+      assert(handleMessage.calledBefore(handleStop));
+
+      // Stop was called before the message could be processed, because we reached timeout.
+      assert(handleStop.calledBefore(handleResponseProcessed));
+    });
   });
 
-  describe('isRunning', async () => {
-    it('returns true if the consumer is polling', () => {
+  describe('status', async () => {
+    it('returns the defaults before the consumer is started', () => {
+      assert.isFalse(consumer.status.isRunning);
+      assert.isFalse(consumer.status.isPolling);
+    });
+
+    it('returns true for `isRunning` if the consumer has not been stopped', () => {
       consumer.start();
-      assert.isTrue(consumer.isRunning);
+      assert.isTrue(consumer.status.isRunning);
       consumer.stop();
     });
 
-    it('returns false if the consumer is not polling', () => {
+    it('returns false for `isRunning` if the consumer has been stopped', () => {
       consumer.start();
       consumer.stop();
-      assert.isFalse(consumer.isRunning);
+      assert.isFalse(consumer.status.isRunning);
+    });
+
+    it('returns true for `isPolling` if the consumer is polling for messages', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 20)),
+        sqs
+      });
+
+      consumer.start();
+      await Promise.all([clock.tickAsync(1)]);
+      assert.isTrue(consumer.status.isPolling);
+      consumer.stop();
+      assert.isTrue(consumer.status.isPolling);
+      await Promise.all([clock.tickAsync(21)]);
+      assert.isFalse(consumer.status.isPolling);
     });
   });
 

@@ -58,7 +58,10 @@ export class Consumer extends TypedEventEmitter {
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
+  private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
+  private isPolling = false;
+  private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
 
   constructor(options: ConsumerOptions) {
@@ -82,6 +85,7 @@ export class Consumer extends TypedEventEmitter {
     this.authenticationErrorTimeout =
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
+    this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.sqs =
@@ -147,30 +151,47 @@ export class Consumer extends TypedEventEmitter {
       this.emit('aborted');
     }
 
-    this.emit('stopped');
+    this.stopRequestedAtTimestamp = Date.now();
+    this.waitForPollingToComplete();
   }
 
   /**
-   * Returns the current polling state of the consumer: `true` if it is
-   * actively polling, `false` if it is not.
-   * @deprecated Use getStatus instead, will be removed in v10
+   * Wait for final poll and in flight messages to complete.
+   * @private
    */
-  public get isRunning(): boolean {
-    return !this.stopped;
+  private waitForPollingToComplete(): void {
+    if (!this.isPolling || !(this.pollingCompleteWaitTimeMs > 0)) {
+      this.emit('stopped');
+      return;
+    }
+
+    const exceededTimeout =
+      Date.now() - this.stopRequestedAtTimestamp >
+      this.pollingCompleteWaitTimeMs;
+    if (exceededTimeout) {
+      this.emit('waiting_for_polling_to_complete_timeout_exceeded');
+      this.emit('stopped');
+      return;
+    }
+
+    this.emit('waiting_for_polling_to_complete');
+    setTimeout(this.waitForPollingToComplete, 1000);
   }
 
   /**
-   * Returns the current status of the consumer, including whether it is
-   * actively running, the current polling status, and the number of
-   * concurrent executions.
+   * Returns the current status of the consumer.
+   * This includes whether it is running or currently polling as well as the current
+   * number of concurrent executions and polling status.
    */
-  public get getStatus(): {
+  public get status(): {
     isRunning: boolean;
+    isPolling: boolean;
     pollingStatus: POLLING_STATUS;
     concurrentExecutions: number;
   } {
     return {
-      isRunning: this.isRunning,
+      isRunning: !this.stopped,
+      isPolling: this.isPolling,
       pollingStatus: this.pollingStatus,
       concurrentExecutions: this.concurrentExecutions
     };
@@ -236,6 +257,10 @@ export class Consumer extends TypedEventEmitter {
       return;
     }
 
+    logger.debug('polling');
+
+    this.isPolling = true;
+
     let currentPollingTimeout = this.pollingWaitTimeMs;
 
     const isConcurrencyReached = this.concurrentExecutions >= this.concurrency;
@@ -287,6 +312,7 @@ export class Consumer extends TypedEventEmitter {
         if (this.pollingStatus === POLLING_STATUS.ACTIVE) {
           this.pollingStatus = POLLING_STATUS.INACTIVE;
         }
+        this.isPolling = false;
       });
   }
 

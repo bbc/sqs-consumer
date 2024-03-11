@@ -6,8 +6,7 @@ export interface ConsumerOptions {
    */
   queueUrl: string;
   /**
-   * List of queue attributes to retrieve (i.e.
-   * `['All', 'ApproximateFirstReceiveTimestamp', 'ApproximateReceiveCount']`).
+   * List of queue attributes to retrieve, see [AWS docs](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-sqs/Variable/QueueAttributeName/).
    * @defaultvalue `[]`
    */
   attributeNames?: QueueAttributeName[];
@@ -52,6 +51,12 @@ export interface ConsumerOptions {
    * @defaultvalue `0`
    */
   pollingWaitTimeMs?: number;
+  /**
+   * If you want the stop action to wait for the final poll to complete and in-flight messages
+   * to be processed before emitting 'stopped' set this to the max amount of time to wait.
+   * @defaultvalue `0`
+   */
+  pollingCompleteWaitTimeMs?: number;
   /**
    * If true, sets the message visibility timeout to 0 after a `processing_error`.
    * @defaultvalue `false`
@@ -197,6 +202,14 @@ export interface Events {
    * Fired when an option is updated
    */
   option_updated: [UpdatableOptions, ConsumerOptions[UpdatableOptions]];
+  /**
+   * Fired when the Consumer is waiting for polling to complete before stopping.
+   */
+  waiting_for_polling_to_complete: [];
+  /**
+   * Fired when the Consumer has waited for polling to complete and is stopping due to a timeout.
+   */
+  waiting_for_polling_to_complete_timeout_exceeded: [];
 }
 
 export type AWSError = {

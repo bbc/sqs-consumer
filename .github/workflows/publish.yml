@@ -1,21 +1,13 @@
 name: Publish Package to npmjs
 on:
-  release:
-    types: [created]
   workflow_dispatch:
-    inputs:
-      releaseType:
-        description: latest or canary?
-        required: true
-        type: choice
-        options:
-          - canary
-          - latest
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      issues: write
+      pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +17,8 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm publish --provenance --access public --tag ${{ github.event.inputs.releaseType || 'latest' }}
+      - name: Release
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
