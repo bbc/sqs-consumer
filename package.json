@@ -21,7 +21,7 @@
     "lcov": "c8 mocha && c8 report --reporter=lcov",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --loglevel warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
+    "format": "prettier --log-level warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
     "format:check": "prettier --check \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
     "posttest": "npm run lint && npm run format:check",
     "generate-docs": "typedoc"

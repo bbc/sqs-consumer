@@ -1556,17 +1556,44 @@ describe('Consumer', () => {
     });
   });
 
-  describe('isRunning', async () => {
-    it('returns true if the consumer is polling', () => {
+  describe('status', async () => {
+    it('returns the defaults before the consumer is started', () => {
+      assert.isFalse(consumer.status.isRunning);
+      assert.isFalse(consumer.status.isPolling);
+    });
+
+    it('returns true for `isRunning` if the consumer has not been stopped', () => {
       consumer.start();
-      assert.isTrue(consumer.isRunning);
+      assert.isTrue(consumer.status.isRunning);
       consumer.stop();
     });
 
-    it('returns false if the consumer is not polling', () => {
+    it('returns false for `isRunning` if the consumer has been stopped', () => {
       consumer.start();
       consumer.stop();
-      assert.isFalse(consumer.isRunning);
+      assert.isFalse(consumer.status.isRunning);
+    });
+
+    it('returns true for `isPolling` if the consumer is polling for messages', async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: '1', ReceiptHandle: 'receipt-handle-1', Body: 'body-1' }
+        ]
+      });
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 20)),
+        sqs
+      });
+
+      consumer.start();
+      await Promise.all([clock.tickAsync(1)]);
+      assert.isTrue(consumer.status.isPolling);
+      consumer.stop();
+      assert.isTrue(consumer.status.isPolling);
+      await Promise.all([clock.tickAsync(21)]);
+      assert.isFalse(consumer.status.isPolling);
     });
   });
 

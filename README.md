@@ -125,9 +125,15 @@ By default, the value of `abort` is set to `false` which means pre existing requ
 
 `consumer.stop({ abort: true })`
 
-### `consumer.isRunning`
+### `consumer.status`
 
-Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
+Returns the current status of the consumer.
+
+- `isRunning` - `true` if the consumer has been started and not stopped, `false` if was not started or if it was stopped.
+- `isPolling` - `true` if the consumer is actively polling, `false` if it is not.
+
+> **Note:**
+> This method is not available in versions before v9.0.0 and replaced the method `isRunning` to supply both running and polling states.
 
 ### `consumer.updateOption(option, value)`
 
