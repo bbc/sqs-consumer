@@ -58,6 +58,10 @@
           "preset": "conventionalcommits",
           "releaseRules": [
             {
+              "type": "breaking",
+              "release": "major"
+            },
+            {
               "type": "feat",
               "release": "minor"
             },
