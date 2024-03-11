@@ -197,6 +197,14 @@ export interface Events {
    * Fired when an option is updated
    */
   option_updated: [UpdatableOptions, ConsumerOptions[UpdatableOptions]];
+  /**
+   * Fired when the Consumer is waiting for polling to complete before stopping.
+   */
+  waiting_for_polling_to_complete: [];
+  /**
+   * Fired when the Consumer has waited for polling to complete and is stopping due to a timeout.
+   */
+  waiting_for_polling_to_complete_timeout_exceeded: [];
 }
 
 export type AWSError = {
