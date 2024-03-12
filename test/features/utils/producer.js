@@ -1,11 +1,9 @@
-const { Producer } = require('sqs-producer');
+import { Producer } from "sqs-producer";
 
-const { QUEUE_URL, sqsConfig, sqs } = require('./sqs');
+import { QUEUE_URL, sqsConfig, sqs } from "./sqs.js";
 
-const producer = Producer.create({
+export const producer = Producer.create({
   queueUrl: QUEUE_URL,
   region: sqsConfig.region,
-  sqs
+  sqs,
 });
-
-exports.producer = producer;

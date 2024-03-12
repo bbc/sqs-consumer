@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es2017",
-    "module": "commonjs",
+    "target": "es2022",
+    "module": "esnext",
     "outDir": "dist",
     "sourceMap": false,
     "moduleResolution": "node",
