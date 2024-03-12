@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Use Bun ${{ matrix.bun-version }}
-        uses: actions/setup-bun@vq
+        uses: actions/setup-bun@v1
         with:
           node-version: ${{ matrix.bun-version }}
           cache: 'bun'
