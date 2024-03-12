@@ -1,8 +1,8 @@
-const { Consumer } = require('../../../../dist/consumer');
+import { Consumer } from "../../../../dist/consumer.js";
 
-const { QUEUE_URL, sqs } = require('../sqs');
+import { QUEUE_URL, sqs } from "../sqs.js";
 
-const consumer = Consumer.create({
+export const consumer = Consumer.create({
   queueUrl: QUEUE_URL,
   sqs,
   pollingWaitTimeMs: 1000,
@@ -11,7 +11,5 @@ const consumer = Consumer.create({
   handleMessage: async (message) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     return message;
-  }
+  },
 });
-
-exports.consumer = consumer;

@@ -33,20 +33,20 @@ Visit [https://bbc.github.io/sqs-consumer/](https://bbc.github.io/sqs-consumer/)
 ## Usage
 
 ```js
-import { Consumer } from 'sqs-consumer';
+import { Consumer } from "sqs-consumer";
 
 const app = Consumer.create({
-  queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
+  queueUrl: "https://sqs.eu-west-1.amazonaws.com/account-id/queue-name",
   handleMessage: async (message) => {
     // do some work with `message`
-  }
+  },
 });
 
-app.on('error', (err) => {
+app.on("error", (err) => {
   console.error(err.message);
 });
 
-app.on('processing_error', (err) => {
+app.on("processing_error", (err) => {
   console.error(err.message);
 });
 
@@ -75,32 +75,32 @@ export AWS_ACCESS_KEY_ID=...
 If you need to specify your credentials manually, you can use a pre-configured instance of the [SQS Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/classes/sqsclient.html) client.
 
 ```js
-import { Consumer } from 'sqs-consumer';
-import { SQSClient } from '@aws-sdk/client-sqs';
+import { Consumer } from "sqs-consumer";
+import { SQSClient } from "@aws-sdk/client-sqs";
 
 const app = Consumer.create({
-  queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
+  queueUrl: "https://sqs.eu-west-1.amazonaws.com/account-id/queue-name",
   handleMessage: async (message) => {
     // ...
   },
   sqs: new SQSClient({
-    region: 'my-region',
+    region: "my-region",
     credentials: {
-      accessKeyId: 'yourAccessKey',
-      secretAccessKey: 'yourSecret'
-    }
-  })
+      accessKeyId: "yourAccessKey",
+      secretAccessKey: "yourSecret",
+    },
+  }),
 });
 
-app.on('error', (err) => {
+app.on("error", (err) => {
   console.error(err.message);
 });
 
-app.on('processing_error', (err) => {
+app.on("processing_error", (err) => {
   console.error(err.message);
 });
 
-app.on('timeout_error', (err) => {
+app.on("timeout_error", (err) => {
   console.error(err.message);
 });
 

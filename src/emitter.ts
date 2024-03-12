@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "node:events";
 
-import { logger } from './logger';
-import { Events } from './types';
+import { logger } from "./logger.js";
+import { Events } from "./types.js";
 
 export class TypedEventEmitter extends EventEmitter {
   /**
@@ -11,7 +11,7 @@ export class TypedEventEmitter extends EventEmitter {
    */
   on<E extends keyof Events>(
     event: E,
-    listener: (...args: Events[E]) => void
+    listener: (...args: Events[E]) => void,
   ): this {
     return super.on(event, listener);
   }
@@ -22,7 +22,7 @@ export class TypedEventEmitter extends EventEmitter {
    */
   once<E extends keyof Events>(
     event: E,
-    listener: (...args: Events[E]) => void
+    listener: (...args: Events[E]) => void,
   ): this {
     return super.once(event, listener);
   }
