@@ -1,0 +1,32 @@
+name: Run Tests - Bun
+on:
+  pull_request:
+    branches:
+      - 'main'
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        bun-version: [1.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Bun ${{ matrix.bun-version }}
+        uses: actions/setup-bun@vq
+        with:
+          node-version: ${{ matrix.bun-version }}
+          cache: 'bun'
+
+      - name: Install
+        run: bun install
+
+      - name: Run Tests
+        run: bun test

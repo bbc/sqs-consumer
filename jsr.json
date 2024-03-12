@@ -1,0 +1,5 @@
+{
+  "name": "@bbc/sqs-consumer",
+  "version": "9.1.0",
+  "exports": "./src/index.ts"
+}
