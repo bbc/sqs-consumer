@@ -77,6 +77,11 @@ export interface ConsumerOptions {
    */
   region?: string;
   /**
+   * If false uses the QueueUrl hostname as the endpoint.
+   * @defaultValue `true`
+   */
+  useQueueUrlAsEndpoint?: boolean;
+  /**
    * Time in ms to wait for `handleMessage` to process a message before timing out.
    *
    * Emits `timeout_error` on timeout. By default, if `handleMessage` times out,

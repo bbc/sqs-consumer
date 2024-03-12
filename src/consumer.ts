@@ -86,6 +86,7 @@ export class Consumer extends TypedEventEmitter {
     this.sqs =
       options.sqs ||
       new SQSClient({
+        useQueueUrlAsEndpoint: options.useQueueUrlAsEndpoint ?? true,
         region: options.region || process.env.AWS_REGION || 'eu-west-1'
       });
     autoBind(this);
