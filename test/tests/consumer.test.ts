@@ -485,6 +485,25 @@ describe('Consumer', () => {
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
     });
 
+    it('waits before repolling when a CredentialsProviderError error occurs', async () => {
+      const credentialsProviderErr = {
+        name: 'CredentialsProviderError',
+        message: 'Could not load credentials from any providers.'
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
+      const errorListener = sandbox.stub();
+      consumer.on('error', errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+    });
+
     it('waits before repolling when a polling timeout is set', async () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
