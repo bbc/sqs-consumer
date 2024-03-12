@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "esnext",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "outDir": "dist",
     "sourceMap": false,
-    "moduleResolution": "node",
     "allowJs": false,
     "noUnusedLocals": true,
     "declaration": true
