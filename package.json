@@ -3,16 +3,22 @@
   "version": "9.1.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "type": "module",
-  "main": "dist/index.js",
-  "exports": "./dist/index.js",
-  "types": "dist/index.d.ts",
+  "exports": {
+    "./*": {
+      "types": "./dist/types/*.d.ts",
+      "require": "./dist/cjs/*.js",
+      "import": "./dist/esm/*.js",
+      "default": "./dist/esm/*.js"
+    }
+  },
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "npm run clean && tsc",
-    "watch": "tsc --watch",
     "clean": "rm -fr dist/*",
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json",
+    "build": "npm run clean && npm run compile",
+    "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test:unit": "mocha --recursive --full-trace --exit",
     "pretest:integration:init": "npm run build",
