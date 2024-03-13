@@ -1,4 +1,4 @@
-import { Consumer } from "../../../../dist/consumer.js";
+import { Consumer } from "../../../../dist/esm/consumer.js";
 
 import { QUEUE_URL, sqs } from "../sqs.js";
 
