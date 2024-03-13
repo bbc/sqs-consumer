@@ -17,7 +17,8 @@
   "scripts": {
     "clean": "rm -fr dist/*",
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json",
-    "build": "npm run clean && npm run compile",
+    "add-package-jsons": "node ./scripts/addPackageJsons.js",
+    "build": "npm run clean && npm run compile && npm run add-package-jsons",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test:unit": "mocha --recursive --full-trace --exit",
