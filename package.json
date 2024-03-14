@@ -1,18 +1,25 @@
 {
   "name": "sqs-consumer",
-  "version": "9.1.0",
+  "version": "10.0.0-canary.2",
   "description": "Build SQS-based Node applications without the boilerplate",
   "type": "module",
-  "main": "dist/index.js",
-  "exports": "./dist/index.js",
-  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/esm/index.js"
+    }
+  },
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "npm run clean && tsc",
-    "watch": "tsc --watch",
     "clean": "rm -fr dist/*",
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json",
+    "add-package-jsons": "node ./scripts/addPackageJsons.js",
+    "build": "npm run clean && npm run compile && npm run add-package-jsons",
+    "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test:unit": "mocha --recursive --full-trace --exit",
     "pretest:integration:init": "npm run build",
@@ -43,7 +50,7 @@
   ],
   "license": "Apache-2.0",
   "publishConfig": {
-    "provenance": true
+    "provenance": false
   },
   "release": {
     "branches": [

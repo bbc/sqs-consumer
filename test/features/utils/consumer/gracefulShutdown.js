@@ -1,6 +1,6 @@
-import { Consumer } from "../../../../dist/consumer.js";
+import { Consumer } from '../../../../dist/esm/consumer.js';
 
-import { QUEUE_URL, sqs } from "../sqs.js";
+import { QUEUE_URL, sqs } from '../sqs.js';
 
 export const consumer = Consumer.create({
   queueUrl: QUEUE_URL,
@@ -11,5 +11,5 @@ export const consumer = Consumer.create({
   handleMessage: async (message) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     return message;
-  },
+  }
 });

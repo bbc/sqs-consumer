@@ -1,6 +1,6 @@
-import { Consumer } from "../../../../dist/consumer.js";
+import { Consumer } from '../../../../dist/esm/consumer.js';
 
-import { QUEUE_URL, sqs } from "../sqs.js";
+import { QUEUE_URL, sqs } from '../sqs.js';
 
 export const consumer = Consumer.create({
   queueUrl: QUEUE_URL,
@@ -8,5 +8,5 @@ export const consumer = Consumer.create({
   pollingWaitTimeMs: 100,
   handleMessage: async (message) => {
     return message;
-  },
+  }
 });
