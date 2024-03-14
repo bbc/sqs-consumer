@@ -5,5 +5,5 @@ export enum POLLING_STATUS {
   ACTIVE,
   WAITING,
   INACTIVE,
-  READY
+  READY,
 }
