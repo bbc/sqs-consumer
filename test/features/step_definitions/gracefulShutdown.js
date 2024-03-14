@@ -1,54 +1,54 @@
-const { Given, Then, After } = require('@cucumber/cucumber');
-const assert = require('assert');
-const { PurgeQueueCommand } = require('@aws-sdk/client-sqs');
-const pEvent = require('p-event');
+import { Given, Then, After } from "@cucumber/cucumber";
+import { strictEqual } from "node:assert";
+import { PurgeQueueCommand } from "@aws-sdk/client-sqs";
+import { pEvent } from "p-event";
 
-const { consumer } = require('../utils/consumer/gracefulShutdown');
-const { producer } = require('../utils/producer');
-const { sqs, QUEUE_URL } = require('../utils/sqs');
+import { consumer } from "../utils/consumer/gracefulShutdown.js";
+import { producer } from "../utils/producer.js";
+import { sqs, QUEUE_URL } from "../utils/sqs.js";
 
-Given('Several messages are sent to the SQS queue', async () => {
+Given("Several messages are sent to the SQS queue", async () => {
   const params = {
-    QueueUrl: QUEUE_URL
+    QueueUrl: QUEUE_URL,
   };
   const command = new PurgeQueueCommand(params);
   const response = await sqs.send(command);
 
-  assert.strictEqual(response['$metadata'].httpStatusCode, 200);
+  strictEqual(response["$metadata"].httpStatusCode, 200);
 
   const size = await producer.queueSize();
-  assert.strictEqual(size, 0);
+  strictEqual(size, 0);
 
-  await producer.send(['msg1', 'msg2', 'msg3']);
+  await producer.send(["msg1", "msg2", "msg3"]);
 
   const size2 = await producer.queueSize();
 
-  assert.strictEqual(size2, 3);
+  strictEqual(size2, 3);
 });
 
-Then('the application is stopped while messages are in flight', async () => {
+Then("the application is stopped while messages are in flight", async () => {
   consumer.start();
 
   consumer.stop();
 
-  assert.strictEqual(consumer.status.isRunning, false);
+  strictEqual(consumer.status.isRunning, false);
 });
 
 Then(
-  'the in-flight messages should be processed before stopped is emitted',
+  "the in-flight messages should be processed before stopped is emitted",
   async () => {
     let numProcessed = 0;
-    consumer.on('message_processed', () => {
+    consumer.on("message_processed", () => {
       numProcessed++;
     });
 
-    await pEvent(consumer, 'stopped');
+    await pEvent(consumer, "stopped");
 
-    assert.strictEqual(numProcessed, 3);
+    strictEqual(numProcessed, 3);
 
     const size = await producer.queueSize();
-    assert.strictEqual(size, 0);
-  }
+    strictEqual(size, 0);
+  },
 );
 
 After(() => {

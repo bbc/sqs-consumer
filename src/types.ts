@@ -1,4 +1,4 @@
-import { SQSClient, Message, QueueAttributeName } from '@aws-sdk/client-sqs';
+import { SQSClient, Message, QueueAttributeName } from "@aws-sdk/client-sqs";
 
 /**
  * The options for the consumer.
@@ -146,10 +146,10 @@ export interface ConsumerOptions {
  * A subset of the ConsumerOptions that can be updated at runtime.
  */
 export type UpdatableOptions =
-  | 'visibilityTimeout'
-  | 'batchSize'
-  | 'waitTimeSeconds'
-  | 'pollingWaitTimeMs';
+  | "visibilityTimeout"
+  | "batchSize"
+  | "waitTimeSeconds"
+  | "pollingWaitTimeMs";
 
 /**
  * The options for the stop method.
@@ -246,7 +246,7 @@ export type AWSError = {
   /**
    * Whether the client or server are at fault.
    */
-  readonly $fault?: 'client' | 'server';
+  readonly $fault?: "client" | "server";
 
   /**
    * The service that encountered the exception.

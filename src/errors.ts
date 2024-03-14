@@ -1,4 +1,4 @@
-import { AWSError } from './types';
+import { AWSError } from "./types.js";
 
 class SQSError extends Error {
   code: string;
@@ -6,7 +6,7 @@ class SQSError extends Error {
   service: string;
   time: Date;
   retryable: boolean;
-  fault: 'client' | 'server';
+  fault: "client" | "server";
 
   constructor(message: string) {
     super(message);
@@ -18,10 +18,10 @@ class TimeoutError extends Error {
   cause: Error;
   time: Date;
 
-  constructor(message = 'Operation timed out.') {
+  constructor(message = "Operation timed out.") {
     super(message);
     this.message = message;
-    this.name = 'TimeoutError';
+    this.name = "TimeoutError";
   }
 }
 
@@ -29,10 +29,10 @@ class StandardError extends Error {
   cause: Error;
   time: Date;
 
-  constructor(message = 'An unexpected error occurred:') {
+  constructor(message = "An unexpected error occurred:") {
     super(message);
     this.message = message;
-    this.name = 'StandardError';
+    this.name = "StandardError";
   }
 }
 
@@ -44,10 +44,10 @@ function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
     return (
       err.statusCode === 403 ||
-      err.code === 'CredentialsError' ||
-      err.code === 'UnknownEndpoint' ||
-      err.code === 'AWS.SimpleQueueService.NonExistentQueue' ||
-      err.code === 'CredentialsProviderError'
+      err.code === "CredentialsError" ||
+      err.code === "UnknownEndpoint" ||
+      err.code === "AWS.SimpleQueueService.NonExistentQueue" ||
+      err.code === "CredentialsProviderError"
     );
   }
   return false;
@@ -102,5 +102,5 @@ export {
   isConnectionError,
   toSQSError,
   toStandardError,
-  toTimeoutError
+  toTimeoutError,
 };
