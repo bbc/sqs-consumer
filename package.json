@@ -1,21 +1,30 @@
 {
   "name": "sqs-consumer",
-  "version": "9.0.0",
+  "version": "10.0.0-canary.2",
   "description": "Build SQS-based Node applications without the boilerplate",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/esm/index.js"
+    }
+  },
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "npm run clean && tsc",
-    "watch": "tsc --watch",
     "clean": "rm -fr dist/*",
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json",
+    "add-package-jsons": "node ./scripts/addPackageJsons.js",
+    "build": "npm run clean && npm run compile && npm run add-package-jsons",
+    "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test:unit": "mocha --recursive --full-trace --exit",
     "pretest:integration:init": "npm run build",
     "test:integration:init": "sh ./test/scripts/initIntTests.sh",
-    "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.js",
+    "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.mjs",
     "test": "npm run test:unit && npm run test:integration",
     "coverage": "c8 mocha && c8 report --reporter=html && c8 report --reporter=json-summary",
     "lcov": "c8 mocha && c8 report --reporter=lcov",
@@ -41,7 +50,7 @@
   ],
   "license": "Apache-2.0",
   "publishConfig": {
-    "provenance": true
+    "provenance": false
   },
   "release": {
     "branches": [
@@ -140,13 +149,13 @@
     "@types/node": "^20.11.25",
     "@types/sinon": "^17.0.3",
     "c8": "^9.1.0",
-    "chai": "^4.3.10",
+    "chai": "5.1.0",
     "conventional-changelog-conventionalcommits": "^7.0.2",
     "eslint": "^8.57.0",
     "eslint-config-iplayer": "^9.2.0",
     "eslint-config-prettier": "^9.1.0",
     "mocha": "^10.3.0",
-    "p-event": "^4.2.0",
+    "p-event": "6.0.1",
     "prettier": "^3.2.5",
     "semantic-release": "^23.0.2",
     "sinon": "^17.0.1",
@@ -163,8 +172,13 @@
     "@aws-sdk/client-sqs": "^3.529.1"
   },
   "mocha": {
+    "extensions": [
+      "ts"
+    ],
     "spec": "test/tests/**/**/*.test.ts",
-    "require": "ts-node/register"
+    "node-option": [
+      "loader=ts-node/esm"
+    ]
   },
   "c8": {
     "include": [
@@ -172,9 +186,6 @@
     ],
     "extension": [
       ".ts"
-    ],
-    "require": [
-      "ts-node/register"
     ],
     "sourceMap": true,
     "instrument": true

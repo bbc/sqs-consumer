@@ -1,2 +1,2 @@
-export { Consumer } from './consumer';
-export * from './types';
+export { Consumer } from "./consumer.js";
+export * from "./types.js";

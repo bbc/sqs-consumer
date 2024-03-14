@@ -14,23 +14,23 @@ import {
   ReceiveMessageCommand,
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput,
-  QueueAttributeName
-} from '@aws-sdk/client-sqs';
+  QueueAttributeName,
+} from "@aws-sdk/client-sqs";
 
-import { ConsumerOptions, StopOptions, UpdatableOptions } from './types';
-import { POLLING_STATUS } from './constants';
-import { TypedEventEmitter } from './emitter';
-import { autoBind } from './bind';
+import { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
+import { POLLING_STATUS } from "./constants.js";
+import { TypedEventEmitter } from "./emitter.js";
+import { autoBind } from "./bind.js";
 import {
   SQSError,
   TimeoutError,
   toStandardError,
   toTimeoutError,
   toSQSError,
-  isConnectionError
-} from './errors';
-import { validateOption, assertOptions, hasMessages } from './validation';
-import { logger } from './logger';
+  isConnectionError,
+} from "./errors.js";
+import { validateOption, assertOptions, hasMessages } from "./validation.js";
+import { logger } from "./logger.js";
 
 /**
  * [Usage](https://bbc.github.io/sqs-consumer/index.html#usage)
@@ -91,7 +91,8 @@ export class Consumer extends TypedEventEmitter {
     this.sqs =
       options.sqs ||
       new SQSClient({
-        region: options.region || process.env.AWS_REGION || 'eu-west-1'
+        useQueueUrlAsEndpoint: options.useQueueUrlAsEndpoint ?? true,
+        region: options.region || process.env.AWS_REGION || "eu-west-1",
       });
     autoBind(this);
   }
@@ -110,9 +111,9 @@ export class Consumer extends TypedEventEmitter {
     if (this.stopped) {
       // Create a new abort controller each time the consumer is started
       this.abortController = new AbortController();
-      logger.debug('starting');
+      logger.debug("starting");
       this.stopped = false;
-      this.emit('started');
+      this.emit("started");
       this.poll();
     }
   }
@@ -124,7 +125,7 @@ export class Consumer extends TypedEventEmitter {
     return {
       // return the current abortController signal or a fresh signal that has not been aborted.
       // This effectively defaults the signal sent to the AWS SDK to not aborted
-      abortSignal: this.abortController?.signal || new AbortController().signal
+      abortSignal: this.abortController?.signal || new AbortController().signal,
     };
   }
 
@@ -133,11 +134,11 @@ export class Consumer extends TypedEventEmitter {
    */
   public stop(options?: StopOptions): void {
     if (this.stopped) {
-      logger.debug('already_stopped');
+      logger.debug("already_stopped");
       return;
     }
 
-    logger.debug('stopping');
+    logger.debug("stopping");
     this.stopped = true;
 
     if (this.pollingTimeoutId) {
@@ -146,9 +147,9 @@ export class Consumer extends TypedEventEmitter {
     }
 
     if (options?.abort) {
-      logger.debug('aborting');
+      logger.debug("aborting");
       this.abortController.abort();
-      this.emit('aborted');
+      this.emit("aborted");
     }
 
     this.stopRequestedAtTimestamp = Date.now();
@@ -161,7 +162,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private waitForPollingToComplete(): void {
     if (!this.isPolling || !(this.pollingCompleteWaitTimeMs > 0)) {
-      this.emit('stopped');
+      this.emit("stopped");
       return;
     }
 
@@ -169,12 +170,12 @@ export class Consumer extends TypedEventEmitter {
       Date.now() - this.stopRequestedAtTimestamp >
       this.pollingCompleteWaitTimeMs;
     if (exceededTimeout) {
-      this.emit('waiting_for_polling_to_complete_timeout_exceeded');
-      this.emit('stopped');
+      this.emit("waiting_for_polling_to_complete_timeout_exceeded");
+      this.emit("stopped");
       return;
     }
 
-    this.emit('waiting_for_polling_to_complete');
+    this.emit("waiting_for_polling_to_complete");
     setTimeout(this.waitForPollingToComplete, 1000);
   }
 
@@ -193,7 +194,7 @@ export class Consumer extends TypedEventEmitter {
       isRunning: !this.stopped,
       isPolling: this.isPolling,
       pollingStatus: this.pollingStatus,
-      concurrentExecutions: this.concurrentExecutions
+      concurrentExecutions: this.concurrentExecutions,
     };
   }
 
@@ -204,13 +205,13 @@ export class Consumer extends TypedEventEmitter {
    */
   public updateOption(
     option: UpdatableOptions,
-    value: ConsumerOptions[UpdatableOptions]
+    value: ConsumerOptions[UpdatableOptions],
   ) {
     validateOption(option, value, this, true);
 
     this[option] = value;
 
-    this.emit('option_updated', option, value);
+    this.emit("option_updated", option, value);
   }
 
   /**
@@ -220,13 +221,13 @@ export class Consumer extends TypedEventEmitter {
    */
   private emitError(err: Error, message?: Message): void {
     if (!message) {
-      this.emit('error', err);
+      this.emit("error", err);
     } else if (err.name === SQSError.name) {
-      this.emit('error', err, message);
+      this.emit("error", err, message);
     } else if (err instanceof TimeoutError) {
-      this.emit('timeout_error', err, message);
+      this.emit("timeout_error", err, message);
     } else {
-      this.emit('processing_error', err, message);
+      this.emit("processing_error", err, message);
     }
   }
 
@@ -251,13 +252,14 @@ export class Consumer extends TypedEventEmitter {
   private poll(): void {
     if (this.stopped) {
       this.pollingStatus = POLLING_STATUS.INACTIVE;
-      logger.debug('cancelling_poll', {
-        detail: 'Poll was called while consumer was stopped, cancelling poll...'
+      logger.debug("cancelling_poll", {
+        detail:
+          "Poll was called while consumer was stopped, cancelling poll...",
       });
       return;
     }
 
-    logger.debug('polling');
+    logger.debug("polling");
 
     this.isPolling = true;
 
@@ -266,16 +268,16 @@ export class Consumer extends TypedEventEmitter {
     const isConcurrencyReached = this.concurrentExecutions >= this.concurrency;
 
     if (isConcurrencyReached) {
-      logger.debug('reached_concurrency_limit', {
+      logger.debug("reached_concurrency_limit", {
         detail:
-          'The concurrency limit has been reached. Pausing before retrying.'
+          "The concurrency limit has been reached. Pausing before retrying.",
       });
       this.pollingStatus = POLLING_STATUS.READY;
       this.queuePoll(currentPollingTimeout);
       return;
     }
 
-    logger.debug('polling');
+    logger.debug("polling");
     this.pollingStatus = POLLING_STATUS.ACTIVE;
 
     this.receiveMessage({
@@ -284,7 +286,7 @@ export class Consumer extends TypedEventEmitter {
       MessageAttributeNames: this.messageAttributeNames,
       MaxNumberOfMessages: this.batchSize,
       WaitTimeSeconds: this.waitTimeSeconds,
-      VisibilityTimeout: this.visibilityTimeout
+      VisibilityTimeout: this.visibilityTimeout,
     })
       .then((response) => {
         this.queuePoll(currentPollingTimeout);
@@ -294,9 +296,9 @@ export class Consumer extends TypedEventEmitter {
       .catch((err) => {
         this.emitError(err);
         if (isConnectionError(err)) {
-          logger.debug('authentication_error', {
+          logger.debug("authentication_error", {
             detail:
-              'There was an authentication error. Pausing before retrying.'
+              "There was an authentication error. Pausing before retrying.",
           });
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
@@ -321,7 +323,7 @@ export class Consumer extends TypedEventEmitter {
    * @param params The required params to receive messages from SQS
    */
   private async receiveMessage(
-    params: ReceiveMessageCommandInput
+    params: ReceiveMessageCommandInput,
   ): Promise<ReceiveMessageCommandOutput> {
     try {
       if (this.preReceiveMessageCallback) {
@@ -329,7 +331,7 @@ export class Consumer extends TypedEventEmitter {
       }
       const result = await this.sqs.send(
         new ReceiveMessageCommand(params),
-        this.sqsSendOptions
+        this.sqsSendOptions,
       );
       if (this.postReceiveMessageCallback) {
         await this.postReceiveMessageCallback();
@@ -347,7 +349,7 @@ export class Consumer extends TypedEventEmitter {
    * @param response The output from AWS SQS
    */
   private async handleSqsResponse(
-    response: ReceiveMessageCommandOutput
+    response: ReceiveMessageCommandOutput,
   ): Promise<void> {
     if (hasMessages(response)) {
       this.concurrentExecutions += 1;
@@ -360,9 +362,9 @@ export class Consumer extends TypedEventEmitter {
 
       this.concurrentExecutions -= 1;
 
-      this.emit('response_processed');
+      this.emit("response_processed");
     } else if (response) {
-      this.emit('empty');
+      this.emit("empty");
     }
   }
 
@@ -375,7 +377,7 @@ export class Consumer extends TypedEventEmitter {
     let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
 
     try {
-      this.emit('message_received', message);
+      this.emit("message_received", message);
 
       if (this.heartbeatInterval) {
         heartbeatTimeoutId = this.startHeartbeat(message);
@@ -386,7 +388,7 @@ export class Consumer extends TypedEventEmitter {
       if (ackedMessage?.MessageId === message.MessageId) {
         await this.deleteMessage(message);
 
-        this.emit('message_processed', message);
+        this.emit("message_processed", message);
       }
     } catch (err) {
       this.emitError(err, message);
@@ -410,7 +412,7 @@ export class Consumer extends TypedEventEmitter {
 
     try {
       messages.forEach((message) => {
-        this.emit('message_received', message);
+        this.emit("message_received", message);
       });
 
       if (this.heartbeatInterval) {
@@ -423,11 +425,11 @@ export class Consumer extends TypedEventEmitter {
         await this.deleteMessageBatch(ackedMessages);
 
         ackedMessages.forEach((message) => {
-          this.emit('message_processed', message);
+          this.emit("message_processed", message);
         });
       }
     } catch (err) {
-      this.emit('error', err, messages);
+      this.emit("error", err, messages);
 
       if (this.terminateVisibilityTimeout) {
         await this.changeVisibilityTimeoutBatch(messages, 0);
@@ -443,13 +445,13 @@ export class Consumer extends TypedEventEmitter {
    */
   private startHeartbeat(
     message?: Message,
-    messages?: Message[]
+    messages?: Message[],
   ): NodeJS.Timeout {
     return setInterval(() => {
       if (this.handleMessageBatch) {
         return this.changeVisibilityTimeoutBatch(
           messages,
-          this.visibilityTimeout
+          this.visibilityTimeout,
         );
       } else {
         return this.changeVisibilityTimeout(message, this.visibilityTimeout);
@@ -464,23 +466,23 @@ export class Consumer extends TypedEventEmitter {
    */
   private async changeVisibilityTimeout(
     message: Message,
-    timeout: number
+    timeout: number,
   ): Promise<ChangeMessageVisibilityCommandOutput> {
     try {
       const input: ChangeMessageVisibilityCommandInput = {
         QueueUrl: this.queueUrl,
         ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: timeout
+        VisibilityTimeout: timeout,
       };
       return await this.sqs.send(
         new ChangeMessageVisibilityCommand(input),
-        this.sqsSendOptions
+        this.sqsSendOptions,
       );
     } catch (err) {
       this.emit(
-        'error',
+        "error",
         toSQSError(err, `Error changing visibility timeout: ${err.message}`),
-        message
+        message,
       );
     }
   }
@@ -492,26 +494,26 @@ export class Consumer extends TypedEventEmitter {
    */
   private async changeVisibilityTimeoutBatch(
     messages: Message[],
-    timeout: number
+    timeout: number,
   ): Promise<ChangeMessageVisibilityBatchCommandOutput> {
     const params: ChangeMessageVisibilityBatchCommandInput = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
         Id: message.MessageId,
         ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: timeout
-      }))
+        VisibilityTimeout: timeout,
+      })),
     };
     try {
       return await this.sqs.send(
         new ChangeMessageVisibilityBatchCommand(params),
-        this.sqsSendOptions
+        this.sqsSendOptions,
       );
     } catch (err) {
       this.emit(
-        'error',
+        "error",
         toSQSError(err, `Error changing visibility timeout: ${err.message}`),
-        messages
+        messages,
       );
     }
   }
@@ -544,12 +546,12 @@ export class Consumer extends TypedEventEmitter {
       if (err instanceof TimeoutError) {
         throw toTimeoutError(
           err,
-          `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`
+          `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`,
         );
       } else if (err instanceof Error) {
         throw toStandardError(
           err,
-          `Unexpected message handler failure: ${err.message}`
+          `Unexpected message handler failure: ${err.message}`,
         );
       }
       throw err;
@@ -575,7 +577,7 @@ export class Consumer extends TypedEventEmitter {
       if (err instanceof Error) {
         throw toStandardError(
           err,
-          `Unexpected message handler failure: ${err.message}`
+          `Unexpected message handler failure: ${err.message}`,
         );
       }
       throw err;
@@ -588,23 +590,23 @@ export class Consumer extends TypedEventEmitter {
    */
   private async deleteMessage(message: Message): Promise<void> {
     if (!this.shouldDeleteMessages) {
-      logger.debug('skipping_delete', {
+      logger.debug("skipping_delete", {
         detail:
-          'Skipping message delete since shouldDeleteMessages is set to false'
+          "Skipping message delete since shouldDeleteMessages is set to false",
       });
       return;
     }
-    logger.debug('deleting_message', { messageId: message.MessageId });
+    logger.debug("deleting_message", { messageId: message.MessageId });
 
     const deleteParams: DeleteMessageCommandInput = {
       QueueUrl: this.queueUrl,
-      ReceiptHandle: message.ReceiptHandle
+      ReceiptHandle: message.ReceiptHandle,
     };
 
     try {
       await this.sqs.send(
         new DeleteMessageCommand(deleteParams),
-        this.sqsSendOptions
+        this.sqsSendOptions,
       );
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
@@ -617,28 +619,28 @@ export class Consumer extends TypedEventEmitter {
    */
   private async deleteMessageBatch(messages: Message[]): Promise<void> {
     if (!this.shouldDeleteMessages) {
-      logger.debug('skipping_delete', {
+      logger.debug("skipping_delete", {
         detail:
-          'Skipping message delete since shouldDeleteMessages is set to false'
+          "Skipping message delete since shouldDeleteMessages is set to false",
       });
       return;
     }
-    logger.debug('deleting_messages', {
-      messageIds: messages.map((msg) => msg.MessageId)
+    logger.debug("deleting_messages", {
+      messageIds: messages.map((msg) => msg.MessageId),
     });
 
     const deleteParams: DeleteMessageBatchCommandInput = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
         Id: message.MessageId,
-        ReceiptHandle: message.ReceiptHandle
-      }))
+        ReceiptHandle: message.ReceiptHandle,
+      })),
     };
 
     try {
       await this.sqs.send(
         new DeleteMessageBatchCommand(deleteParams),
-        this.sqsSendOptions
+        this.sqsSendOptions,
       );
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);

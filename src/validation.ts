@@ -1,58 +1,58 @@
-import { ReceiveMessageCommandOutput } from '@aws-sdk/client-sqs';
+import { ReceiveMessageCommandOutput } from "@aws-sdk/client-sqs";
 
-import { ConsumerOptions } from './types';
+import { ConsumerOptions } from "./types.js";
 
 const requiredOptions = [
-  'queueUrl',
+  "queueUrl",
   // only one of handleMessage / handleMessagesBatch is required
-  'handleMessage|handleMessageBatch'
+  "handleMessage|handleMessageBatch",
 ];
 
 function validateOption(
   option: string,
   value: any,
   allOptions: { [key: string]: any },
-  strict?: boolean
+  strict?: boolean,
 ): void {
   switch (option) {
-    case 'batchSize':
+    case "batchSize":
       if (value > 10 || value < 1) {
-        throw new Error('batchSize must be between 1 and 10.');
+        throw new Error("batchSize must be between 1 and 10.");
       }
       break;
-    case 'concurrency':
+    case "concurrency":
       if (value < 1) {
-        throw new Error('concurrency must be greater than 0.');
+        throw new Error("concurrency must be greater than 0.");
       }
       break;
-    case 'heartbeatInterval':
+    case "heartbeatInterval":
       if (
         !allOptions.visibilityTimeout ||
         value >= allOptions.visibilityTimeout
       ) {
         throw new Error(
-          'heartbeatInterval must be less than visibilityTimeout.'
+          "heartbeatInterval must be less than visibilityTimeout.",
         );
       }
       break;
-    case 'visibilityTimeout':
+    case "visibilityTimeout":
       if (
         allOptions.heartbeatInterval &&
         value <= allOptions.heartbeatInterval
       ) {
         throw new Error(
-          'heartbeatInterval must be less than visibilityTimeout.'
+          "heartbeatInterval must be less than visibilityTimeout.",
         );
       }
       break;
-    case 'waitTimeSeconds':
+    case "waitTimeSeconds":
       if (value < 1 || value > 20) {
-        throw new Error('waitTimeSeconds must be between 0 and 20.');
+        throw new Error("waitTimeSeconds must be between 0 and 20.");
       }
       break;
-    case 'pollingWaitTimeMs':
+    case "pollingWaitTimeMs":
       if (value < 0) {
-        throw new Error('pollingWaitTimeMs must be greater than 0.');
+        throw new Error("pollingWaitTimeMs must be greater than 0.");
       }
       break;
     default:
@@ -69,22 +69,22 @@ function validateOption(
  */
 function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
-    const possibilities = option.split('|');
+    const possibilities = option.split("|");
     if (!possibilities.find((p) => options[p])) {
       throw new Error(
-        `Missing SQS consumer option [ ${possibilities.join(' or ')} ].`
+        `Missing SQS consumer option [ ${possibilities.join(" or ")} ].`,
       );
     }
   });
 
   if (options.batchSize) {
-    validateOption('batchSize', options.batchSize, options);
+    validateOption("batchSize", options.batchSize, options);
   }
   if (options.concurrency) {
-    validateOption('concurrency', options.concurrency, options);
+    validateOption("concurrency", options.concurrency, options);
   }
   if (options.heartbeatInterval) {
-    validateOption('heartbeatInterval', options.heartbeatInterval, options);
+    validateOption("heartbeatInterval", options.heartbeatInterval, options);
   }
 }
 

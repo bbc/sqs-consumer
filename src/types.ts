@@ -1,5 +1,8 @@
-import { SQSClient, Message, QueueAttributeName } from '@aws-sdk/client-sqs';
+import { SQSClient, Message, QueueAttributeName } from "@aws-sdk/client-sqs";
 
+/**
+ * The options for the consumer.
+ */
 export interface ConsumerOptions {
   /**
    * The SQS queue URL.
@@ -82,6 +85,11 @@ export interface ConsumerOptions {
    */
   region?: string;
   /**
+   * If false uses the QueueUrl hostname as the endpoint.
+   * @defaultValue `true`
+   */
+  useQueueUrlAsEndpoint?: boolean;
+  /**
    * Time in ms to wait for `handleMessage` to process a message before timing out.
    *
    * Emits `timeout_error` on timeout. By default, if `handleMessage` times out,
@@ -139,12 +147,18 @@ export interface ConsumerOptions {
   postReceiveMessageCallback?(): Promise<void>;
 }
 
+/**
+ * A subset of the ConsumerOptions that can be updated at runtime.
+ */
 export type UpdatableOptions =
-  | 'visibilityTimeout'
-  | 'batchSize'
-  | 'waitTimeSeconds'
-  | 'pollingWaitTimeMs';
+  | "visibilityTimeout"
+  | "batchSize"
+  | "waitTimeSeconds"
+  | "pollingWaitTimeMs";
 
+/**
+ * The options for the stop method.
+ */
 export interface StopOptions {
   /**
    * Default to `false`, if you want the stop action to also abort requests to SQS
@@ -154,6 +168,9 @@ export interface StopOptions {
   abort?: boolean;
 }
 
+/**
+ * These are the events that the consumer emits.
+ */
 export interface Events {
   /**
    * Fired after one batch of items (up to `batchSize`) has been successfully processed.
@@ -212,6 +229,9 @@ export interface Events {
   waiting_for_polling_to_complete_timeout_exceeded: [];
 }
 
+/**
+ * The error object that is emitted with error events from AWS.
+ */
 export type AWSError = {
   /**
    * Name, eg. ConditionalCheckFailedException
@@ -231,7 +251,7 @@ export type AWSError = {
   /**
    * Whether the client or server are at fault.
    */
-  readonly $fault?: 'client' | 'server';
+  readonly $fault?: "client" | "server";
 
   /**
    * The service that encountered the exception.

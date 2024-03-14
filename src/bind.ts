@@ -4,7 +4,7 @@
  * @param value the value of the property
  */
 function isMethod(propertyName: string, value: any): boolean {
-  return propertyName !== 'constructor' && typeof value === 'function';
+  return propertyName !== "constructor" && typeof value === "function";
 }
 
 /**
