@@ -128,7 +128,29 @@ describe("Consumer", () => {
       }, "batchSize must be between 1 and 10.");
     });
 
+    it("requires the concurrency option to be greater than 0", () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrency: 0,
+        });
+      }, "concurrency must be greater than 0.");
+    });
+
     it("requires visibilityTimeout to be set with heartbeatInterval", () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          heartbeatInterval: 30,
+        });
+      }, "heartbeatInterval must be less than visibilityTimeout.");
+    });
+
+    it("requires heartbeatInterval to be less than visibilityTimeout", () => {
       assert.throws(() => {
         new Consumer({
           region: REGION,
@@ -1649,6 +1671,26 @@ describe("Consumer", () => {
     });
   });
 
+  describe("getStatus", async () => {
+    it("returns the status of the consumer when it is stopped", () => {
+      assert.equal(consumer.getStatus(), {
+        isRunning: false,
+        pollingStatus: "stopped",
+        concurrentExecutions: 0,
+      });
+    });
+
+    it("returns the status of the consumer when it is running", () => {
+      consumer.start();
+      assert.equal(consumer.getStatus(), {
+        isRunning: true,
+        pollingStatus: "running",
+        concurrentExecutions: 1,
+      });
+      consumer.stop();
+    });
+  });
+
   describe("updateOption", async () => {
     it("updates the visibilityTimeout option and emits an event", () => {
       const optionUpdatedListener = sandbox.stub();
@@ -1719,6 +1761,30 @@ describe("Consumer", () => {
       }, "batchSize must be between 1 and 10.");
 
       assert.equal(consumer.batchSize, 1);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it("updates the concurrency option and emits an event", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      consumer.updateOption("concurrency", 4);
+
+      assert.equal(consumer.concurrency, 4);
+
+      sandbox.assert.calledWithMatch(optionUpdatedListener, "concurrency", 4);
+    });
+
+    it("does not update the concurrency if the value is less than 1", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption("concurrency", 0);
+      }, "concurrency must be greater than 0.");
+
+      assert.equal(consumer.concurrency, 1);
 
       sandbox.assert.notCalled(optionUpdatedListener);
     });
