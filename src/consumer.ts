@@ -312,7 +312,11 @@ export class Consumer extends TypedEventEmitter {
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
-        await Promise.all(response.Messages.map(this.processMessage));
+        await Promise.all(
+          response.Messages.map((message: Message) =>
+            this.processMessage(message),
+          ),
+        );
       }
 
       this.emit("response_processed");
