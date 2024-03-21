@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "10.0.0-canary.2",
+  "version": "10.0.0-canary.3",
   "description": "Build SQS-based Node applications without the boilerplate",
   "type": "module",
   "exports": {
