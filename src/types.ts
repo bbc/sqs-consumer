@@ -45,6 +45,11 @@ export interface ConsumerOptions {
    */
   authenticationErrorTimeout?: number;
   /**
+   * The duration (in milliseconds) to wait before retrying after a connection error.
+   * @defaultvalue `10000`
+   */
+  connectionErrorTimeout?: number;
+  /**
    * The duration (in milliseconds) to wait before repolling the queue.
    * @defaultvalue `0`
    */

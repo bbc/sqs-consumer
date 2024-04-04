@@ -18,6 +18,7 @@ import { logger } from "../../src/logger.js";
 const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
+const CONNECTION_ERROR_TIMEOUT = 20;
 const POLLING_TIMEOUT = 100;
 const QUEUE_URL = "some-queue-url";
 const REGION = "some-region";
@@ -87,6 +88,7 @@ describe("Consumer", () => {
       handleMessage,
       sqs,
       authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+      connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
     });
   });
 
@@ -458,6 +460,26 @@ describe("Consumer", () => {
 
       consumer.start();
       await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+    });
+
+    it("waits before repolling when a connection error occurs", async () => {
+      const unknownEndpointErr = {
+        name: "SQSError",
+        message:
+          "SQS receive message failed: getaddrinfo ENOTFOUND sqs.eu-west-1.amazonaws.com",
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(unknownEndpointErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(CONNECTION_ERROR_TIMEOUT);
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);

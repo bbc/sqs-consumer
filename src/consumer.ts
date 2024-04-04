@@ -52,6 +52,7 @@ export class Consumer extends TypedEventEmitter {
   private terminateVisibilityTimeout: boolean;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
+  private connectionErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private pollingCompleteWaitTimeMs: number;
   private heartbeatInterval: number;
@@ -78,6 +79,7 @@ export class Consumer extends TypedEventEmitter {
     this.waitTimeSeconds = options.waitTimeSeconds ?? 20;
     this.authenticationErrorTimeout =
       options.authenticationErrorTimeout ?? 10000;
+    this.connectionErrorTimeout = options.connectionErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
@@ -255,6 +257,12 @@ export class Consumer extends TypedEventEmitter {
               "There was an authentication error. Pausing before retrying.",
           });
           currentPollingTimeout = this.authenticationErrorTimeout;
+        } else {
+          logger.debug("connection_error", {
+            detail:
+              "There was a connection error. Pausing before retrying.",
+          });
+          currentPollingTimeout = this.connectionErrorTimeout;
         }
         return;
       })
