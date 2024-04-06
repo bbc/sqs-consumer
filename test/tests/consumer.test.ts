@@ -17,7 +17,6 @@ import { logger } from "../../src/logger.js";
 
 const sandbox = sinon.createSandbox();
 
-const AUTHENTICATION_ERROR_TIMEOUT = 20;
 const CONNECTION_ERROR_TIMEOUT = 20;
 const POLLING_TIMEOUT = 100;
 const QUEUE_URL = "some-queue-url";
@@ -87,7 +86,6 @@ describe("Consumer", () => {
       region: REGION,
       handleMessage,
       sqs,
-      authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
       connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
     });
   });
@@ -258,7 +256,7 @@ describe("Consumer", () => {
           new Promise((resolve) => setTimeout(resolve, 1000)),
         handleMessageTimeout,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -283,7 +281,7 @@ describe("Consumer", () => {
           throw new Error("unexpected parsing error");
         },
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -317,7 +315,7 @@ describe("Consumer", () => {
           throw new CustomError("unexpected parsing error");
         },
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -341,7 +339,7 @@ describe("Consumer", () => {
           throw customError;
         },
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -420,7 +418,7 @@ describe("Consumer", () => {
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await clock.tickAsync(CONNECTION_ERROR_TIMEOUT);
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);
@@ -440,7 +438,7 @@ describe("Consumer", () => {
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await clock.tickAsync(CONNECTION_ERROR_TIMEOUT);
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);
@@ -459,7 +457,7 @@ describe("Consumer", () => {
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await clock.tickAsync(CONNECTION_ERROR_TIMEOUT);
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);
@@ -471,6 +469,7 @@ describe("Consumer", () => {
     it("waits before repolling when a connection error occurs", async () => {
       const unknownEndpointErr = {
         name: "SQSError",
+        code: "SQSError",
         message:
           "SQS receive message failed: getaddrinfo ENOTFOUND sqs.eu-west-1.amazonaws.com",
       };
@@ -498,7 +497,7 @@ describe("Consumer", () => {
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await clock.tickAsync(CONNECTION_ERROR_TIMEOUT);
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);
@@ -517,7 +516,7 @@ describe("Consumer", () => {
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await clock.tickAsync(CONNECTION_ERROR_TIMEOUT);
       consumer.stop();
 
       sandbox.assert.calledTwice(errorListener);
@@ -532,7 +531,7 @@ describe("Consumer", () => {
         region: REGION,
         handleMessage,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
         pollingWaitTimeMs: POLLING_TIMEOUT,
       });
 
@@ -582,7 +581,7 @@ describe("Consumer", () => {
         region: REGION,
         handleMessage,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
         preReceiveMessageCallback: preReceiveMessageCallbackStub,
         postReceiveMessageCallback: postReceiveMessageCallbackStub,
       });
@@ -618,7 +617,7 @@ describe("Consumer", () => {
         region: REGION,
         handleMessage,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
         shouldDeleteMessages: false,
       });
 
@@ -723,7 +722,7 @@ describe("Consumer", () => {
           AttributeNames: [],
           MessageAttributeNames: ["attribute-1", "attribute-2"],
           MaxNumberOfMessages: 3,
-          WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
+          WaitTimeSeconds: CONNECTION_ERROR_TIMEOUT,
           VisibilityTimeout: undefined,
         }),
       );
@@ -767,7 +766,7 @@ describe("Consumer", () => {
           AttributeNames: ["ApproximateReceiveCount"],
           MessageAttributeNames: [],
           MaxNumberOfMessages: 1,
-          WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
+          WaitTimeSeconds: CONNECTION_ERROR_TIMEOUT,
           VisibilityTimeout: undefined,
         }),
       );
@@ -903,7 +902,7 @@ describe("Consumer", () => {
         },
         batchSize: 2,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -939,7 +938,7 @@ describe("Consumer", () => {
         },
         batchSize: 2,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -965,7 +964,7 @@ describe("Consumer", () => {
         },
         batchSize: 2,
         sqs,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.start();
@@ -1547,7 +1546,7 @@ describe("Consumer", () => {
         handleMessage,
         sqs,
         pollingCompleteWaitTimeMs: 5000,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.on("stopped", handleStop);
@@ -1601,7 +1600,7 @@ describe("Consumer", () => {
         handleMessage,
         sqs,
         pollingCompleteWaitTimeMs: 500,
-        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        connectionErrorTimeout: CONNECTION_ERROR_TIMEOUT,
       });
 
       consumer.on("stopped", handleStop);

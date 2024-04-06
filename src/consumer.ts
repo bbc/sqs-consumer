@@ -51,7 +51,6 @@ export class Consumer extends TypedEventEmitter {
   private visibilityTimeout: number;
   private terminateVisibilityTimeout: boolean;
   private waitTimeSeconds: number;
-  private authenticationErrorTimeout: number;
   private connectionErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private pollingCompleteWaitTimeMs: number;
@@ -77,9 +76,8 @@ export class Consumer extends TypedEventEmitter {
       options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
     this.waitTimeSeconds = options.waitTimeSeconds ?? 20;
-    this.authenticationErrorTimeout =
-      options.authenticationErrorTimeout ?? 10000;
-    this.connectionErrorTimeout = options.connectionErrorTimeout ?? 10000;
+    this.connectionErrorTimeout =
+      options.connectionErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
@@ -251,20 +249,14 @@ export class Consumer extends TypedEventEmitter {
       )
       .catch((err): void => {
         this.emitError(err);
+
         if (isConnectionError(err)) {
-          logger.debug("authentication_error", {
-            detail:
-              "There was an authentication error. Pausing before retrying.",
-          });
-          currentPollingTimeout = this.authenticationErrorTimeout;
-        } else {
           logger.debug("connection_error", {
             detail:
-              "There was a connection error. Pausing before retrying.",
+              `${err.code}: There was an connection error. Pausing before retrying.`,
           });
           currentPollingTimeout = this.connectionErrorTimeout;
         }
-        return;
       })
       .then((): void => {
         if (this.pollingTimeoutId) {

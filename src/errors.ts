@@ -44,10 +44,12 @@ function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
     return (
       err.statusCode === 403 ||
+      err.name === "SQSError" ||
       err.code === "CredentialsError" ||
       err.code === "UnknownEndpoint" ||
       err.code === "AWS.SimpleQueueService.NonExistentQueue" ||
-      err.code === "CredentialsProviderError"
+      err.code === "CredentialsProviderError" ||
+      err.code === "InvalidAddress"
     );
   }
   return false;
