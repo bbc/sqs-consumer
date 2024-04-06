@@ -40,12 +40,7 @@ export interface ConsumerOptions {
    */
   waitTimeSeconds?: number;
   /**
-   * The duration (in milliseconds) to wait before retrying after an authentication error.
-   * @defaultvalue `10000`
-   */
-  authenticationErrorTimeout?: number;
-  /**
-   * The duration (in milliseconds) to wait before retrying after a connection error.
+   * The duration (in milliseconds) to wait before retrying after a connection or authentication error.
    * @defaultvalue `10000`
    */
   connectionErrorTimeout?: number;
