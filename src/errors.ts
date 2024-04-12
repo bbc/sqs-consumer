@@ -49,6 +49,7 @@ function isConnectionError(err: Error): boolean {
       err.code === "UnknownEndpoint" ||
       err.code === "AWS.SimpleQueueService.NonExistentQueue" ||
       err.code === "CredentialsProviderError" ||
+      err.code === "QueueDoesNotExist" ||
       err.code === "InvalidAddress"
     );
   }
