@@ -47,7 +47,12 @@ function isConnectionError(err: Error): boolean {
       err.code === "CredentialsError" ||
       err.code === "UnknownEndpoint" ||
       err.code === "AWS.SimpleQueueService.NonExistentQueue" ||
-      err.code === "CredentialsProviderError"
+      err.code === "CredentialsProviderError" ||
+      err.code === "InvalidAddress" ||
+      err.code === "InvalidSecurity" ||
+      err.code === "QueueDoesNotExist" ||
+      err.code === "RequestThrottled" ||
+      err.code === "OverLimit"
     );
   }
   return false;
