@@ -251,6 +251,7 @@ export class Consumer extends TypedEventEmitter {
         this.emitError(err);
         if (isConnectionError(err)) {
           logger.debug("authentication_error", {
+            code: err.code || "Unknown",
             detail:
               "There was an authentication error. Pausing before retrying.",
           });

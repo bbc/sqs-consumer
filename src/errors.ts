@@ -37,18 +37,27 @@ class StandardError extends Error {
 }
 
 /**
+ * List of SQS error codes that are considered connection errors.
+ */
+const CONNECTION_ERRORS = [
+  "CredentialsError",
+  "UnknownEndpoint",
+  "AWS.SimpleQueueService.NonExistentQueue",
+  "CredentialsProviderError",
+  "InvalidAddress",
+  "InvalidSecurity",
+  "QueueDoesNotExist",
+  "RequestThrottled",
+  "OverLimit",
+];
+
+/**
  * Checks if the error provided should be treated as a connection error.
  * @param err The error that was received.
  */
 function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
-    return (
-      err.statusCode === 403 ||
-      err.code === "CredentialsError" ||
-      err.code === "UnknownEndpoint" ||
-      err.code === "AWS.SimpleQueueService.NonExistentQueue" ||
-      err.code === "CredentialsProviderError"
-    );
+    return err.statusCode === 403 || CONNECTION_ERRORS.includes(err.code);
   }
   return false;
 }
