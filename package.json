@@ -3,6 +3,8 @@
   "version": "10.1.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "type": "module",
+  "main": "dist/cjs/index.js",
+  "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
