@@ -8,6 +8,10 @@ function buildPackageJson() {
       throw err;
     }
     dirs.forEach((dir) => {
+      if (dir === "types") {
+        return;
+      }
+
       const packageJsonFile = join(buildDir, dir, "/package.json");
 
       if (!existsSync(packageJsonFile)) {
