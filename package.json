@@ -12,7 +12,7 @@
         "default": "./dist/esm/index.js"
       },
       "require": {
-        "types": "./dist/cjs/index.d.cts",
+        "types": "./dist/cjs/index.d.ts",
         "default": "./dist/cjs/index.cjs"
       }
     }
