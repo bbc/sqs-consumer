@@ -1,7 +1,8 @@
 name: Annotate CI run with test results
 on:
   workflow_run:
-    workflows: ["Run Tests"]
+    workflows:
+      - "Run Tests"
     types:
       - completed
 permissions:
