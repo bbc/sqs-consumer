@@ -58,6 +58,7 @@ export class Consumer extends TypedEventEmitter {
   private isPolling = false;
   private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
+  private extendedAWSErrors: boolean;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -82,6 +83,7 @@ export class Consumer extends TypedEventEmitter {
     this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
+    this.extendedAWSErrors = options.extendedAWSErrors ?? false;
     this.sqs =
       options.sqs ||
       new SQSClient({
@@ -297,7 +299,11 @@ export class Consumer extends TypedEventEmitter {
 
       return result;
     } catch (err) {
-      throw toSQSError(err, `SQS receive message failed: ${err.message}`);
+      throw toSQSError(
+        err,
+        `SQS receive message failed: ${err.message}`,
+        this.extendedAWSErrors,
+      );
     }
   }
 
@@ -439,7 +445,11 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       this.emit(
         "error",
-        toSQSError(err, `Error changing visibility timeout: ${err.message}`),
+        toSQSError(
+          err,
+          `Error changing visibility timeout: ${err.message}`,
+          this.extendedAWSErrors,
+        ),
         message,
       );
     }
@@ -470,7 +480,11 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       this.emit(
         "error",
-        toSQSError(err, `Error changing visibility timeout: ${err.message}`),
+        toSQSError(
+          err,
+          `Error changing visibility timeout: ${err.message}`,
+          this.extendedAWSErrors,
+        ),
         messages,
       );
     }
@@ -567,7 +581,11 @@ export class Consumer extends TypedEventEmitter {
         this.sqsSendOptions,
       );
     } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
+      throw toSQSError(
+        err,
+        `SQS delete message failed: ${err.message}`,
+        this.extendedAWSErrors,
+      );
     }
   }
 
@@ -601,7 +619,11 @@ export class Consumer extends TypedEventEmitter {
         this.sqsSendOptions,
       );
     } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
+      throw toSQSError(
+        err,
+        `SQS delete message failed: ${err.message}`,
+        this.extendedAWSErrors,
+      );
     }
   }
 }
