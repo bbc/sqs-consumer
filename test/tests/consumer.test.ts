@@ -248,6 +248,8 @@ describe("Consumer", () => {
       assert.equal(err.time.toString(), receiveErr.time.toString());
       assert.equal(err.service, receiveErr.$service);
       assert.equal(err.fault, receiveErr.$fault);
+      assert.isUndefined(err.response);
+      assert.isUndefined(err.metadata);
     });
 
     it('includes the response and metadata in the error when "extendedAWSErrors" is true', async () => {
