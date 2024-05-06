@@ -34,7 +34,8 @@ jobs:
       - name: Run Tests and Linting
         run: npm run test
 
-      - uses: actions/upload-artifact@v3
+      - name: Cucumber annotations
+        uses: deblockt/cucumber-report-annotations-action@v1.7
         with:
-          name: test-reports-${{ matrix.node-version }}
-          path: test/reports/
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          path: "test/reports/cucumber-report.ndjson"

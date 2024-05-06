@@ -37,3 +37,10 @@ jobs:
           CC_TEST_REPORTER_ID: 760097cb88b4c685dce427cf94a8e12a5f082774d06b4f4f5daef839ffc07821
         with:
           coverageCommand: npm run lcov
+
+      - name: Coverage annotations
+        uses: jgillick/test-coverage-annotations@v1
+        with:
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          coverage: ./coverage/coverage-summary.json
+          only-changed-files: true
