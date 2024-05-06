@@ -23,6 +23,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      - name: Install Node Modules
+        run: npm ci
+
       - name: Setup LCOV
         run: npm run lcov
 
