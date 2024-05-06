@@ -1,0 +1,37 @@
+name: Continuous Integration
+on:
+  pull_request:
+    branches:
+      - 'main'
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage_report:
+    name: Generate coverage report
+    needs: testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: 22.x
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Setup LCOV
+        run: npm run lcov
+
+      - name: Report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: coverage/lcov.*.info
+          minimum-coverage: 90
+          artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
