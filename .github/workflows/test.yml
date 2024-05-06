@@ -10,6 +10,8 @@ permissions:
   contents: read
   checks: write
   pull-requests: write
+  actions: read
+  checks: write
 
 jobs:
   build:
@@ -35,6 +37,14 @@ jobs:
 
       - name: Run Tests and Linting
         run: npm run test
+      
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Mocha Tests
+          path: test/reports/test-results.json
+          reporter: mocha-json
 
       - name: Cucumber annotations
         uses: deblockt/cucumber-report-annotations-action@v1.7
