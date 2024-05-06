@@ -26,8 +26,11 @@ jobs:
       - name: Install Node Modules
         run: npm ci
 
-      - name: Setup LCOV
+      - name: Run Coverage Check
         run: npm run lcov
+
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
 
       - name: Report code coverage
         uses: zgosalvez/github-actions-report-lcov@v3
