@@ -38,4 +38,4 @@ jobs:
         uses: deblockt/cucumber-report-annotations-action@v1.7
         with:
           access-token: ${{ secrets.GITHUB_TOKEN }}
-          path: "test/reports/cucumber-report.ndjson"
+          path: "test/reports/cucumber-report.json"
