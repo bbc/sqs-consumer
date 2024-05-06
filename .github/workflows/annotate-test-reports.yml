@@ -23,9 +23,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Annotate CI run with test results
-        uses: dorny/test-reporter@v1.8.0
+        uses: dorny/test-reporter@v1
         with:
           artifact: test-reports-${{ matrix.node-version }}
           name: Test Results (${{matrix.node-version}}
           path: "test-results.json"
           reporter: mocha-json
+          token: ${{ secrets.GITHUB_TOKEN }}
