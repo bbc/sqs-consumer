@@ -6,7 +6,9 @@ class SQSError extends Error {
   service: string;
   time: Date;
   retryable: boolean;
-  fault: "client" | "server";
+  fault: AWSError["$fault"];
+  response?: AWSError["$response"];
+  metadata?: AWSError["$metadata"];
 
   constructor(message: string) {
     super(message);
@@ -67,7 +69,11 @@ function isConnectionError(err: Error): boolean {
  * @param err The error object that was received.
  * @param message The message to send with the error.
  */
-function toSQSError(err: AWSError, message: string): SQSError {
+function toSQSError(
+  err: AWSError,
+  message: string,
+  extendedAWSErrors: boolean,
+): SQSError {
   const sqsError = new SQSError(message);
   sqsError.code = err.name;
   sqsError.statusCode = err.$metadata?.httpStatusCode;
@@ -75,6 +81,11 @@ function toSQSError(err: AWSError, message: string): SQSError {
   sqsError.service = err.$service;
   sqsError.fault = err.$fault;
   sqsError.time = new Date();
+
+  if (extendedAWSErrors) {
+    sqsError.response = err.$response;
+    sqsError.metadata = err.$metadata;
+  }
 
   return sqsError;
 }

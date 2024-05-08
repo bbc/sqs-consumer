@@ -36,14 +36,17 @@ const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(
 
 class MockSQSError extends Error implements AWSError {
   name: string;
-  $metadata: {
-    httpStatusCode: number;
-  };
+  $metadata: AWSError["$metadata"];
   $service: string;
-  $retryable: {
-    throttling: boolean;
-  };
-  $fault: "client" | "server";
+  $retryable: AWSError["$retryable"];
+  $fault: AWSError["$fault"];
+  $response?:
+    | {
+        statusCode?: number | undefined;
+        headers: Record<string, string>;
+        body?: any;
+      }
+    | undefined;
   time: Date;
 
   constructor(message: string) {
@@ -245,6 +248,82 @@ describe("Consumer", () => {
       assert.equal(err.time.toString(), receiveErr.time.toString());
       assert.equal(err.service, receiveErr.$service);
       assert.equal(err.fault, receiveErr.$fault);
+      assert.isUndefined(err.response);
+      assert.isUndefined(err.metadata);
+    });
+
+    it('includes the response and metadata in the error when "extendedAWSErrors" is true', async () => {
+      const receiveErr = new MockSQSError("Receive error");
+      receiveErr.name = "short code";
+      receiveErr.$retryable = {
+        throttling: false,
+      };
+      receiveErr.$metadata = {
+        httpStatusCode: 403,
+      };
+      receiveErr.time = new Date();
+      receiveErr.$service = "service";
+      receiveErr.$response = {
+        statusCode: 200,
+        headers: {},
+        body: "body",
+      };
+
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        extendedAWSErrors: true,
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, "error");
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.response, receiveErr.$response);
+      assert.equal(err.metadata, receiveErr.$metadata);
+    });
+
+    it("does not include the response and metadata in the error when extendedAWSErrors is false", async () => {
+      const receiveErr = new MockSQSError("Receive error");
+      receiveErr.name = "short code";
+      receiveErr.$retryable = {
+        throttling: false,
+      };
+      receiveErr.$metadata = {
+        httpStatusCode: 403,
+      };
+      receiveErr.time = new Date();
+      receiveErr.$service = "service";
+      receiveErr.$response = {
+        statusCode: 200,
+        headers: {},
+        body: "body",
+      };
+
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        extendedAWSErrors: false,
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, "error");
+      consumer.stop();
+
+      assert.ok(err);
+      assert.isUndefined(err.response);
+      assert.isUndefined(err.metadata);
     });
 
     it("fires a timeout event if handler function takes too long", async () => {
