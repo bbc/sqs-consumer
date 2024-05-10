@@ -8,13 +8,15 @@ on:
       - main
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 22.x]
 
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +36,7 @@ jobs:
       - name: Run Tests and Linting
         run: npm run test
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: test-reports-${{ matrix.node-version }}
           path: test/reports/

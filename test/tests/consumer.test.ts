@@ -36,14 +36,17 @@ const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(
 
 class MockSQSError extends Error implements AWSError {
   name: string;
-  $metadata: {
-    httpStatusCode: number;
-  };
+  $metadata: AWSError["$metadata"];
   $service: string;
-  $retryable: {
-    throttling: boolean;
-  };
-  $fault: "client" | "server";
+  $retryable: AWSError["$retryable"];
+  $fault: AWSError["$fault"];
+  $response?:
+    | {
+        statusCode?: number | undefined;
+        headers: Record<string, string>;
+        body?: any;
+      }
+    | undefined;
   time: Date;
 
   constructor(message: string) {
@@ -245,6 +248,82 @@ describe("Consumer", () => {
       assert.equal(err.time.toString(), receiveErr.time.toString());
       assert.equal(err.service, receiveErr.$service);
       assert.equal(err.fault, receiveErr.$fault);
+      assert.isUndefined(err.response);
+      assert.isUndefined(err.metadata);
+    });
+
+    it('includes the response and metadata in the error when "extendedAWSErrors" is true', async () => {
+      const receiveErr = new MockSQSError("Receive error");
+      receiveErr.name = "short code";
+      receiveErr.$retryable = {
+        throttling: false,
+      };
+      receiveErr.$metadata = {
+        httpStatusCode: 403,
+      };
+      receiveErr.time = new Date();
+      receiveErr.$service = "service";
+      receiveErr.$response = {
+        statusCode: 200,
+        headers: {},
+        body: "body",
+      };
+
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        extendedAWSErrors: true,
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, "error");
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.response, receiveErr.$response);
+      assert.equal(err.metadata, receiveErr.$metadata);
+    });
+
+    it("does not include the response and metadata in the error when extendedAWSErrors is false", async () => {
+      const receiveErr = new MockSQSError("Receive error");
+      receiveErr.name = "short code";
+      receiveErr.$retryable = {
+        throttling: false,
+      };
+      receiveErr.$metadata = {
+        httpStatusCode: 403,
+      };
+      receiveErr.time = new Date();
+      receiveErr.$service = "service";
+      receiveErr.$response = {
+        statusCode: 200,
+        headers: {},
+        body: "body",
+      };
+
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+        extendedAWSErrors: false,
+      });
+
+      consumer.start();
+      const err: any = await pEvent(consumer, "error");
+      consumer.stop();
+
+      assert.ok(err);
+      assert.isUndefined(err.response);
+      assert.isUndefined(err.metadata);
     });
 
     it("fires a timeout event if handler function takes too long", async () => {
@@ -409,6 +488,8 @@ describe("Consumer", () => {
     });
 
     it("waits before repolling when a credentials error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
       const credentialsErr = {
         name: "CredentialsError",
         message: "Missing credentials in config",
@@ -424,9 +505,16 @@ describe("Consumer", () => {
       sandbox.assert.calledTwice(errorListener);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "CredentialsError",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
     });
 
     it("waits before repolling when a 403 error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
       const invalidSignatureErr = {
         $metadata: {
           httpStatusCode: 403,
@@ -444,9 +532,16 @@ describe("Consumer", () => {
       sandbox.assert.calledTwice(errorListener);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "Unknown",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
     });
 
     it("waits before repolling when a UnknownEndpoint error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
       const unknownEndpointErr = {
         name: "UnknownEndpoint",
         message:
@@ -464,9 +559,16 @@ describe("Consumer", () => {
       sandbox.assert.calledTwice(sqs.send);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "UnknownEndpoint",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
     });
 
     it("waits before repolling when a NonExistentQueue error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
       const nonExistentQueueErr = {
         name: "AWS.SimpleQueueService.NonExistentQueue",
         message: "The specified queue does not exist for this wsdl version.",
@@ -483,9 +585,16 @@ describe("Consumer", () => {
       sandbox.assert.calledTwice(sqs.send);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "AWS.SimpleQueueService.NonExistentQueue",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
     });
 
     it("waits before repolling when a CredentialsProviderError error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
       const credentialsProviderErr = {
         name: "CredentialsProviderError",
         message: "Could not load credentials from any providers.",
@@ -502,6 +611,141 @@ describe("Consumer", () => {
       sandbox.assert.calledTwice(sqs.send);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "CredentialsProviderError",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
+    });
+
+    it("waits before repolling when a InvalidAddress error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
+      const credentialsProviderErr = {
+        name: "InvalidAddress",
+        message: "The address some-queue-url is not valid for this endpoint.",
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "InvalidAddress",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
+    });
+
+    it("waits before repolling when a InvalidSecurity error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
+      const credentialsProviderErr = {
+        name: "InvalidSecurity",
+        message: "The queue is not is not HTTPS and SigV4.",
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "InvalidSecurity",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
+    });
+
+    it("waits before repolling when a QueueDoesNotExist error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
+      const credentialsProviderErr = {
+        name: "QueueDoesNotExist",
+        message: "The queue does not exist.",
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "QueueDoesNotExist",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
+    });
+
+    it("waits before repolling when a RequestThrottled error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
+      const credentialsProviderErr = {
+        name: "RequestThrottled",
+        message: "Requests have been throttled.",
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "RequestThrottled",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
+    });
+
+    it("waits before repolling when a RequestThrottled error occurs", async () => {
+      const loggerDebug = sandbox.stub(logger, "debug");
+
+      const credentialsProviderErr = {
+        name: "OverLimit",
+        message: "An over limit error.",
+      };
+      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      consumer.stop();
+
+      sandbox.assert.calledTwice(errorListener);
+      sandbox.assert.calledTwice(sqs.send);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+
+      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+        code: "OverLimit",
+        detail: "There was an authentication error. Pausing before retrying.",
+      });
     });
 
     it("waits before repolling when a polling timeout is set", async () => {

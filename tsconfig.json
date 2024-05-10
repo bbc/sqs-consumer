@@ -8,8 +8,7 @@
     "sourceMap": false,
     "allowJs": false,
     "noUnusedLocals": true,
-    "declaration": true,
-    "declarationDir": "dist/types"
+    "declaration": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

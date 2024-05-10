@@ -141,6 +141,11 @@ export interface ConsumerOptions {
    * example to add middlewares.
    */
   postReceiveMessageCallback?(): Promise<void>;
+  /**
+   * Set this to `true` if you want to receive additional information about the error
+   * that occurred from AWS, such as the response and metadata.
+   */
+  extendedAWSErrors?: boolean;
 }
 
 /**
@@ -232,7 +237,7 @@ export type AWSError = {
   /**
    * Name, eg. ConditionalCheckFailedException
    */
-  name: string;
+  readonly name: string;
 
   /**
    * Human-readable error response message
@@ -247,7 +252,26 @@ export type AWSError = {
   /**
    * Whether the client or server are at fault.
    */
-  readonly $fault?: "client" | "server";
+  readonly $fault: "client" | "server";
+
+  /**
+   * Represents an HTTP message as received in reply to a request
+   */
+  readonly $response?: {
+    /**
+     * The status code of the HTTP response.
+     */
+    statusCode?: number;
+    /**
+     * The headers of the HTTP message.
+     */
+    headers: Record<string, string>;
+    /**
+     * The body of the HTTP message.
+     * Can be: ArrayBuffer | ArrayBufferView | string | Uint8Array | Readable | ReadableStream
+     */
+    body?: any;
+  };
 
   /**
    * The service that encountered the exception.
@@ -264,37 +288,37 @@ export type AWSError = {
     readonly throttling?: boolean;
   };
 
-  $metadata?: {
+  readonly $metadata: {
     /**
      * The status code of the last HTTP response received for this operation.
      */
-    httpStatusCode?: number;
+    readonly httpStatusCode?: number;
 
     /**
      * A unique identifier for the last request sent for this operation. Often
      * requested by AWS service teams to aid in debugging.
      */
-    requestId?: string;
+    readonly requestId?: string;
 
     /**
      * A secondary identifier for the last request sent. Used for debugging.
      */
-    extendedRequestId?: string;
+    readonly extendedRequestId?: string;
 
     /**
      * A tertiary identifier for the last request sent. Used for debugging.
      */
-    cfId?: string;
+    readonly cfId?: string;
 
     /**
      * The number of times this operation was attempted.
      */
-    attempts?: number;
+    readonly attempts?: number;
 
     /**
      * The total amount of time (in milliseconds) that was spent waiting between
      * retry attempts.
      */
-    totalRetryDelay?: number;
+    readonly totalRetryDelay?: number;
   };
 };

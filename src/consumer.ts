@@ -19,7 +19,6 @@ import {
 
 import { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
 import { TypedEventEmitter } from "./emitter.js";
-import { autoBind } from "./bind.js";
 import {
   SQSError,
   TimeoutError,
@@ -59,6 +58,7 @@ export class Consumer extends TypedEventEmitter {
   private isPolling = false;
   private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
+  private extendedAWSErrors: boolean;
 
   constructor(options: ConsumerOptions) {
     super();
@@ -83,13 +83,13 @@ export class Consumer extends TypedEventEmitter {
     this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
+    this.extendedAWSErrors = options.extendedAWSErrors ?? false;
     this.sqs =
       options.sqs ||
       new SQSClient({
         useQueueUrlAsEndpoint: options.useQueueUrlAsEndpoint ?? true,
         region: options.region || process.env.AWS_REGION || "eu-west-1",
       });
-    autoBind(this);
   }
 
   /**
@@ -161,7 +161,7 @@ export class Consumer extends TypedEventEmitter {
       return;
     }
 
-    const exceededTimeout =
+    const exceededTimeout: boolean =
       Date.now() - this.stopRequestedAtTimestamp >
       this.pollingCompleteWaitTimeMs;
     if (exceededTimeout) {
@@ -171,7 +171,7 @@ export class Consumer extends TypedEventEmitter {
     }
 
     this.emit("waiting_for_polling_to_complete");
-    setTimeout(this.waitForPollingToComplete, 1000);
+    setTimeout(() => this.waitForPollingToComplete(), 1000);
   }
 
   /**
@@ -196,7 +196,7 @@ export class Consumer extends TypedEventEmitter {
   public updateOption(
     option: UpdatableOptions,
     value: ConsumerOptions[UpdatableOptions],
-  ) {
+  ): void {
     validateOption(option, value, this, true);
 
     this[option] = value;
@@ -237,7 +237,7 @@ export class Consumer extends TypedEventEmitter {
 
     this.isPolling = true;
 
-    let currentPollingTimeout = this.pollingWaitTimeMs;
+    let currentPollingTimeout: number = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
@@ -246,11 +246,14 @@ export class Consumer extends TypedEventEmitter {
       WaitTimeSeconds: this.waitTimeSeconds,
       VisibilityTimeout: this.visibilityTimeout,
     })
-      .then(this.handleSqsResponse)
-      .catch((err) => {
+      .then((output: ReceiveMessageCommandOutput) =>
+        this.handleSqsResponse(output),
+      )
+      .catch((err): void => {
         this.emitError(err);
         if (isConnectionError(err)) {
           logger.debug("authentication_error", {
+            code: err.code || "Unknown",
             detail:
               "There was an authentication error. Pausing before retrying.",
           });
@@ -258,16 +261,19 @@ export class Consumer extends TypedEventEmitter {
         }
         return;
       })
-      .then(() => {
+      .then((): void => {
         if (this.pollingTimeoutId) {
           clearTimeout(this.pollingTimeoutId);
         }
-        this.pollingTimeoutId = setTimeout(this.poll, currentPollingTimeout);
+        this.pollingTimeoutId = setTimeout(
+          () => this.poll(),
+          currentPollingTimeout,
+        );
       })
-      .catch((err) => {
+      .catch((err): void => {
         this.emitError(err);
       })
-      .finally(() => {
+      .finally((): void => {
         this.isPolling = false;
       });
   }
@@ -283,7 +289,7 @@ export class Consumer extends TypedEventEmitter {
       if (this.preReceiveMessageCallback) {
         await this.preReceiveMessageCallback();
       }
-      const result = await this.sqs.send(
+      const result: ReceiveMessageCommandOutput = await this.sqs.send(
         new ReceiveMessageCommand(params),
         this.sqsSendOptions,
       );
@@ -293,7 +299,11 @@ export class Consumer extends TypedEventEmitter {
 
       return result;
     } catch (err) {
-      throw toSQSError(err, `SQS receive message failed: ${err.message}`);
+      throw toSQSError(
+        err,
+        `SQS receive message failed: ${err.message}`,
+        this.extendedAWSErrors,
+      );
     }
   }
 
@@ -309,7 +319,11 @@ export class Consumer extends TypedEventEmitter {
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
-        await Promise.all(response.Messages.map(this.processMessage));
+        await Promise.all(
+          response.Messages.map((message: Message) =>
+            this.processMessage(message),
+          ),
+        );
       }
 
       this.emit("response_processed");
@@ -333,7 +347,7 @@ export class Consumer extends TypedEventEmitter {
         heartbeatTimeoutId = this.startHeartbeat(message);
       }
 
-      const ackedMessage = await this.executeHandler(message);
+      const ackedMessage: Message = await this.executeHandler(message);
 
       if (ackedMessage?.MessageId === message.MessageId) {
         await this.deleteMessage(message);
@@ -361,7 +375,7 @@ export class Consumer extends TypedEventEmitter {
     let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
 
     try {
-      messages.forEach((message) => {
+      messages.forEach((message: Message): void => {
         this.emit("message_received", message);
       });
 
@@ -369,12 +383,12 @@ export class Consumer extends TypedEventEmitter {
         heartbeatTimeoutId = this.startHeartbeat(null, messages);
       }
 
-      const ackedMessages = await this.executeBatchHandler(messages);
+      const ackedMessages: Message[] = await this.executeBatchHandler(messages);
 
       if (ackedMessages?.length > 0) {
         await this.deleteMessageBatch(ackedMessages);
 
-        ackedMessages.forEach((message) => {
+        ackedMessages.forEach((message: Message): void => {
           this.emit("message_processed", message);
         });
       }
@@ -431,7 +445,11 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       this.emit(
         "error",
-        toSQSError(err, `Error changing visibility timeout: ${err.message}`),
+        toSQSError(
+          err,
+          `Error changing visibility timeout: ${err.message}`,
+          this.extendedAWSErrors,
+        ),
         message,
       );
     }
@@ -448,7 +466,7 @@ export class Consumer extends TypedEventEmitter {
   ): Promise<ChangeMessageVisibilityBatchCommandOutput> {
     const params: ChangeMessageVisibilityBatchCommandInput = {
       QueueUrl: this.queueUrl,
-      Entries: messages.map((message) => ({
+      Entries: messages.map((message: Message) => ({
         Id: message.MessageId,
         ReceiptHandle: message.ReceiptHandle,
         VisibilityTimeout: timeout,
@@ -462,7 +480,11 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       this.emit(
         "error",
-        toSQSError(err, `Error changing visibility timeout: ${err.message}`),
+        toSQSError(
+          err,
+          `Error changing visibility timeout: ${err.message}`,
+          this.extendedAWSErrors,
+        ),
         messages,
       );
     }
@@ -479,7 +501,7 @@ export class Consumer extends TypedEventEmitter {
       let result;
 
       if (this.handleMessageTimeout) {
-        const pending = new Promise((_, reject) => {
+        const pending: Promise<void> = new Promise((_, reject): void => {
           handleMessageTimeoutId = setTimeout((): void => {
             reject(new TimeoutError());
           }, this.handleMessageTimeout);
@@ -518,7 +540,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      const result = await this.handleMessageBatch(messages);
+      const result: void | Message[] = await this.handleMessageBatch(messages);
 
       return !this.alwaysAcknowledge && result instanceof Object
         ? result
@@ -559,7 +581,11 @@ export class Consumer extends TypedEventEmitter {
         this.sqsSendOptions,
       );
     } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
+      throw toSQSError(
+        err,
+        `SQS delete message failed: ${err.message}`,
+        this.extendedAWSErrors,
+      );
     }
   }
 
@@ -576,12 +602,12 @@ export class Consumer extends TypedEventEmitter {
       return;
     }
     logger.debug("deleting_messages", {
-      messageIds: messages.map((msg) => msg.MessageId),
+      messageIds: messages.map((msg: Message) => msg.MessageId),
     });
 
     const deleteParams: DeleteMessageBatchCommandInput = {
       QueueUrl: this.queueUrl,
-      Entries: messages.map((message) => ({
+      Entries: messages.map((message: Message) => ({
         Id: message.MessageId,
         ReceiptHandle: message.ReceiptHandle,
       })),
@@ -593,7 +619,11 @@ export class Consumer extends TypedEventEmitter {
         this.sqsSendOptions,
       );
     } catch (err) {
-      throw toSQSError(err, `SQS delete message failed: ${err.message}`);
+      throw toSQSError(
+        err,
+        `SQS delete message failed: ${err.message}`,
+        this.extendedAWSErrors,
+      );
     }
   }
 }
