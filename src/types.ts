@@ -80,7 +80,8 @@ export interface ConsumerOptions {
    */
   region?: string;
   /**
-   * If false uses the QueueUrl hostname as the endpoint.
+   * Set this value to false to ignore the `queueUrl` and use the
+   * client's resolved endpoint, which may be a custom endpoint.
    * @defaultValue `true`
    */
   useQueueUrlAsEndpoint?: boolean;
