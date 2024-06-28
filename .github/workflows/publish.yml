@@ -1,5 +1,9 @@
 name: Publish Package to npmjs
 on:
+  push:
+    branches:
+      - canary
+      - "*.x"
   workflow_dispatch:
 jobs:
   build:
