@@ -154,6 +154,8 @@
     "@types/mocha": "^10.0.7",
     "@types/node": "^20.14.9",
     "@types/sinon": "^17.0.3",
+    "@typescript-eslint/eslint-plugin": "^7.14.1",
+    "@typescript-eslint/parser": "^7.14.1",
     "c8": "^9.1.0",
     "chai": "^5.1.1",
     "conventional-changelog-conventionalcommits": "^7.0.2",
