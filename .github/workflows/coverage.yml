@@ -2,9 +2,13 @@ name: Report Coverage
 on:
   pull_request:
     branches:
+      - canary
+      - "*.x"
       - 'main'
   push:
     branches:
+      - canary
+      - "*.x"
       - main
 permissions:
   contents: read
