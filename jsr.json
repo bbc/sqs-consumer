@@ -1,0 +1,11 @@
+{
+  "name": "@bbc/sqs-consumer",
+  "version": "11.0.0-canary.1",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publish": {
+    "include": ["src", "package.json", "README.md", "LICENSE"],
+    "exclude": ["dist", "test", "scripts"]
+  }
+}

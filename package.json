@@ -140,11 +140,13 @@
       ],
       "@semantic-release/changelog",
       "@semantic-release/github",
-      "@semantic-release/npm"
+      "@semantic-release/npm",
+      "@sebbo2002/semantic-release-jsr"
     ]
   },
   "devDependencies": {
     "@cucumber/cucumber": "^10.8.0",
+    "@sebbo2002/semantic-release-jsr": "^1.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/git": "^10.0.1",
@@ -163,6 +165,7 @@
     "eslint": "^8.57.0",
     "eslint-config-iplayer": "^9.2.0",
     "eslint-config-prettier": "^9.1.0",
+    "jsr": "^0.12.4",
     "mocha": "^10.5.2",
     "p-event": "^6.0.1",
     "prettier": "^3.3.2",
