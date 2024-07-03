@@ -27,7 +27,6 @@
     "build": "npm run clean && npm run compile && npm run add-package-jsons",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "publish:jsr": "jsr publish",
     "test:unit": "mocha --recursive --full-trace --exit --reporter json > test/reports/test-results.json",
     "pretest:integration:init": "npm run build",
     "test:integration:init": "sh ./test/scripts/initIntTests.sh",
@@ -141,11 +140,13 @@
       ],
       "@semantic-release/changelog",
       "@semantic-release/github",
-      "@semantic-release/npm"
+      "@semantic-release/npm",
+      "@sebbo2002/semantic-release-jsr"
     ]
   },
   "devDependencies": {
     "@cucumber/cucumber": "^10.8.0",
+    "@sebbo2002/semantic-release-jsr": "^1.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/git": "^10.0.1",
