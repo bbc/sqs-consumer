@@ -44,3 +44,12 @@ jobs:
         with:
           name: test-reports-${{ matrix.node-version }}
           path: test/reports/
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install Bun Packages
+        run: bun install
+      
+      - name: Run Bun Tests
+        run: bun test
