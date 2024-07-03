@@ -49,7 +49,7 @@ jobs:
         uses: oven-sh/setup-bun@v1
 
       - name: Install Bun Packages
-        run: bun install
+        run: bun install --no-save
       
       - name: Run Bun Tests
         run: bun test
