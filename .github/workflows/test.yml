@@ -59,3 +59,17 @@ jobs:
       
       - name: Run Bun Tests
         run: bun run test
+
+  test-deno:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denolib/setup-deno@v2
+        with:
+          deno-version: v1.x
+
+      - name: Run Deno Tests
+        run: deno task test --unstable --allow-all
