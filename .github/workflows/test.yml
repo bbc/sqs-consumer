@@ -16,7 +16,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  build:
+  test-node:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -44,3 +44,18 @@ jobs:
         with:
           name: test-reports-${{ matrix.node-version }}
           path: test/reports/
+
+  test-bun:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install Bun Packages
+        run: bun install --no-save
+      
+      - name: Run Bun Tests
+        run: bun run test
