@@ -7,3 +7,9 @@ test
 public
 .nyc_output
 scripts
+.github
+.eslintignore
+.prettierignore
+.prettierrc.js
+jsr.json
+typdoc.json
