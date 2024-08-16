@@ -145,17 +145,17 @@
     ]
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^10.8.0",
-    "@sebbo2002/semantic-release-jsr": "^1.0.0",
+    "@cucumber/cucumber": "^10.9.0",
+    "@sebbo2002/semantic-release-jsr": "^1.1.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^10.0.6",
+    "@semantic-release/github": "^10.1.6",
     "@semantic-release/npm": "^12.0.1",
     "@semantic-release/release-notes-generator": "^14.0.1",
-    "@types/chai": "^4.3.16",
+    "@types/chai": "^4.3.17",
     "@types/mocha": "^10.0.7",
-    "@types/node": "^20.14.9",
+    "@types/node": "^22.3.0",
     "@types/sinon": "^17.0.3",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
@@ -165,23 +165,23 @@
     "eslint": "^8.57.0",
     "eslint-config-iplayer": "^9.2.0",
     "eslint-config-prettier": "^9.1.0",
-    "jsr": "^0.12.4",
-    "mocha": "^10.5.2",
+    "jsr": "^0.13.1",
+    "mocha": "^10.7.3",
     "p-event": "^6.0.1",
-    "prettier": "^3.3.2",
+    "prettier": "^3.3.3",
     "semantic-release": "^24.0.0",
     "sinon": "^18.0.0",
     "sqs-producer": "^5.0.0",
     "ts-node": "^10.9.2",
     "typedoc": "^0.26.3",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.614.0",
-    "debug": "^4.3.5"
+    "@aws-sdk/client-sqs": "^3.632.0",
+    "debug": "^4.3.6"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.614.0"
+    "@aws-sdk/client-sqs": "^3.632.0"
   },
   "mocha": {
     "extensions": [
