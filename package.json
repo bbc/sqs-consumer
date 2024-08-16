@@ -160,7 +160,7 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "c8": "^9.1.0",
-    "chai": "^5.1.1",
+    "chai": "^4.4.1",
     "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^8.57.0",
     "eslint-config-iplayer": "^9.2.0",
