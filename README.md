@@ -17,13 +17,6 @@ npm install sqs-consumer
 
 If you would like to use JSR instead, you can find the package [here](https://jsr.io/@bbc/sqs-consumer).
 
-> **Note**
-> This library assumes you are using [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/index.html). If you are using v2, please install v5.8.0:
->
-> ```bash
-> npm install sqs-consumer@5.8.0
-> ```
-
 ### Node version
 
 We will only support Node versions that are actively or security supported by the Node team. If you are still using an Node 14, please use a version of this library before the v7 release, if you are using Node 16, please use a version before the v7.3.0 release.
