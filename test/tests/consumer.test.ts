@@ -926,6 +926,7 @@ describe("Consumer", () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         messageAttributeNames: ["attribute-1", "attribute-2"],
+        messageSystemAttributeNames: ["All"],
         region: REGION,
         handleMessage,
         batchSize: 3,
@@ -944,6 +945,7 @@ describe("Consumer", () => {
           QueueUrl: QUEUE_URL,
           AttributeNames: [],
           MessageAttributeNames: ["attribute-1", "attribute-2"],
+          MessageSystemAttributeNames: ["All"],
           MaxNumberOfMessages: 3,
           WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
           VisibilityTimeout: undefined,
@@ -988,6 +990,7 @@ describe("Consumer", () => {
           QueueUrl: QUEUE_URL,
           AttributeNames: ["ApproximateReceiveCount"],
           MessageAttributeNames: [],
+          MessageSystemAttributeNames: [],
           MaxNumberOfMessages: 1,
           WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
           VisibilityTimeout: undefined,

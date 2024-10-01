@@ -15,6 +15,7 @@ import {
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput,
   QueueAttributeName,
+  MessageSystemAttributeName,
 } from "@aws-sdk/client-sqs";
 
 import { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
@@ -45,6 +46,7 @@ export class Consumer extends TypedEventEmitter {
   private handleMessageTimeout: number;
   private attributeNames: QueueAttributeName[];
   private messageAttributeNames: string[];
+  private messageSystemAttributeNames: MessageSystemAttributeName[];
   private shouldDeleteMessages: boolean;
   private alwaysAcknowledge: boolean;
   private batchSize: number;
@@ -71,6 +73,8 @@ export class Consumer extends TypedEventEmitter {
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
+    this.messageSystemAttributeNames =
+      options.messageSystemAttributeNames || [];
     this.batchSize = options.batchSize || 1;
     this.visibilityTimeout = options.visibilityTimeout;
     this.terminateVisibilityTimeout =
@@ -242,6 +246,7 @@ export class Consumer extends TypedEventEmitter {
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
       MessageAttributeNames: this.messageAttributeNames,
+      MessageSystemAttributeNames: this.messageSystemAttributeNames,
       MaxNumberOfMessages: this.batchSize,
       WaitTimeSeconds: this.waitTimeSeconds,
       VisibilityTimeout: this.visibilityTimeout,

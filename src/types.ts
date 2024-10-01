@@ -1,4 +1,9 @@
-import { SQSClient, Message, QueueAttributeName } from "@aws-sdk/client-sqs";
+import {
+  SQSClient,
+  Message,
+  QueueAttributeName,
+  MessageSystemAttributeName,
+} from "@aws-sdk/client-sqs";
 
 /**
  * The options for the consumer.
@@ -18,6 +23,11 @@ export interface ConsumerOptions {
    * @defaultvalue `[]`
    */
   messageAttributeNames?: string[];
+  /**
+   * A list of attributes that need to be returned along with each message.
+   * @defaultvalue `[]`
+   */
+  messageSystemAttributeNames?: MessageSystemAttributeName[];
   /** @hidden */
   stopped?: boolean;
   /**
