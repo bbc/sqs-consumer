@@ -1031,6 +1031,29 @@ describe("Consumer", () => {
       );
     });
 
+    it("changes message visibility timeout on processing error", async () => {
+      handleMessage.rejects(new Error("Processing error"));
+
+      consumer.terminateVisibilityTimeout = 10;
+
+      consumer.start();
+      await pEvent(consumer, "processing_error");
+      consumer.stop();
+
+      sandbox.assert.calledWith(
+        sqs.send.secondCall,
+        mockChangeMessageVisibility,
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: "receipt-handle",
+          VisibilityTimeout: 10,
+        }),
+      );
+    });
+
     it("does not terminate visibility timeout when `terminateVisibilityTimeout` option is false", async () => {
       handleMessage.rejects(new Error("Processing error"));
       consumer.terminateVisibilityTimeout = false;
