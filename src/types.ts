@@ -66,10 +66,11 @@ export interface ConsumerOptions {
    */
   pollingCompleteWaitTimeMs?: number;
   /**
-   * If true, sets the message visibility timeout to 0 after a `processing_error`.
+   * If true, sets the message visibility timeout to 0 after a `processing_error`. You can
+   * also specify a different timeout using a number.
    * @defaultvalue `false`
    */
-  terminateVisibilityTimeout?: boolean;
+  terminateVisibilityTimeout?: boolean | number;
   /**
    * The interval (in seconds) between requests to extend the message visibility timeout.
    *
