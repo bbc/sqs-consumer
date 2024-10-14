@@ -51,7 +51,7 @@ export class Consumer extends TypedEventEmitter {
   private alwaysAcknowledge: boolean;
   private batchSize: number;
   private visibilityTimeout: number;
-  private terminateVisibilityTimeout: boolean;
+  private terminateVisibilityTimeout: boolean | number;
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
@@ -362,8 +362,12 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       this.emitError(err, message);
 
-      if (this.terminateVisibilityTimeout) {
-        await this.changeVisibilityTimeout(message, 0);
+      if (this.terminateVisibilityTimeout !== false) {
+        const timeout =
+          this.terminateVisibilityTimeout === true
+            ? 0
+            : this.terminateVisibilityTimeout;
+        await this.changeVisibilityTimeout(message, timeout);
       }
     } finally {
       if (this.heartbeatInterval) {
@@ -400,8 +404,12 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       this.emit("error", err, messages);
 
-      if (this.terminateVisibilityTimeout) {
-        await this.changeVisibilityTimeoutBatch(messages, 0);
+      if (this.terminateVisibilityTimeout !== false) {
+        const timeout =
+          this.terminateVisibilityTimeout === true
+            ? 0
+            : this.terminateVisibilityTimeout;
+        await this.changeVisibilityTimeoutBatch(messages, timeout);
       }
     } finally {
       clearInterval(heartbeatTimeoutId);
