@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
+    "config:recommended",
     ":combinePatchMinorReleases",
     ":enableVulnerabilityAlertsWithLabel(vulnerability)",
     ":prConcurrentLimit10",
@@ -19,16 +19,15 @@
     "group:linters",
     "group:monorepos",
     "npm:unpublishSafe",
-    "regexManagers:dockerfileVersions",
+    "customManagers:dockerfileVersions",
     "replacements:all"
   ],
   "rangeStrategy": "update-lockfile",
-  "supportPolicy": ["lts_latest"],
   "dependencyDashboardAutoclose": true,
   "platformAutomerge": true,
   "vulnerabilityAlerts": {
     "labels": ["security"],
     "automerge": true
   },
-  "stabilityDays": 3
+  "minimumReleaseAge": "3 days"
 }
