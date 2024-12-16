@@ -14,7 +14,7 @@ Given("Several messages are sent to the SQS queue", async () => {
   const command = new PurgeQueueCommand(params);
   const response = await sqs.send(command);
 
-  strictEqual(response["$metadata"].httpStatusCode, 200);
+  strictEqual(response.$metadata.httpStatusCode, 200);
 
   const size = await producer.queueSize();
   strictEqual(size, 0);
@@ -51,6 +51,4 @@ Then(
   },
 );
 
-After(() => {
-  return consumer.stop();
-});
+After(() => consumer.stop());

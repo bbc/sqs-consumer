@@ -14,7 +14,7 @@ Given("a message batch is sent to the SQS queue", async () => {
   const command = new PurgeQueueCommand(params);
   const response = await sqs.send(command);
 
-  strictEqual(response["$metadata"].httpStatusCode, 200);
+  strictEqual(response.$metadata.httpStatusCode, 200);
 
   await producer.send(["msg1", "msg2", "msg3", "msg4"]);
 
@@ -44,7 +44,7 @@ Given("message batches are sent to the SQS queue", async () => {
   const command = new PurgeQueueCommand(params);
   const response = await sqs.send(command);
 
-  strictEqual(response["$metadata"].httpStatusCode, 200);
+  strictEqual(response.$metadata.httpStatusCode, 200);
 
   await producer.send(["msg1", "msg2", "msg3", "msg4", "msg5", "msg6"]);
 
@@ -76,6 +76,4 @@ Then(
   },
 );
 
-After(() => {
-  return consumer.stop();
-});
+After(() => consumer.stop());

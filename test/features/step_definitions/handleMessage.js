@@ -14,7 +14,7 @@ Given("a message is sent to the SQS queue", async () => {
   const command = new PurgeQueueCommand(params);
   const response = await sqs.send(command);
 
-  strictEqual(response["$metadata"].httpStatusCode, 200);
+  strictEqual(response.$metadata.httpStatusCode, 200);
 
   await producer.send(["msg1"]);
 
@@ -44,7 +44,7 @@ Given("messages are sent to the SQS queue", async () => {
   const command = new PurgeQueueCommand(params);
   const response = await sqs.send(command);
 
-  strictEqual(response["$metadata"].httpStatusCode, 200);
+  strictEqual(response.$metadata.httpStatusCode, 200);
 
   await producer.send(["msg2", "msg3", "msg4"]);
 
@@ -84,6 +84,4 @@ Then(
   },
 );
 
-After(() => {
-  return consumer.stop();
-});
+After(() => consumer.stop());

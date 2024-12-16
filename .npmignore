@@ -13,3 +13,4 @@ scripts
 .prettierrc.js
 jsr.json
 typdoc.json
+eslint.config.js

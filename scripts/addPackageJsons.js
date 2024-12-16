@@ -1,7 +1,11 @@
-import { readdir, existsSync, writeFile } from "fs";
-import { join } from "path";
+import { readdir, existsSync, writeFile } from "node:fs";
+import { join } from "node:path";
 
 const buildDir = "./dist";
+/**
+ * Adds package.json files to the build directory.
+ * @returns {void}
+ */
 function buildPackageJson() {
   readdir(buildDir, (err, dirs) => {
     if (err) {
@@ -21,9 +25,9 @@ function buildPackageJson() {
         writeFile(
           packageJsonFile,
           new Uint8Array(Buffer.from(value)),
-          (err) => {
-            if (err) {
-              throw err;
+          (writeErr) => {
+            if (writeErr) {
+              throw writeErr;
             }
           },
         );
