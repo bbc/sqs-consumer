@@ -33,7 +33,7 @@ jobs:
         run: npx audit-ci
 
       - name: Install Node Modules
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Report Coverage
         uses: paambaati/codeclimate-action@v9.0.0
