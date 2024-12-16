@@ -36,7 +36,7 @@ jobs:
         run: npm ci
 
       - name: Report Coverage
-        uses: paambaati/codeclimate-action@v5.0.0
+        uses: paambaati/codeclimate-action@v9.0.0
         env:
           CC_TEST_REPORTER_ID: 760097cb88b4c685dce427cf94a8e12a5f082774d06b4f4f5daef839ffc07821
         with:
