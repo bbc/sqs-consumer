@@ -41,7 +41,7 @@ jobs:
         run: npx audit-ci
 
       - name: Install Node Modules
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Build Docs
         run: npm run generate-docs
