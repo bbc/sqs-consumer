@@ -166,7 +166,7 @@
     "eslint-config-iplayer": "^9.2.0",
     "eslint-config-prettier": "^9.1.0",
     "jsr": "^0.13.1",
-    "mocha": "^10.7.3",
+    "mocha": "^11.0.0",
     "p-event": "^6.0.1",
     "prettier": "^3.3.3",
     "semantic-release": "^24.0.0",
