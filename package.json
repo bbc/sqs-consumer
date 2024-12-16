@@ -34,7 +34,7 @@
     "test": "npm run test:unit && npm run test:integration",
     "coverage": "c8 mocha && c8 report --reporter=html && c8 report --reporter=json-summary",
     "lcov": "c8 mocha && c8 report --reporter=lcov",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --log-level warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
     "format:check": "prettier --check \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
@@ -162,9 +162,8 @@
     "c8": "^10.0.0",
     "chai": "^5.0.0",
     "conventional-changelog-conventionalcommits": "^8.0.0",
-    "eslint": "^8.57.0",
-    "eslint-config-iplayer": "^9.2.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^9.0.0",
+    "eslint-config-eslint": "^11.0.0",
     "jsr": "^0.13.1",
     "mocha": "^11.0.0",
     "p-event": "^6.0.1",
@@ -201,29 +200,5 @@
     ],
     "sourceMap": true,
     "instrument": true
-  },
-  "eslintConfig": {
-    "extends": [
-      "iplayer/base",
-      "iplayer/ts",
-      "prettier"
-    ],
-    "parserOptions": {
-      "sourceType": "module"
-    },
-    "rules": {
-      "@typescript-eslint/naming-convention": [
-        "error",
-        {
-          "selector": "variable",
-          "format": [
-            "camelCase",
-            "UPPER_CASE",
-            "PascalCase"
-          ],
-          "leadingUnderscore": "allow"
-        }
-      ]
-    }
   }
 }

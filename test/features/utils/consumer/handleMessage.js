@@ -6,7 +6,7 @@ export const consumer = Consumer.create({
   queueUrl: QUEUE_URL,
   sqs,
   pollingWaitTimeMs: 100,
-  handleMessage: async (message) => {
+  async handleMessage(message) {
     return message;
   },
 });

@@ -7,7 +7,7 @@ export const consumer = Consumer.create({
   sqs,
   pollingWaitTimeMs: 100,
   batchSize: 5,
-  handleMessageBatch: async (messages) => {
+  async handleMessageBatch(messages) {
     return messages;
   },
 });

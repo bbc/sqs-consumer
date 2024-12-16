@@ -26,7 +26,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Node Modules
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Run Coverage Check
         run: npm run lcov

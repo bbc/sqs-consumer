@@ -8,7 +8,7 @@ export const consumer = Consumer.create({
   pollingWaitTimeMs: 1000,
   pollingCompleteWaitTimeMs: 5000,
   batchSize: 10,
-  handleMessage: async (message) => {
+  async handleMessage(message) {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     return message;
   },
