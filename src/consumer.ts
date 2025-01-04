@@ -18,7 +18,11 @@ import {
   MessageSystemAttributeName,
 } from "@aws-sdk/client-sqs";
 
-import { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
+import type {
+  ConsumerOptions,
+  StopOptions,
+  UpdatableOptions,
+} from "./types.js";
 import { TypedEventEmitter } from "./emitter.js";
 import {
   SQSError,
@@ -51,7 +55,10 @@ export class Consumer extends TypedEventEmitter {
   private alwaysAcknowledge: boolean;
   private batchSize: number;
   private visibilityTimeout: number;
-  private terminateVisibilityTimeout: boolean | number;
+  private terminateVisibilityTimeout:
+    | boolean
+    | number
+    | ((message: Message[]) => number);
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
@@ -363,11 +370,16 @@ export class Consumer extends TypedEventEmitter {
       this.emitError(err, message);
 
       if (this.terminateVisibilityTimeout !== false) {
-        const timeout =
-          this.terminateVisibilityTimeout === true
-            ? 0
-            : this.terminateVisibilityTimeout;
-        await this.changeVisibilityTimeout(message, timeout);
+        if (typeof this.terminateVisibilityTimeout === "function") {
+          const timeout = this.terminateVisibilityTimeout([message]);
+          await this.changeVisibilityTimeout(message, timeout);
+        } else {
+          const timeout =
+            this.terminateVisibilityTimeout === true
+              ? 0
+              : this.terminateVisibilityTimeout;
+          await this.changeVisibilityTimeout(message, timeout);
+        }
       }
     } finally {
       if (this.heartbeatInterval) {
@@ -405,11 +417,16 @@ export class Consumer extends TypedEventEmitter {
       this.emit("error", err, messages);
 
       if (this.terminateVisibilityTimeout !== false) {
-        const timeout =
-          this.terminateVisibilityTimeout === true
-            ? 0
-            : this.terminateVisibilityTimeout;
-        await this.changeVisibilityTimeoutBatch(messages, timeout);
+        if (typeof this.terminateVisibilityTimeout === "function") {
+          const timeout = this.terminateVisibilityTimeout(messages);
+          await this.changeVisibilityTimeoutBatch(messages, timeout);
+        } else {
+          const timeout =
+            this.terminateVisibilityTimeout === true
+              ? 0
+              : this.terminateVisibilityTimeout;
+          await this.changeVisibilityTimeoutBatch(messages, timeout);
+        }
       }
     } finally {
       clearInterval(heartbeatTimeoutId);
@@ -430,9 +447,9 @@ export class Consumer extends TypedEventEmitter {
           messages,
           this.visibilityTimeout,
         );
-      } else {
-        return this.changeVisibilityTimeout(message, this.visibilityTimeout);
       }
+
+      return this.changeVisibilityTimeout(message, this.visibilityTimeout);
     }, this.heartbeatInterval * 1000);
   }
 
@@ -511,7 +528,7 @@ export class Consumer extends TypedEventEmitter {
     let handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
 
     try {
-      let result;
+      let result: Message | void;
 
       if (this.handleMessageTimeout) {
         const pending: Promise<void> = new Promise((_, reject): void => {
@@ -533,7 +550,8 @@ export class Consumer extends TypedEventEmitter {
           err,
           `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`,
         );
-      } else if (err instanceof Error) {
+      }
+      if (err instanceof Error) {
         throw toStandardError(
           err,
           `Unexpected message handler failure: ${err.message}`,
