@@ -68,9 +68,11 @@ export interface ConsumerOptions {
   /**
    * If true, sets the message visibility timeout to 0 after a `processing_error`. You can
    * also specify a different timeout using a number.
+   * If you would like to use exponential backoff, you can pass a function that returns
+   * a number and it will use that as the value for the timeout.
    * @defaultvalue `false`
    */
-  terminateVisibilityTimeout?: boolean | number;
+  terminateVisibilityTimeout?: boolean | number | ((messages: Message[]) => number);
   /**
    * The interval (in seconds) between requests to extend the message visibility timeout.
    *

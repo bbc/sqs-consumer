@@ -6,6 +6,7 @@ import {
   ReceiveMessageCommand,
   SQSClient,
   QueueAttributeName,
+  Message,
 } from "@aws-sdk/client-sqs";
 import { assert } from "chai";
 import * as sinon from "sinon";
@@ -1008,7 +1009,7 @@ describe("Consumer", () => {
       consumer.stop();
     });
 
-    it("terminate message visibility timeout on processing error", async () => {
+    it("terminates message visibility timeout on processing error", async () => {
       handleMessage.rejects(new Error("Processing error"));
 
       consumer.terminateVisibilityTimeout = true;
@@ -1027,6 +1028,51 @@ describe("Consumer", () => {
           QueueUrl: QUEUE_URL,
           ReceiptHandle: "receipt-handle",
           VisibilityTimeout: 0,
+        }),
+      );
+    });
+
+    it('terminates message visibility timeout with a function to calculate timeout on processing error', async () => {
+      const messageWithAttr = {
+        ReceiptHandle: 'receipt-handle',
+        MessageId: '1',
+        Body: 'body-2',
+        Attributes: {
+          ApproximateReceiveCount: 2
+        }
+      };
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [messageWithAttr],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        messageSystemAttributeNames: ['ApproximateReceiveCount'],
+        region: REGION,
+        handleMessage,
+        sqs,
+        terminateVisibilityTimeout: (messages: Message[]) => {
+          const receiveCount = Number.parseInt(messages[0].Attributes?.ApproximateReceiveCount || '1') || 1;
+          return receiveCount * 10;
+        }
+      });
+
+      handleMessage.rejects(new Error('Processing error'));
+
+      consumer.start();
+      await pEvent(consumer, 'processing_error');
+      consumer.stop();
+
+      sandbox.assert.calledWith(
+        sqs.send.secondCall,
+        mockChangeMessageVisibility,
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          ReceiptHandle: "receipt-handle",
+          VisibilityTimeout: 20,
         }),
       );
     });
