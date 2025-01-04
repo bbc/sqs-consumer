@@ -18,7 +18,11 @@ import {
   MessageSystemAttributeName,
 } from "@aws-sdk/client-sqs";
 
-import type { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
+import type {
+  ConsumerOptions,
+  StopOptions,
+  UpdatableOptions,
+} from "./types.js";
 import { TypedEventEmitter } from "./emitter.js";
 import {
   SQSError,
@@ -51,7 +55,10 @@ export class Consumer extends TypedEventEmitter {
   private alwaysAcknowledge: boolean;
   private batchSize: number;
   private visibilityTimeout: number;
-  private terminateVisibilityTimeout: boolean | number | ((message: Message[]) => number);
+  private terminateVisibilityTimeout:
+    | boolean
+    | number
+    | ((message: Message[]) => number);
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
@@ -363,7 +370,7 @@ export class Consumer extends TypedEventEmitter {
       this.emitError(err, message);
 
       if (this.terminateVisibilityTimeout !== false) {
-        if (typeof this.terminateVisibilityTimeout === 'function') {
+        if (typeof this.terminateVisibilityTimeout === "function") {
           const timeout = this.terminateVisibilityTimeout([message]);
           await this.changeVisibilityTimeout(message, timeout);
         } else {
@@ -410,7 +417,7 @@ export class Consumer extends TypedEventEmitter {
       this.emit("error", err, messages);
 
       if (this.terminateVisibilityTimeout !== false) {
-        if (typeof this.terminateVisibilityTimeout === 'function') {
+        if (typeof this.terminateVisibilityTimeout === "function") {
           const timeout = this.terminateVisibilityTimeout(messages);
           await this.changeVisibilityTimeoutBatch(messages, timeout);
         } else {

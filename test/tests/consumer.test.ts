@@ -1032,14 +1032,14 @@ describe("Consumer", () => {
       );
     });
 
-    it('terminates message visibility timeout with a function to calculate timeout on processing error', async () => {
+    it("terminates message visibility timeout with a function to calculate timeout on processing error", async () => {
       const messageWithAttr = {
-        ReceiptHandle: 'receipt-handle',
-        MessageId: '1',
-        Body: 'body-2',
+        ReceiptHandle: "receipt-handle",
+        MessageId: "1",
+        Body: "body-2",
         Attributes: {
-          ApproximateReceiveCount: 2
-        }
+          ApproximateReceiveCount: 2,
+        },
       };
       sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [messageWithAttr],
@@ -1047,20 +1047,23 @@ describe("Consumer", () => {
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
-        messageSystemAttributeNames: ['ApproximateReceiveCount'],
+        messageSystemAttributeNames: ["ApproximateReceiveCount"],
         region: REGION,
         handleMessage,
         sqs,
         terminateVisibilityTimeout: (messages: Message[]) => {
-          const receiveCount = Number.parseInt(messages[0].Attributes?.ApproximateReceiveCount || '1') || 1;
+          const receiveCount =
+            Number.parseInt(
+              messages[0].Attributes?.ApproximateReceiveCount || "1",
+            ) || 1;
           return receiveCount * 10;
-        }
+        },
       });
 
-      handleMessage.rejects(new Error('Processing error'));
+      handleMessage.rejects(new Error("Processing error"));
 
       consumer.start();
-      await pEvent(consumer, 'processing_error');
+      await pEvent(consumer, "processing_error");
       consumer.stop();
 
       sandbox.assert.calledWith(
