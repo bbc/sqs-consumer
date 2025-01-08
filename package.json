@@ -180,11 +180,11 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.712.0",
+    "@aws-sdk/client-sqs": "^3.723.0",
     "debug": "^4.4.0"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.712.0"
+    "@aws-sdk/client-sqs": "^3.723.0"
   },
   "mocha": {
     "extensions": [
