@@ -452,7 +452,6 @@ export class Consumer extends EventEmitter {
   }
 
   private reportConcurrencyUsage(currentFreeConcurrencySlots): void {
-    const precentageUsage = (currentFreeConcurrencySlots / this.concurrencyLimit) * 100;
-    this.emit('concurrency_usage_updated', precentageUsage, this.queueUrl);
+    this.emit('concurrency_usage_updated', currentFreeConcurrencySlots, this.concurrencyLimit, this.queueUrl);
   }
 }
