@@ -205,6 +205,7 @@ export class Consumer extends EventEmitter {
 
     this.concurrencyLimit = newConcurrencyLimit;
     this.freeConcurrentSlots = newFreeConcurrentSlots;
+    this.reportConcurrencyUsage(this.freeConcurrentSlots);
   }
 
   public setPollingWaitTimeMs(newPollingWaitTimeMs: number): void {
@@ -215,6 +216,7 @@ export class Consumer extends EventEmitter {
     debug('Message from batch has finished');
 
     this.freeConcurrentSlots++;
+    this.reportConcurrencyUsage(this.freeConcurrentSlots);
 
     try {
       if (error) throw error;
@@ -229,6 +231,7 @@ export class Consumer extends EventEmitter {
   private reportNumberOfMessagesReceived(numberOfMessages: number): void {
     debug('Reducing number of messages received from freeConcurrentSlots');
     this.freeConcurrentSlots = this.freeConcurrentSlots - numberOfMessages;
+    this.reportConcurrencyUsage(this.freeConcurrentSlots);
   }
 
   private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
@@ -446,5 +449,9 @@ export class Consumer extends EventEmitter {
           });
         }
       });
+  }
+
+  private reportConcurrencyUsage(currentFreeConcurrencySlots): void {
+    this.emit('concurrency_usage_updated', currentFreeConcurrencySlots, this.concurrencyLimit, this.queueUrl);
   }
 }
