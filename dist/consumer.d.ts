@@ -67,5 +67,6 @@ export declare class Consumer extends EventEmitter {
     private emitError;
     private poll;
     private processMessageBatch;
+    private reportConcurrencyUsage;
 }
 export {};

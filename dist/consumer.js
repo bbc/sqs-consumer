@@ -125,6 +125,7 @@ class Consumer extends events_1.EventEmitter {
         const newFreeConcurrentSlots = Math.max(0, this.freeConcurrentSlots + concurrencyLimitDiff);
         this.concurrencyLimit = newConcurrencyLimit;
         this.freeConcurrentSlots = newFreeConcurrentSlots;
+        this.reportConcurrencyUsage(this.freeConcurrentSlots);
     }
     setPollingWaitTimeMs(newPollingWaitTimeMs) {
         this.pollingWaitTimeMs = newPollingWaitTimeMs;
@@ -132,6 +133,7 @@ class Consumer extends events_1.EventEmitter {
     async reportMessageFromBatchFinished(message, error) {
         debug('Message from batch has finished');
         this.freeConcurrentSlots++;
+        this.reportConcurrencyUsage(this.freeConcurrentSlots);
         try {
             if (error)
                 throw error;
@@ -145,6 +147,7 @@ class Consumer extends events_1.EventEmitter {
     reportNumberOfMessagesReceived(numberOfMessages) {
         debug('Reducing number of messages received from freeConcurrentSlots');
         this.freeConcurrentSlots = this.freeConcurrentSlots - numberOfMessages;
+        this.reportConcurrencyUsage(this.freeConcurrentSlots);
     }
     async handleSqsResponse(response) {
         debug('Received SQS response');
@@ -350,6 +353,9 @@ class Consumer extends events_1.EventEmitter {
                 });
             }
         });
+    }
+    reportConcurrencyUsage(currentFreeConcurrencySlots) {
+        this.emit('concurrency_usage_updated', currentFreeConcurrencySlots, this.concurrencyLimit, this.queueUrl);
     }
 }
 exports.Consumer = Consumer;
