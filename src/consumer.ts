@@ -315,6 +315,7 @@ export class Consumer extends TypedEventEmitter {
         err,
         `SQS receive message failed: ${err.message}`,
         this.extendedAWSErrors,
+        this.queueUrl,
       );
     }
   }
@@ -479,6 +480,8 @@ export class Consumer extends TypedEventEmitter {
           err,
           `Error changing visibility timeout: ${err.message}`,
           this.extendedAWSErrors,
+          this.queueUrl,
+          message,
         ),
         message,
       );
@@ -514,6 +517,8 @@ export class Consumer extends TypedEventEmitter {
           err,
           `Error changing visibility timeout: ${err.message}`,
           this.extendedAWSErrors,
+          this.queueUrl,
+          messages,
         ),
         messages,
       );
@@ -549,12 +554,14 @@ export class Consumer extends TypedEventEmitter {
         throw toTimeoutError(
           err,
           `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`,
+          message,
         );
       }
       if (err instanceof Error) {
         throw toStandardError(
           err,
           `Unexpected message handler failure: ${err.message}`,
+          message,
         );
       }
       throw err;
@@ -581,6 +588,7 @@ export class Consumer extends TypedEventEmitter {
         throw toStandardError(
           err,
           `Unexpected message handler failure: ${err.message}`,
+          messages,
         );
       }
       throw err;
@@ -616,6 +624,8 @@ export class Consumer extends TypedEventEmitter {
         err,
         `SQS delete message failed: ${err.message}`,
         this.extendedAWSErrors,
+        this.queueUrl,
+        message,
       );
     }
   }
@@ -654,6 +664,8 @@ export class Consumer extends TypedEventEmitter {
         err,
         `SQS delete message failed: ${err.message}`,
         this.extendedAWSErrors,
+        this.queueUrl,
+        messages,
       );
     }
   }
