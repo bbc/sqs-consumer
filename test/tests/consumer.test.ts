@@ -466,6 +466,7 @@ describe("Consumer", () => {
         "Unexpected message handler failure: Processing error",
       );
       assert.equal(message.MessageId, "123");
+      assert.deepEqual((err as any).messageIds, ["123"]);
     });
 
     it("fires an `error` event when an `SQSError` occurs processing a message", async () => {
@@ -1706,6 +1707,67 @@ describe("Consumer", () => {
 
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
+    });
+
+    it("includes messageIds in timeout errors", async () => {
+      const handleMessageTimeout = 500;
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(resolve, 1000)),
+        handleMessageTimeout,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+      });
+
+      consumer.start();
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "timeout_error"),
+        clock.tickAsync(handleMessageTimeout),
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(
+        err.message,
+        `Message handler timed out after ${handleMessageTimeout}ms: Operation timed out.`,
+      );
+      assert.deepEqual(err.messageIds, ["123"]);
+    });
+
+    it("includes messageIds in batch processing errors", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+          { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+        ],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: () => {
+          throw new Error("Batch processing error");
+        },
+        batchSize: 2,
+        sqs,
+        authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
+      });
+
+      consumer.start();
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "error"),
+        clock.tickAsync(100),
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(
+        err.message,
+        "Unexpected message handler failure: Batch processing error"
+      );
+      assert.deepEqual(err.messageIds, ["1", "2"]);
     });
   });
 

@@ -1,3 +1,5 @@
+import { Message } from "@aws-sdk/client-sqs";
+
 import { AWSError } from "./types.js";
 
 class SQSError extends Error {
@@ -17,6 +19,7 @@ class SQSError extends Error {
 }
 
 class TimeoutError extends Error {
+  messageIds: string[];
   cause: Error;
   time: Date;
 
@@ -24,10 +27,12 @@ class TimeoutError extends Error {
     super(message);
     this.message = message;
     this.name = "TimeoutError";
+    this.messageIds = [];
   }
 }
 
 class StandardError extends Error {
+  messageIds: string[];
   cause: Error;
   time: Date;
 
@@ -35,6 +40,7 @@ class StandardError extends Error {
     super(message);
     this.message = message;
     this.name = "StandardError";
+    this.messageIds = [];
   }
 }
 
@@ -91,14 +97,31 @@ function toSQSError(
 }
 
 /**
+ * Gets the message IDs from the message.
+ * @param message The message that was received from SQS.
+ */
+function getMessageIds(message: Message | Message[]): string[] {
+  if (Array.isArray(message)) {
+    return message.map((m) => m.MessageId);
+  }
+  return [message.MessageId];
+}
+
+/**
  * Formats an Error to the StandardError type.
  * @param err The error object that was received.
  * @param message The message to send with the error.
+ * @param sqsMessage The message that was received from SQS.
  */
-function toStandardError(err: Error, message: string): StandardError {
+function toStandardError(
+  err: Error,
+  message: string,
+  sqsMessage: Message | Message[],
+): StandardError {
   const error = new StandardError(message);
   error.cause = err;
   error.time = new Date();
+  error.messageIds = getMessageIds(sqsMessage);
 
   return error;
 }
@@ -107,11 +130,17 @@ function toStandardError(err: Error, message: string): StandardError {
  * Formats an Error to the TimeoutError type.
  * @param err The error object that was received.
  * @param message The message to send with the error.
+ * @param sqsMessage The message that was received from SQS.
  */
-function toTimeoutError(err: TimeoutError, message: string): TimeoutError {
+function toTimeoutError(
+  err: TimeoutError,
+  message: string,
+  sqsMessage: Message | Message[],
+): TimeoutError {
   const error = new TimeoutError(message);
   error.cause = err;
   error.time = new Date();
+  error.messageIds = getMessageIds(sqsMessage);
 
   return error;
 }
