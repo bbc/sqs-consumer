@@ -549,14 +549,14 @@ export class Consumer extends TypedEventEmitter {
         throw toTimeoutError(
           err,
           `Message handler timed out after ${this.handleMessageTimeout}ms: Operation timed out.`,
-          message
+          message,
         );
       }
       if (err instanceof Error) {
         throw toStandardError(
           err,
           `Unexpected message handler failure: ${err.message}`,
-          message
+          message,
         );
       }
       throw err;

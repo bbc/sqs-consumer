@@ -1765,7 +1765,7 @@ describe("Consumer", () => {
       assert.ok(err);
       assert.equal(
         err.message,
-        "Unexpected message handler failure: Batch processing error"
+        "Unexpected message handler failure: Batch processing error",
       );
       assert.deepEqual(err.messageIds, ["1", "2"]);
     });
