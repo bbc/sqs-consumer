@@ -36,6 +36,8 @@ export class TypedEventEmitter extends EventEmitter {
   /**
    * Emits an event with the provided arguments
    * @param event The name of the event to emit
+   * @param args The arguments to pass to the event listeners
+   * @returns {boolean} Returns true if the event had listeners, false otherwise
    */
   emit<E extends keyof Events>(event: E, ...args: Events[E]): boolean {
     logger.debug(event, ...args, { queueUrl: this.queueUrl });
