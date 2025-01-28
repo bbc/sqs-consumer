@@ -41,7 +41,7 @@ import { logger } from "./logger.js";
 export class Consumer extends TypedEventEmitter {
   private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
   private stopped = true;
-  private queueUrl: string;
+  protected queueUrl: string;
   private handleMessage: (message: Message) => Promise<Message | void>;
   private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
   private preReceiveMessageCallback?: () => Promise<void>;
@@ -70,7 +70,7 @@ export class Consumer extends TypedEventEmitter {
   private extendedAWSErrors: boolean;
 
   constructor(options: ConsumerOptions) {
-    super();
+    super(options.queueUrl);
     assertOptions(options);
     this.queueUrl = options.queueUrl;
     this.handleMessage = options.handleMessage;

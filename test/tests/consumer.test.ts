@@ -2278,7 +2278,7 @@ describe("Consumer", () => {
     });
   });
 
-  describe("logger", () => {
+  describe("events", () => {
     it("logs a debug event when an event is emitted", async () => {
       const loggerDebug = sandbox.stub(logger, "debug");
 
@@ -2286,11 +2286,64 @@ describe("Consumer", () => {
       consumer.stop();
 
       sandbox.assert.callCount(loggerDebug, 5);
+      // Logged directly
       sandbox.assert.calledWithMatch(loggerDebug, "starting");
-      sandbox.assert.calledWithMatch(loggerDebug, "started");
+      // Sent from the emitter
+      sandbox.assert.calledWithMatch(loggerDebug, "started", {
+        queueUrl: QUEUE_URL,
+      });
+      // Logged directly
       sandbox.assert.calledWithMatch(loggerDebug, "polling");
+      // Logged directly
       sandbox.assert.calledWithMatch(loggerDebug, "stopping");
-      sandbox.assert.calledWithMatch(loggerDebug, "stopped");
+      // Sent from the emitter
+      sandbox.assert.calledWithMatch(loggerDebug, "stopped", {
+        queueUrl: QUEUE_URL,
+      });
+    });
+
+    it("includes queueUrl in emitted events", async () => {
+      const startedListener = sandbox.stub();
+      const messageReceivedListener = sandbox.stub();
+      const messageProcessedListener = sandbox.stub();
+      const emptyListener = sandbox.stub();
+      const stoppedListener = sandbox.stub();
+      const errorListener = sandbox.stub();
+      const processingErrorListener = sandbox.stub();
+
+      consumer.on("started", startedListener);
+      consumer.on("message_received", messageReceivedListener);
+      consumer.on("message_processed", messageProcessedListener);
+      consumer.on("empty", emptyListener);
+      consumer.on("stopped", stoppedListener);
+      consumer.on("error", errorListener);
+      consumer.on("processing_error", processingErrorListener);
+
+      consumer.start();
+      await pEvent(consumer, "message_processed");
+      consumer.stop();
+
+      handleMessage.rejects(new Error("Processing error"));
+      consumer.start();
+      await pEvent(consumer, "processing_error");
+      consumer.stop();
+
+      sandbox.assert.calledWith(startedListener, { queueUrl: QUEUE_URL });
+      sandbox.assert.calledWith(messageReceivedListener, response.Messages[0], {
+        queueUrl: QUEUE_URL,
+      });
+      sandbox.assert.calledWith(
+        messageProcessedListener,
+        response.Messages[0],
+        { queueUrl: QUEUE_URL },
+      );
+      sandbox.assert.calledWith(stoppedListener, { queueUrl: QUEUE_URL });
+      sandbox.assert.calledWith(
+        processingErrorListener,
+        sinon.match.instanceOf(Error),
+        response.Messages[0],
+        { queueUrl: QUEUE_URL },
+      );
     });
   });
 });

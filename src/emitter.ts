@@ -4,6 +4,13 @@ import { logger } from "./logger.js";
 import { Events } from "./types.js";
 
 export class TypedEventEmitter extends EventEmitter {
+  protected queueUrl?: string;
+
+  constructor(queueUrl?: string) {
+    super();
+    this.queueUrl = queueUrl;
+  }
+
   /**
    * Trigger a listener on all emitted events
    * @param event The name of the event to listen to
@@ -31,7 +38,7 @@ export class TypedEventEmitter extends EventEmitter {
    * @param event The name of the event to emit
    */
   emit<E extends keyof Events>(event: E, ...args: Events[E]): boolean {
-    logger.debug(event, ...args);
-    return super.emit(event, ...args);
+    logger.debug(event, ...args, { queueUrl: this.queueUrl });
+    return super.emit(event, ...args, { queueUrl: this.queueUrl });
   }
 }
