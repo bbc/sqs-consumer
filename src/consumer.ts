@@ -346,7 +346,6 @@ export class Consumer extends TypedEventEmitter {
         messages.map(async (message) => {
           while (this.batchSize === 1 && this.inFlightMessages >= this.concurrency) {
             if (waitingMessages === 0) {
-              // Only emit when first message starts waiting
               this.emit("concurrency_limit_reached", {
                 limit: this.concurrency,
                 waiting: messages.length - this.inFlightMessages
