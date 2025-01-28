@@ -50,8 +50,11 @@ app.start();
 
 - The queue is polled continuously for messages using [long polling](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html).
 - Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
-- By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed here](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html#batchSize).
-  - It's also important to await any processing that you are doing to ensure that messages are processed one at a time.
+- Messages can be processed in two ways:
+  1. Individual message processing (default): Messages are processed one at a time by default. You can control parallel processing using the `concurrency` option to specify how many messages can be processed simultaneously.
+  2. Batch processing: Using the `batchSize` option [detailed here](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html#batchSize) processes messages in batches. When using batch processing, the entire batch is processed together and concurrency controls don't apply.
+  - Note: When both `batchSize` and `concurrency` are set, `concurrency` will automatically be set to at least match `batchSize` to maintain compatibility.
+- It's important to await any processing that you are doing to ensure messages are processed correctly.
 - By default, messages that are sent to the `handleMessage` and `handleMessageBatch` functions will be considered as processed if they return without an error.
   - To acknowledge individual messages, please return the message that you want to acknowledge if you are using `handleMessage` or the messages for `handleMessageBatch`.
     - To note, returning an empty object or an empty array will be considered an acknowledgement of no message(s) and will result in no messages being deleted. If you would like to change this behaviour, please use the `alwaysAcknowledge` option [detailed here](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html).

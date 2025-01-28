@@ -68,6 +68,8 @@ export class Consumer extends TypedEventEmitter {
   private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
   private extendedAWSErrors: boolean;
+  private concurrency: number;
+  private inFlightMessages = 0;
 
   constructor(options: ConsumerOptions) {
     super(options.queueUrl);
@@ -95,6 +97,7 @@ export class Consumer extends TypedEventEmitter {
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.extendedAWSErrors = options.extendedAWSErrors ?? false;
+    this.concurrency = Math.max(options.concurrency ?? 1, this.batchSize);
     this.sqs =
       options.sqs ||
       new SQSClient({
@@ -328,21 +331,43 @@ export class Consumer extends TypedEventEmitter {
   private async handleSqsResponse(
     response: ReceiveMessageCommandOutput,
   ): Promise<void> {
-    if (hasMessages(response)) {
-      if (this.handleMessageBatch) {
-        await this.processMessageBatch(response.Messages);
-      } else {
-        await Promise.all(
-          response.Messages.map((message: Message) =>
-            this.processMessage(message),
-          ),
-        );
-      }
-
-      this.emit("response_processed");
-    } else if (response) {
+    if (!hasMessages(response)) {
       this.emit("empty");
+      return;
     }
+
+    const messages = response.Messages;
+
+    if (this.handleMessageBatch) {
+      await this.processMessageBatch(messages);
+    } else {
+      let waitingMessages = 0;
+      await Promise.all(
+        messages.map(async (message) => {
+          while (this.batchSize === 1 && this.inFlightMessages >= this.concurrency) {
+            if (waitingMessages === 0) {
+              // Only emit when first message starts waiting
+              this.emit("concurrency_limit_reached", {
+                limit: this.concurrency,
+                waiting: messages.length - this.inFlightMessages
+              });
+            }
+            waitingMessages++;
+            await new Promise(resolve => setTimeout(resolve, 50));
+            if (this.stopped) return;
+          }
+          waitingMessages = Math.max(0, waitingMessages - 1);
+          this.inFlightMessages++;
+          try {
+            await this.processMessage(message);
+          } finally {
+            this.inFlightMessages--;
+          }
+        })
+      );
+    }
+
+    this.emit("response_processed");
   }
 
   /**
