@@ -55,6 +55,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman podman-compose
       
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
