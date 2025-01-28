@@ -189,7 +189,7 @@ export interface StopOptions {
  * Metadata about the queue that is added to every event
  */
 export interface QueueMetadata {
-  queueUrl?: string;
+  queueUrl: string;
 }
 
 /**
