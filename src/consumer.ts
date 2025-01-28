@@ -315,7 +315,7 @@ export class Consumer extends TypedEventEmitter {
         err,
         `SQS receive message failed: ${err.message}`,
         this.extendedAWSErrors,
-        this.queueUrl
+        this.queueUrl,
       );
     }
   }
@@ -481,7 +481,7 @@ export class Consumer extends TypedEventEmitter {
           `Error changing visibility timeout: ${err.message}`,
           this.extendedAWSErrors,
           this.queueUrl,
-          message
+          message,
         ),
         message,
       );
@@ -518,7 +518,7 @@ export class Consumer extends TypedEventEmitter {
           `Error changing visibility timeout: ${err.message}`,
           this.extendedAWSErrors,
           this.queueUrl,
-          messages
+          messages,
         ),
         messages,
       );
@@ -625,7 +625,7 @@ export class Consumer extends TypedEventEmitter {
         `SQS delete message failed: ${err.message}`,
         this.extendedAWSErrors,
         this.queueUrl,
-        message
+        message,
       );
     }
   }
@@ -665,7 +665,7 @@ export class Consumer extends TypedEventEmitter {
         `SQS delete message failed: ${err.message}`,
         this.extendedAWSErrors,
         this.queueUrl,
-        messages
+        messages,
       );
     }
   }
