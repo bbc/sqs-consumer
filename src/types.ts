@@ -189,11 +189,17 @@ export interface StopOptions {
  * Metadata about the queue that is added to every event
  */
 export interface QueueMetadata {
-  queueUrl: string;
+  queueUrl?: string;
 }
 
 /**
  * These are the events that the consumer emits.
+ * Each event will receive QueueMetadata as the last argument.
+ * @example
+ * consumer.on('message_received', (message, metadata) => {
+ *   console.log(`Received message from queue: ${metadata.queueUrl}`);
+ *   console.log(message);
+ * });
  */
 export interface Events {
   /**

@@ -6,6 +6,9 @@ import { Events, QueueMetadata } from "./types.js";
 export class TypedEventEmitter extends EventEmitter {
   protected queueUrl?: string;
 
+  /**
+   * @param queueUrl - The URL of the SQS queue this emitter is associated with
+   */
   constructor(queueUrl?: string) {
     super();
     this.queueUrl = queueUrl;
@@ -36,10 +39,13 @@ export class TypedEventEmitter extends EventEmitter {
   }
 
   /**
-   * Emits an event with the provided arguments
+   * Emits an event with the provided arguments and adds queue metadata
    * @param event The name of the event to emit
    * @param args The arguments to pass to the event listeners
    * @returns {boolean} Returns true if the event had listeners, false otherwise
+   * @example
+   * // Inside a method:
+   * this.emit('message_received', message);
    */
   emit<E extends keyof Events>(event: E, ...args: Events[E]): boolean {
     const metadata: QueueMetadata = { queueUrl: this.queueUrl };
