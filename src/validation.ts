@@ -55,7 +55,9 @@ function validateOption(
         throw new Error("concurrency must be a positive integer.");
       }
       if (allOptions.batchSize && value < allOptions.batchSize) {
-        throw new Error("concurrency must be greater than or equal to batchSize.");
+        throw new Error(
+          "concurrency must be greater than or equal to batchSize.",
+        );
       }
       break;
     default:

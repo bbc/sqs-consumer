@@ -344,15 +344,18 @@ export class Consumer extends TypedEventEmitter {
       let waitingMessages = 0;
       await Promise.all(
         messages.map(async (message) => {
-          while (this.batchSize === 1 && this.inFlightMessages >= this.concurrency) {
+          while (
+            this.batchSize === 1 &&
+            this.inFlightMessages >= this.concurrency
+          ) {
             if (waitingMessages === 0) {
               this.emit("concurrency_limit_reached", {
                 limit: this.concurrency,
-                waiting: messages.length - this.inFlightMessages
+                waiting: messages.length - this.inFlightMessages,
               });
             }
             waitingMessages++;
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
             if (this.stopped) return;
           }
           waitingMessages = Math.max(0, waitingMessages - 1);
@@ -362,7 +365,7 @@ export class Consumer extends TypedEventEmitter {
           } finally {
             this.inFlightMessages--;
           }
-        })
+        }),
       );
     }
 

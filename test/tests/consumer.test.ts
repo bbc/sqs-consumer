@@ -20,7 +20,8 @@ const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
 const POLLING_TIMEOUT = 100;
-const QUEUE_URL = "https://sqs.some-region.amazonaws.com/123456789012/queue-name";
+const QUEUE_URL =
+  "https://sqs.some-region.amazonaws.com/123456789012/queue-name";
 const REGION = "some-region";
 
 const mockReceiveMessage = sinon.match.instanceOf(ReceiveMessageCommand);
@@ -1932,8 +1933,12 @@ describe("Consumer", () => {
         const message2 = { MessageId: "2", ReceiptHandle: "2", Body: "2" };
         const message3 = { MessageId: "3", ReceiptHandle: "3", Body: "3" };
 
-        handleMessage.callsFake(() => new Promise(resolve => setTimeout(resolve, 2000)));
-        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: [message1, message2, message3] });
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send
+          .withArgs(mockReceiveMessage)
+          .resolves({ Messages: [message1, message2, message3] });
 
         consumer = new Consumer({
           queueUrl: QUEUE_URL,
@@ -1941,7 +1946,7 @@ describe("Consumer", () => {
           handleMessage,
           sqs,
           concurrency: 2,
-          batchSize: 1
+          batchSize: 1,
         });
 
         consumer.start();
@@ -1966,10 +1971,12 @@ describe("Consumer", () => {
         const messages = [
           { MessageId: "1", ReceiptHandle: "1", Body: "1" },
           { MessageId: "2", ReceiptHandle: "2", Body: "2" },
-          { MessageId: "3", ReceiptHandle: "3", Body: "3" }
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
         ];
 
-        handleMessageBatch.callsFake(() => new Promise(resolve => setTimeout(resolve, 2000)));
+        handleMessageBatch.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
         sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
 
         consumer = new Consumer({
@@ -1977,7 +1984,7 @@ describe("Consumer", () => {
           region: REGION,
           handleMessageBatch,
           sqs,
-          batchSize: 3
+          batchSize: 3,
         });
 
         consumer.start();
@@ -1995,10 +2002,12 @@ describe("Consumer", () => {
         const messages = [
           { MessageId: "1", ReceiptHandle: "1", Body: "1" },
           { MessageId: "2", ReceiptHandle: "2", Body: "2" },
-          { MessageId: "3", ReceiptHandle: "3", Body: "3" }
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
         ];
 
-        handleMessage.callsFake(() => new Promise(resolve => setTimeout(resolve, 2000)));
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
         sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
 
         consumer = new Consumer({
@@ -2008,7 +2017,7 @@ describe("Consumer", () => {
           sqs,
           concurrency: 1,
           batchSize: 1,
-          pollingWaitTimeMs: 0
+          pollingWaitTimeMs: 0,
         });
 
         consumer.start();
@@ -2020,7 +2029,7 @@ describe("Consumer", () => {
 
         // Update concurrency to 3
         consumer.updateOption("concurrency", 3);
-        
+
         // Need to wait for the next polling cycle
         await clock.tickAsync(POLLING_TIMEOUT);
 
@@ -2037,13 +2046,13 @@ describe("Consumer", () => {
         const messages = [
           { MessageId: "1", ReceiptHandle: "1", Body: "1" },
           { MessageId: "2", ReceiptHandle: "2", Body: "2" },
-          { MessageId: "3", ReceiptHandle: "3", Body: "3" }
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
         ];
 
         let resolveMessage1: (() => void) | undefined;
-        
+
         handleMessage.callsFake((message) => {
-          return new Promise<void>(resolve => {
+          return new Promise<void>((resolve) => {
             if (message.MessageId === "1") {
               resolveMessage1 = resolve;
             } else {
@@ -2060,7 +2069,7 @@ describe("Consumer", () => {
           handleMessage,
           sqs,
           concurrency: 2,
-          batchSize: 1
+          batchSize: 1,
         });
 
         consumer.start();
@@ -2085,21 +2094,21 @@ describe("Consumer", () => {
         const messages = [
           { MessageId: "1", ReceiptHandle: "1", Body: "1" },
           { MessageId: "2", ReceiptHandle: "2", Body: "2" },
-          { MessageId: "3", ReceiptHandle: "3", Body: "3" }
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
         ];
 
         handleMessage.callsFake(() => Promise.resolve());
         sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
 
         const concurrencyUpdateHandler = sandbox.stub();
-        
+
         consumer = new Consumer({
           queueUrl: QUEUE_URL,
           region: REGION,
           handleMessage,
           sqs,
           concurrency: 2,
-          batchSize: 1
+          batchSize: 1,
         });
 
         consumer.on("concurrency_limit_reached", concurrencyUpdateHandler);
@@ -2111,7 +2120,7 @@ describe("Consumer", () => {
         assert.equal(concurrencyUpdateHandler.callCount, 1);
         assert.deepEqual(concurrencyUpdateHandler.firstCall.args[0], {
           limit: 2,
-          waiting: 1
+          waiting: 1,
         });
 
         consumer.stop();
@@ -2120,21 +2129,23 @@ describe("Consumer", () => {
       it("reports concurrency changes when updating limit", async () => {
         const messages = [
           { MessageId: "1", ReceiptHandle: "1", Body: "1" },
-          { MessageId: "2", ReceiptHandle: "2", Body: "2" }
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
         ];
 
-        handleMessage.callsFake(() => new Promise(resolve => setTimeout(resolve, 2000)));
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
         sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
 
         const concurrencyUpdateHandler = sandbox.stub();
-        
+
         consumer = new Consumer({
           queueUrl: QUEUE_URL,
           region: REGION,
           handleMessage,
           sqs,
           concurrency: 1,
-          batchSize: 1
+          batchSize: 1,
         });
 
         consumer.on("concurrency_limit_reached", concurrencyUpdateHandler);
@@ -2146,7 +2157,7 @@ describe("Consumer", () => {
         assert.equal(concurrencyUpdateHandler.callCount, 1);
         assert.deepEqual(concurrencyUpdateHandler.firstCall.args[0], {
           limit: 1,
-          waiting: 1
+          waiting: 1,
         });
 
         // Update concurrency limit
