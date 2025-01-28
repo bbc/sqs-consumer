@@ -1,9 +1,19 @@
 import { EventEmitter } from "node:events";
 
 import { logger } from "./logger.js";
-import { Events } from "./types.js";
+import { Events, QueueMetadata } from "./types.js";
 
 export class TypedEventEmitter extends EventEmitter {
+  protected queueUrl?: string;
+
+  /**
+   * @param queueUrl - The URL of the SQS queue this emitter is associated with
+   */
+  constructor(queueUrl?: string) {
+    super();
+    this.queueUrl = queueUrl;
+  }
+
   /**
    * Trigger a listener on all emitted events
    * @param event The name of the event to listen to
@@ -11,10 +21,11 @@ export class TypedEventEmitter extends EventEmitter {
    */
   on<E extends keyof Events>(
     event: E,
-    listener: (...args: Events[E]) => void,
+    listener: (...args: [...Events[E], QueueMetadata]) => void,
   ): this {
     return super.on(event, listener);
   }
+
   /**
    * Trigger a listener only once for an emitted event
    * @param event The name of the event to listen to
@@ -22,16 +33,23 @@ export class TypedEventEmitter extends EventEmitter {
    */
   once<E extends keyof Events>(
     event: E,
-    listener: (...args: Events[E]) => void,
+    listener: (...args: [...Events[E], QueueMetadata]) => void,
   ): this {
     return super.once(event, listener);
   }
+
   /**
-   * Emits an event with the provided arguments
+   * Emits an event with the provided arguments and adds queue metadata
    * @param event The name of the event to emit
+   * @param args The arguments to pass to the event listeners
+   * @returns {boolean} Returns true if the event had listeners, false otherwise
+   * @example
+   * // Inside a method:
+   * this.emit('message_received', message);
    */
   emit<E extends keyof Events>(event: E, ...args: Events[E]): boolean {
-    logger.debug(event, ...args);
-    return super.emit(event, ...args);
+    const metadata: QueueMetadata = { queueUrl: this.queueUrl };
+    logger.debug(event, ...args, metadata);
+    return super.emit(event, ...args, metadata);
   }
 }
