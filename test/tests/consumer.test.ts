@@ -1675,6 +1675,8 @@ describe("Consumer", () => {
 
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
+      assert.equal(err.queueUrl, QUEUE_URL);
+      assert.deepEqual(err.messageIds, ["1"]);
     });
 
     it("emit error when changing visibility timeout fails for batch handler functions", async () => {
@@ -1707,6 +1709,8 @@ describe("Consumer", () => {
 
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
+      assert.equal(err.queueUrl, QUEUE_URL);
+      assert.deepEqual(err.messageIds, ["1", "2"]);
     });
 
     it("includes messageIds in timeout errors", async () => {
@@ -1767,6 +1771,93 @@ describe("Consumer", () => {
         err.message,
         "Unexpected message handler failure: Batch processing error",
       );
+      assert.deepEqual(err.messageIds, ["1", "2"]);
+    });
+
+    it("includes queueUrl and messageIds in SQS errors when deleting message", async () => {
+      const deleteErr = new Error("Delete error");
+      deleteErr.name = "SQSError";
+
+      handleMessage.resolves(null);
+      sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
+
+      consumer.start();
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "error"),
+        clock.tickAsync(100),
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, "SQS delete message failed: Delete error");
+      assert.equal(err.queueUrl, QUEUE_URL);
+      assert.deepEqual(err.messageIds, ["123"]);
+    });
+
+    it("includes queueUrl and messageIds in SQS errors when changing visibility timeout", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+        ],
+      });
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(resolve, 75000)),
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30,
+      });
+
+      const receiveErr = new MockSQSError("failed");
+      sqs.send.withArgs(mockChangeMessageVisibility).rejects(receiveErr);
+
+      consumer.start();
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "error"),
+        clock.tickAsync(75000),
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, "Error changing visibility timeout: failed");
+      assert.equal(err.queueUrl, QUEUE_URL);
+      assert.deepEqual(err.messageIds, ["1"]);
+    });
+
+    it("includes queueUrl and messageIds in batch SQS errors", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+          { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+        ],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: () =>
+          new Promise((resolve) => setTimeout(resolve, 75000)),
+        sqs,
+        batchSize: 2,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30,
+      });
+
+      const receiveErr = new MockSQSError("failed");
+      sqs.send.withArgs(mockChangeMessageVisibilityBatch).rejects(receiveErr);
+
+      consumer.start();
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "error"),
+        clock.tickAsync(75000),
+      ]);
+      consumer.stop();
+
+      assert.ok(err);
+      assert.equal(err.message, "Error changing visibility timeout: failed");
+      assert.equal(err.queueUrl, QUEUE_URL);
       assert.deepEqual(err.messageIds, ["1", "2"]);
     });
   });
