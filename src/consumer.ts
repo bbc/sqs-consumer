@@ -63,6 +63,7 @@ export class Consumer extends TypedEventEmitter {
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
   private pollingCompleteWaitTimeMs: number;
+  private concurrencyWaitTimeMs: number;
   private heartbeatInterval: number;
   private isPolling = false;
   private stopRequestedAtTimestamp: number;
@@ -94,6 +95,7 @@ export class Consumer extends TypedEventEmitter {
       options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
+    this.concurrencyWaitTimeMs = options.concurrencyWaitTimeMs ?? 50;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.extendedAWSErrors = options.extendedAWSErrors ?? false;
@@ -355,7 +357,7 @@ export class Consumer extends TypedEventEmitter {
               });
             }
             waitingMessages++;
-            await new Promise((resolve) => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, this.concurrencyWaitTimeMs));
             if (this.stopped) return;
           }
           waitingMessages = Math.max(0, waitingMessages - 1);

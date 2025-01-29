@@ -220,6 +220,37 @@ describe("Consumer", () => {
         });
       });
     });
+
+    it("requires concurrencyWaitTimeMs to be a non-negative integer", () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrencyWaitTimeMs: -1,
+        });
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrencyWaitTimeMs: 1.5,
+        });
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+    });
+
+    it("allows concurrencyWaitTimeMs to be zero", () => {
+      assert.doesNotThrow(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrencyWaitTimeMs: 0,
+        });
+      });
+    });
   });
 
   describe(".create", () => {
@@ -2169,6 +2200,88 @@ describe("Consumer", () => {
 
         consumer.stop();
       });
+
+      it("uses the configured concurrencyWaitTimeMs when waiting for slots", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+        ];
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        const customWaitTime = 100;
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 1,
+          batchSize: 1,
+          concurrencyWaitTimeMs: customWaitTime,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First message starts processing
+        assert.equal(handleMessage.callCount, 1);
+        assert.deepEqual(handleMessage.firstCall.args[0], messages[0]);
+
+        // Wait less than the configured wait time - second message shouldn't be processed
+        await clock.tickAsync(customWaitTime - 1);
+        assert.equal(handleMessage.callCount, 1);
+
+        // Wait for the full wait time - second message should now be checked
+        await clock.tickAsync(1);
+        assert.equal(handleMessage.callCount, 1);
+
+        consumer.stop();
+      });
+
+      it("uses updated concurrencyWaitTimeMs value after runtime update", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+        ];
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 1,
+          batchSize: 1,
+          concurrencyWaitTimeMs: 50,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First message starts processing
+        assert.equal(handleMessage.callCount, 1);
+
+        // Update to a longer wait time
+        const newWaitTime = 100;
+        consumer.updateOption("concurrencyWaitTimeMs", newWaitTime);
+
+        // Wait less than the new wait time - second message shouldn't be processed
+        await clock.tickAsync(newWaitTime - 1);
+        assert.equal(handleMessage.callCount, 1);
+
+        // Wait for the full new wait time - second message should now be checked
+        await clock.tickAsync(1);
+        assert.equal(handleMessage.callCount, 1);
+
+        consumer.stop();
+      });
     });
   });
 
@@ -2570,6 +2683,47 @@ describe("Consumer", () => {
       }, "pollingWaitTimeMs must be greater than 0.");
 
       assert.equal(consumer.pollingWaitTimeMs, 0);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it("updates the concurrencyWaitTimeMs option and emits an event", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      consumer.updateOption("concurrencyWaitTimeMs", 100);
+
+      assert.equal(consumer.concurrencyWaitTimeMs, 100);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        "concurrencyWaitTimeMs",
+        100
+      );
+    });
+
+    it("does not update the concurrencyWaitTimeMs if the value is negative", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption("concurrencyWaitTimeMs", -1);
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+
+      assert.equal(consumer.concurrencyWaitTimeMs, 50);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it("does not update the concurrencyWaitTimeMs if the value is not an integer", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption("concurrencyWaitTimeMs", 1.5);
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+
+      assert.equal(consumer.concurrencyWaitTimeMs, 50);
 
       sandbox.assert.notCalled(optionUpdatedListener);
     });

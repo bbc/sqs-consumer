@@ -164,6 +164,11 @@ export interface ConsumerOptions {
    */
   concurrency?: number;
   /**
+   * The duration (in milliseconds) to wait between concurrency checks when the concurrency limit is reached.
+   * @defaultvalue `50`
+   */
+  concurrencyWaitTimeMs?: number;
+  /**
    * Set this to `true` if you want to receive additional information about the error
    * that occurred from AWS, such as the response and metadata.
    */
@@ -178,7 +183,8 @@ export type UpdatableOptions =
   | "batchSize"
   | "waitTimeSeconds"
   | "pollingWaitTimeMs"
-  | "concurrency";
+  | "concurrency"
+  | "concurrencyWaitTimeMs";
 
 /**
  * The options for the stop method.
