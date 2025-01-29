@@ -62,7 +62,9 @@ function validateOption(
       break;
     case "concurrencyWaitTimeMs":
       if (!Number.isInteger(value) || value < 0) {
-        throw new Error("concurrencyWaitTimeMs must be a non-negative integer.");
+        throw new Error(
+          "concurrencyWaitTimeMs must be a non-negative integer.",
+        );
       }
       break;
     default:
@@ -97,7 +99,11 @@ function assertOptions(options: ConsumerOptions): void {
     validateOption("concurrency", options.concurrency, options);
   }
   if (options.concurrencyWaitTimeMs !== undefined) {
-    validateOption("concurrencyWaitTimeMs", options.concurrencyWaitTimeMs, options);
+    validateOption(
+      "concurrencyWaitTimeMs",
+      options.concurrencyWaitTimeMs,
+      options,
+    );
   }
 }
 

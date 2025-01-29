@@ -2698,7 +2698,7 @@ describe("Consumer", () => {
       sandbox.assert.calledWithMatch(
         optionUpdatedListener,
         "concurrencyWaitTimeMs",
-        100
+        100,
       );
     });
 

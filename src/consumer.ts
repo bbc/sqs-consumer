@@ -357,7 +357,9 @@ export class Consumer extends TypedEventEmitter {
               });
             }
             waitingMessages++;
-            await new Promise((resolve) => setTimeout(resolve, this.concurrencyWaitTimeMs));
+            await new Promise((resolve) =>
+              setTimeout(resolve, this.concurrencyWaitTimeMs),
+            );
             if (this.stopped) return;
           }
           waitingMessages = Math.max(0, waitingMessages - 1);
