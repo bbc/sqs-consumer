@@ -158,6 +158,17 @@ export interface ConsumerOptions {
    */
   postReceiveMessageCallback?(): Promise<void>;
   /**
+   * The maximum number of messages that can be processed concurrently.
+   * If not provided, messages will be processed sequentially.
+   * @defaultvalue `1`
+   */
+  concurrency?: number;
+  /**
+   * The duration (in milliseconds) to wait between concurrency checks when the concurrency limit is reached.
+   * @defaultvalue `50`
+   */
+  concurrencyWaitTimeMs?: number;
+  /**
    * Set this to `true` if you want to receive additional information about the error
    * that occurred from AWS, such as the response and metadata.
    */
@@ -176,7 +187,9 @@ export type UpdatableOptions =
   | "visibilityTimeout"
   | "batchSize"
   | "waitTimeSeconds"
-  | "pollingWaitTimeMs";
+  | "pollingWaitTimeMs"
+  | "concurrency"
+  | "concurrencyWaitTimeMs";
 
 /**
  * The options for the stop method.
@@ -262,6 +275,11 @@ export interface Events {
    * Fired when the Consumer has waited for polling to complete and is stopping due to a timeout.
    */
   waiting_for_polling_to_complete_timeout_exceeded: [];
+  /**
+   * Fired when concurrency limit is hit and messages are waiting to be processed.
+   * Includes the current concurrency limit and number of messages waiting.
+   */
+  concurrency_limit_reached: [{ limit: number; waiting: number }];
 }
 
 /**

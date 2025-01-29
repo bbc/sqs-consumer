@@ -20,7 +20,8 @@ const sandbox = sinon.createSandbox();
 
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
 const POLLING_TIMEOUT = 100;
-const QUEUE_URL = "some-queue-url";
+const QUEUE_URL =
+  "https://sqs.some-region.amazonaws.com/123456789012/queue-name";
 const REGION = "some-region";
 
 const mockReceiveMessage = sinon.match.instanceOf(ReceiveMessageCommand);
@@ -153,6 +154,102 @@ describe("Consumer", () => {
           visibilityTimeout: 30,
         });
       }, "heartbeatInterval must be less than visibilityTimeout.");
+    });
+
+    it("requires concurrency to be a positive integer", () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrency: 0,
+        });
+      }, "concurrency must be a positive integer.");
+
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrency: -1,
+        });
+      }, "concurrency must be a positive integer.");
+
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrency: 1.5,
+        });
+      }, "concurrency must be a positive integer.");
+    });
+
+    it("requires concurrency to be greater than or equal to batchSize", () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          batchSize: 5,
+          concurrency: 3,
+        });
+      }, "concurrency must be greater than or equal to batchSize.");
+    });
+
+    it("allows concurrency to be equal to batchSize", () => {
+      assert.doesNotThrow(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          batchSize: 5,
+          concurrency: 5,
+        });
+      });
+    });
+
+    it("allows concurrency to be greater than batchSize", () => {
+      assert.doesNotThrow(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          batchSize: 5,
+          concurrency: 10,
+        });
+      });
+    });
+
+    it("requires concurrencyWaitTimeMs to be a non-negative integer", () => {
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrencyWaitTimeMs: -1,
+        });
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+
+      assert.throws(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrencyWaitTimeMs: 1.5,
+        });
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+    });
+
+    it("allows concurrencyWaitTimeMs to be zero", () => {
+      assert.doesNotThrow(() => {
+        new Consumer({
+          region: REGION,
+          queueUrl: QUEUE_URL,
+          handleMessage,
+          concurrencyWaitTimeMs: 0,
+        });
+      });
     });
   });
 
@@ -1860,6 +1957,332 @@ describe("Consumer", () => {
       assert.equal(err.queueUrl, QUEUE_URL);
       assert.deepEqual(err.messageIds, ["1", "2"]);
     });
+
+    describe("concurrency", () => {
+      it("processes messages respecting the concurrency limit", async () => {
+        const message1 = { MessageId: "1", ReceiptHandle: "1", Body: "1" };
+        const message2 = { MessageId: "2", ReceiptHandle: "2", Body: "2" };
+        const message3 = { MessageId: "3", ReceiptHandle: "3", Body: "3" };
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send
+          .withArgs(mockReceiveMessage)
+          .resolves({ Messages: [message1, message2, message3] });
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 2,
+          batchSize: 1,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First two messages should be in flight
+        assert.equal(handleMessage.callCount, 2);
+        assert.deepEqual(handleMessage.firstCall.args[0], message1);
+        assert.deepEqual(handleMessage.secondCall.args[0], message2);
+
+        // Complete first two messages
+        await clock.tickAsync(2000);
+
+        // Third message should now be processing
+        assert.equal(handleMessage.callCount, 3);
+        assert.deepEqual(handleMessage.thirdCall.args[0], message3);
+
+        consumer.stop();
+      });
+
+      it("bypasses concurrency limits in batch mode", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
+        ];
+
+        handleMessageBatch.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessageBatch,
+          sqs,
+          batchSize: 3,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // All messages should be processed in one batch
+        assert.equal(handleMessageBatch.callCount, 1);
+        assert.deepEqual(handleMessageBatch.firstCall.args[0], messages);
+
+        await clock.tickAsync(2000);
+        consumer.stop();
+      });
+
+      it("handles dynamic concurrency updates", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
+        ];
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 1,
+          batchSize: 1,
+          pollingWaitTimeMs: 0,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First message starts processing
+        assert.equal(handleMessage.callCount, 1);
+        assert.deepEqual(handleMessage.firstCall.args[0], messages[0]);
+
+        // Update concurrency to 3
+        consumer.updateOption("concurrency", 3);
+
+        // Need to wait for the next polling cycle
+        await clock.tickAsync(POLLING_TIMEOUT);
+
+        // Second and third messages should now be processing
+        assert.equal(handleMessage.callCount, 3);
+        assert.deepEqual(handleMessage.secondCall.args[0], messages[1]);
+        assert.deepEqual(handleMessage.thirdCall.args[0], messages[2]);
+
+        await clock.tickAsync(2000);
+        consumer.stop();
+      });
+
+      it("completes in-flight messages when stopping", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
+        ];
+
+        let resolveMessage1: (() => void) | undefined;
+
+        handleMessage.callsFake((message) => {
+          return new Promise<void>((resolve) => {
+            if (message.MessageId === "1") {
+              resolveMessage1 = resolve;
+            } else {
+              resolve();
+            }
+          });
+        });
+
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 2,
+          batchSize: 1,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First two messages should be in flight
+        assert.equal(handleMessage.callCount, 2);
+        assert.deepEqual(handleMessage.firstCall.args[0], messages[0]);
+        assert.deepEqual(handleMessage.secondCall.args[0], messages[1]);
+
+        consumer.stop();
+
+        // Complete first message
+        resolveMessage1?.();
+        await clock.tickAsync(0);
+
+        // No more messages should be processed after stopping
+        assert.equal(handleMessage.callCount, 2);
+      });
+
+      it("reports concurrency slot usage", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+          { MessageId: "3", ReceiptHandle: "3", Body: "3" },
+        ];
+
+        handleMessage.callsFake(() => Promise.resolve());
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        const concurrencyUpdateHandler = sandbox.stub();
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 2,
+          batchSize: 1,
+        });
+
+        consumer.on("concurrency_limit_reached", concurrencyUpdateHandler);
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First two messages should be in flight, using all concurrency slots
+        assert.equal(handleMessage.callCount, 2);
+        assert.equal(concurrencyUpdateHandler.callCount, 1);
+        assert.deepEqual(concurrencyUpdateHandler.firstCall.args[0], {
+          limit: 2,
+          waiting: 1,
+        });
+
+        consumer.stop();
+      });
+
+      it("reports concurrency changes when updating limit", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+        ];
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        const concurrencyUpdateHandler = sandbox.stub();
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 1,
+          batchSize: 1,
+        });
+
+        consumer.on("concurrency_limit_reached", concurrencyUpdateHandler);
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First message uses the only slot
+        assert.equal(handleMessage.callCount, 1);
+        assert.equal(concurrencyUpdateHandler.callCount, 1);
+        assert.deepEqual(concurrencyUpdateHandler.firstCall.args[0], {
+          limit: 1,
+          waiting: 1,
+        });
+
+        // Update concurrency limit
+        consumer.updateOption("concurrency", 2);
+        await clock.tickAsync(POLLING_TIMEOUT);
+
+        // Second message should now be processing
+        assert.equal(handleMessage.callCount, 2);
+
+        consumer.stop();
+      });
+
+      it("uses the configured concurrencyWaitTimeMs when waiting for slots", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+        ];
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        const customWaitTime = 100;
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 1,
+          batchSize: 1,
+          concurrencyWaitTimeMs: customWaitTime,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First message starts processing
+        assert.equal(handleMessage.callCount, 1);
+        assert.deepEqual(handleMessage.firstCall.args[0], messages[0]);
+
+        // Wait less than the configured wait time - second message shouldn't be processed
+        await clock.tickAsync(customWaitTime - 1);
+        assert.equal(handleMessage.callCount, 1);
+
+        // Wait for the full wait time - second message should now be checked
+        await clock.tickAsync(1);
+        assert.equal(handleMessage.callCount, 1);
+
+        consumer.stop();
+      });
+
+      it("uses updated concurrencyWaitTimeMs value after runtime update", async () => {
+        const messages = [
+          { MessageId: "1", ReceiptHandle: "1", Body: "1" },
+          { MessageId: "2", ReceiptHandle: "2", Body: "2" },
+        ];
+
+        handleMessage.callsFake(
+          () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        );
+        sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage,
+          sqs,
+          concurrency: 1,
+          batchSize: 1,
+          concurrencyWaitTimeMs: 50,
+        });
+
+        consumer.start();
+        await clock.tickAsync(0);
+
+        // First message starts processing
+        assert.equal(handleMessage.callCount, 1);
+
+        // Update to a longer wait time
+        const newWaitTime = 100;
+        consumer.updateOption("concurrencyWaitTimeMs", newWaitTime);
+
+        // Wait less than the new wait time - second message shouldn't be processed
+        await clock.tickAsync(newWaitTime - 1);
+        assert.equal(handleMessage.callCount, 1);
+
+        // Wait for the full new wait time - second message should now be checked
+        await clock.tickAsync(1);
+        assert.equal(handleMessage.callCount, 1);
+
+        consumer.stop();
+      });
+    });
   });
 
   describe("FIFO Queue Warning", () => {
@@ -2331,6 +2754,47 @@ describe("Consumer", () => {
       }, "pollingWaitTimeMs must be greater than 0.");
 
       assert.equal(consumer.pollingWaitTimeMs, 0);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it("updates the concurrencyWaitTimeMs option and emits an event", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      consumer.updateOption("concurrencyWaitTimeMs", 100);
+
+      assert.equal(consumer.concurrencyWaitTimeMs, 100);
+
+      sandbox.assert.calledWithMatch(
+        optionUpdatedListener,
+        "concurrencyWaitTimeMs",
+        100,
+      );
+    });
+
+    it("does not update the concurrencyWaitTimeMs if the value is negative", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption("concurrencyWaitTimeMs", -1);
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+
+      assert.equal(consumer.concurrencyWaitTimeMs, 50);
+
+      sandbox.assert.notCalled(optionUpdatedListener);
+    });
+
+    it("does not update the concurrencyWaitTimeMs if the value is not an integer", () => {
+      const optionUpdatedListener = sandbox.stub();
+      consumer.on("option_updated", optionUpdatedListener);
+
+      assert.throws(() => {
+        consumer.updateOption("concurrencyWaitTimeMs", 1.5);
+      }, "concurrencyWaitTimeMs must be a non-negative integer.");
+
+      assert.equal(consumer.concurrencyWaitTimeMs, 50);
 
       sandbox.assert.notCalled(optionUpdatedListener);
     });
