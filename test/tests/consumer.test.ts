@@ -1862,6 +1862,77 @@ describe("Consumer", () => {
     });
   });
 
+  describe("FIFO Queue Warning", () => {
+    let warnStub: sinon.SinonStub;
+
+    beforeEach(() => {
+      warnStub = sandbox.stub(logger, "warn");
+    });
+
+    it("emits a warning when starting with a FIFO queue URL", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/queue.fifo",
+        region: REGION,
+        handleMessage,
+        sqs,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.calledOnce(warnStub);
+      sandbox.assert.calledWithMatch(
+        warnStub,
+        "WARNING: A FIFO queue was detected. SQS Consumer does not guarantee FIFO queues will work as expected. Set 'suppressFifoWarning: true' to disable this warning.",
+      );
+    });
+
+    it("does not emit warning for standard queue URLs", () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage,
+        sqs,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+    });
+
+    it("suppresses warning when suppressFifoWarning option is true", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/queue.fifo",
+        region: REGION,
+        handleMessage,
+        sqs,
+        suppressFifoWarning: true,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+    });
+
+    it("emits warning on multiple start calls with FIFO queue", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/queue.fifo",
+        region: REGION,
+        handleMessage,
+        sqs,
+      });
+
+      consumer.start();
+      consumer.stop();
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.calledTwice(warnStub);
+    });
+  });
+
   describe("event listeners", () => {
     it("fires the event multiple times", async () => {
       sqs.send.withArgs(mockReceiveMessage).resolves({});

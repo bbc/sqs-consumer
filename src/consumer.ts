@@ -42,6 +42,8 @@ export class Consumer extends TypedEventEmitter {
   private pollingTimeoutId: NodeJS.Timeout | undefined = undefined;
   private stopped = true;
   protected queueUrl: string;
+  private isFifoQueue: boolean;
+  private suppressFifoWarning: boolean;
   private handleMessage: (message: Message) => Promise<Message | void>;
   private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
   private preReceiveMessageCallback?: () => Promise<void>;
@@ -73,6 +75,8 @@ export class Consumer extends TypedEventEmitter {
     super(options.queueUrl);
     assertOptions(options);
     this.queueUrl = options.queueUrl;
+    this.isFifoQueue = this.queueUrl.endsWith(".fifo");
+    this.suppressFifoWarning = options.suppressFifoWarning ?? false;
     this.handleMessage = options.handleMessage;
     this.handleMessageBatch = options.handleMessageBatch;
     this.preReceiveMessageCallback = options.preReceiveMessageCallback;
@@ -115,6 +119,11 @@ export class Consumer extends TypedEventEmitter {
    */
   public start(): void {
     if (this.stopped) {
+      if (this.isFifoQueue && !this.suppressFifoWarning) {
+        logger.warn(
+          "WARNING: A FIFO queue was detected. SQS Consumer does not guarantee FIFO queues will work as expected. Set 'suppressFifoWarning: true' to disable this warning.",
+        );
+      }
       // Create a new abort controller each time the consumer is started
       this.abortController = new AbortController();
       logger.debug("starting");

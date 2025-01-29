@@ -162,6 +162,11 @@ export interface ConsumerOptions {
    * that occurred from AWS, such as the response and metadata.
    */
   extendedAWSErrors?: boolean;
+  /**
+   * Set this to `true` if you want to suppress the warning about FIFO queues.
+   * @defaultvalue `false`
+   */
+  suppressFifoWarning?: boolean;
 }
 
 /**
