@@ -9,16 +9,14 @@ services:
       - SERVICES=sqs
       - AWS_ACCESS_KEY_ID=key
       - AWS_SECRET_ACCESS_KEY=secret
-      - DOCKER_HOST=unix:///var/run/docker.sock
       - DEBUG=1
     ports:
       - "4566-4599:4566-4599"
     volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock'
-      - ./localstack:/etc/localstack/init/ready.d
+      - './localstack:/etc/localstack/init/ready.d:Z'
     healthcheck:
       test: curl http://localhost:4566/_localstack/health | jq '.services.sqs' | grep -q -x 'running'
       interval: 20s
       retries: 5
       start_period: 20s
-      timeout: 10s
+      timeout: 10s 
