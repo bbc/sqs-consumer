@@ -58,6 +58,14 @@ app.start();
     - By default, if an object or an array is not returned, all messages will be acknowledged.
 - Messages are deleted from the queue once the handler function has completed successfully (the above items should also be taken into account).
 
+### FIFO Queue Support
+
+When using SQS Consumer with FIFO (First-In-First-Out) queues, you might see a warning message in your logs.
+
+As mentioned in the warning, we do not explicitly test SQS Consumer with FIFO queues, this means that we cannot guarantee that the library will work as expected, however, with the correct configuration, it should. If you have done that and believe FIFO to be working as expected, you can suppress the warning by setting `suppressFifoWarning: true`.
+
+To note: In order to maintain FIFO ordering, you should always use the `handleMessageBatch` method instead of `handleMessage`.
+
 ### Credentials
 
 By default the consumer will look for AWS credentials in the places [specified by the AWS SDK](https://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials). The simplest option is to export your credentials as environment variables:
