@@ -199,7 +199,7 @@ export interface QueueMetadata {
 
 /**
  * These are the events that the consumer emits.
- * Each event will receive QueueMetadata as the last argument.
+ * Each event will receive QueueMetadata as the last argument, which is added automatically by the emitter.
  * @example
  * consumer.on('message_received', (message, metadata) => {
  *   console.log(`Received message from queue: ${metadata.queueUrl}`);
@@ -228,7 +228,7 @@ export interface Events {
    *
    * If the error correlates to a message, that message is included in Params
    */
-  error: [Error, void | Message | Message[]];
+  error: [Error, Message | Message[] | undefined];
   /**
    * Fired when `handleMessageTimeout` is supplied as an option and if
    * `handleMessage` times out.

@@ -231,7 +231,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private emitError(err: Error, message?: Message): void {
     if (!message) {
-      this.emit("error", err);
+      this.emit("error", err, undefined);
     } else if (err.name === SQSError.name) {
       this.emit("error", err, message);
     } else if (err instanceof TimeoutError) {
