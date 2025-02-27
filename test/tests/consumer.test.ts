@@ -1860,6 +1860,63 @@ describe("Consumer", () => {
       assert.equal(err.queueUrl, QUEUE_URL);
       assert.deepEqual(err.messageIds, ["1", "2"]);
     });
+
+    it("includes undefined in error event when receiveMessage fails", async () => {
+      const receiveErr = new Error("Receive error");
+      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await pEvent(consumer, "error");
+      consumer.stop();
+
+      sandbox.assert.calledOnce(errorListener);
+      sandbox.assert.calledWith(
+        errorListener,
+        sinon.match.instanceOf(Error),
+        undefined,
+        { queueUrl: QUEUE_URL },
+      );
+    });
+
+    it("includes undefined in error event when poll method catches an error", async () => {
+      // Create a special error for this test
+      const pollError = new Error("Poll error");
+
+      // Make receiveMessage succeed
+      sqs.send.withArgs(mockReceiveMessage).resolves({});
+
+      // Stub handleSqsResponse to throw an error
+      const originalPrototype = Object.getPrototypeOf(consumer);
+      const originalHandleSqsResponse = originalPrototype.handleSqsResponse;
+
+      // Use Object.defineProperty to override the private method
+      Object.defineProperty(originalPrototype, "handleSqsResponse", {
+        value: sandbox.stub().throws(pollError),
+      });
+
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await pEvent(consumer, "error");
+      consumer.stop();
+
+      // Restore original method
+      Object.defineProperty(originalPrototype, "handleSqsResponse", {
+        value: originalHandleSqsResponse,
+      });
+
+      sandbox.assert.calledOnce(errorListener);
+      sandbox.assert.calledWith(
+        errorListener,
+        sinon.match.instanceOf(Error),
+        undefined,
+        { queueUrl: QUEUE_URL },
+      );
+    });
   });
 
   describe("FIFO Queue Warning", () => {
