@@ -228,7 +228,7 @@ export interface Events {
    *
    * If the error correlates to a message, that message is included in Params
    */
-  error: [Error, (Message | Message[] | undefined)];
+  error: [Error, Message | Message[] | undefined];
   /**
    * Fired when `handleMessageTimeout` is supplied as an option and if
    * `handleMessage` times out.
