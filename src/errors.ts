@@ -159,6 +159,7 @@ function toTimeoutError(
 
 export {
   SQSError,
+  StandardError,
   TimeoutError,
   isConnectionError,
   toSQSError,
