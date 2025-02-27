@@ -16,14 +16,23 @@ Given("Several messages are sent to the SQS queue", async () => {
 
   strictEqual(response.$metadata.httpStatusCode, 200);
 
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
   const size = await producer.queueSize();
-  strictEqual(size, 0);
+  
+  if (size > 0) {
+    await sqs.send(command);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const sizeAfterSecondPurge = await producer.queueSize();
+    strictEqual(sizeAfterSecondPurge, 0, "Queue should be empty after second purge");
+  } else {
+    strictEqual(size, 0, "Queue should be empty after purge");
+  }
 
   await producer.send(["msg1", "msg2", "msg3"]);
 
   const size2 = await producer.queueSize();
-
-  strictEqual(size2, 3);
+  strictEqual(size2, 3, "Queue should have exactly 3 messages");
 });
 
 Then("the application is stopped while messages are in flight", async () => {
@@ -44,11 +53,15 @@ Then(
 
     await pEvent(consumer, "stopped");
 
-    strictEqual(numProcessed, 3);
+    strictEqual(numProcessed, 3, "Should process exactly 3 messages");
 
     const size = await producer.queueSize();
-    strictEqual(size, 0);
+    strictEqual(size, 0, "Queue should be empty after processing");
   },
 );
 
-After(() => consumer.stop());
+After(async () => {
+  consumer.stop();
+  
+  await sqs.send(new PurgeQueueCommand({ QueueUrl: QUEUE_URL }));
+});
