@@ -150,7 +150,7 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "^11.2.0",
-    "@sebbo2002/semantic-release-jsr": "^2.0.5",
+    "@sebbo2002/semantic-release-jsr": "^3.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
