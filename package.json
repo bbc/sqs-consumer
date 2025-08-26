@@ -149,7 +149,7 @@
     "cross-spawn": "^7.0.3"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^12.2.0",
+    "@cucumber/cucumber": "^11.2.0",
     "@sebbo2002/semantic-release-jsr": "^3.0.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
