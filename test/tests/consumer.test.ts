@@ -74,7 +74,7 @@ describe("Consumer", () => {
 
   beforeEach(() => {
     clock = sinon.useFakeTimers();
-    handleMessage = sandbox.stub().resolves(null);
+    handleMessage = sandbox.stub().resolves(response.Messages[0]);
     handleMessageBatch = sandbox.stub().resolves(null);
     sqs = sinon.createStubInstance(SQSClient);
     sqs.send = sinon.stub();
@@ -436,7 +436,7 @@ describe("Consumer", () => {
     it("fires an error event when an error occurs deleting a message", async () => {
       const deleteErr = new Error("Delete error");
 
-      handleMessage.resolves(null);
+      handleMessage.resolves(response.Messages[0]);
       sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
 
       consumer.start();
@@ -473,7 +473,7 @@ describe("Consumer", () => {
       const sqsError = new Error("Processing error");
       sqsError.name = "SQSError";
 
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
       sqs.send.withArgs(mockDeleteMessage).rejects(sqsError);
 
       consumer.start();
@@ -780,7 +780,7 @@ describe("Consumer", () => {
     });
 
     it("fires a message_processed event when a message is successfully deleted", async () => {
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       const message = await pEvent(consumer, "message_received");
@@ -820,7 +820,7 @@ describe("Consumer", () => {
     });
 
     it("deletes the message when the handleMessage function is called", async () => {
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       await pEvent(consumer, "message_processed");
@@ -846,7 +846,7 @@ describe("Consumer", () => {
         shouldDeleteMessages: false,
       });
 
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       await pEvent(consumer, "message_processed");
@@ -866,7 +866,7 @@ describe("Consumer", () => {
     });
 
     it("consumes another message once one is processed", async () => {
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       await clock.runToLastAsync();
@@ -1156,7 +1156,7 @@ describe("Consumer", () => {
           },
         ],
       });
-      handleMessage.resolves(null);
+      handleMessage.resolves(response.Messages[0]);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1761,7 +1761,7 @@ describe("Consumer", () => {
       const deleteErr = new Error("Delete error");
       deleteErr.name = "SQSError";
 
-      handleMessage.resolves(null);
+      handleMessage.resolves(response.Messages[0]);
       sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
 
       consumer.start();
