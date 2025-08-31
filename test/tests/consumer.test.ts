@@ -74,7 +74,7 @@ describe("Consumer", () => {
 
   beforeEach(() => {
     clock = sinon.useFakeTimers();
-    handleMessage = sandbox.stub().resolves(null);
+    handleMessage = sandbox.stub().resolves(response.Messages[0]);
     handleMessageBatch = sandbox.stub().resolves(null);
     sqs = sinon.createStubInstance(SQSClient);
     sqs.send = sinon.stub();
@@ -436,7 +436,7 @@ describe("Consumer", () => {
     it("fires an error event when an error occurs deleting a message", async () => {
       const deleteErr = new Error("Delete error");
 
-      handleMessage.resolves(null);
+      handleMessage.resolves(response.Messages[0]);
       sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
 
       consumer.start();
@@ -473,7 +473,7 @@ describe("Consumer", () => {
       const sqsError = new Error("Processing error");
       sqsError.name = "SQSError";
 
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
       sqs.send.withArgs(mockDeleteMessage).rejects(sqsError);
 
       consumer.start();
@@ -780,7 +780,7 @@ describe("Consumer", () => {
     });
 
     it("fires a message_processed event when a message is successfully deleted", async () => {
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       const message = await pEvent(consumer, "message_received");
@@ -820,7 +820,7 @@ describe("Consumer", () => {
     });
 
     it("deletes the message when the handleMessage function is called", async () => {
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       await pEvent(consumer, "message_processed");
@@ -846,7 +846,7 @@ describe("Consumer", () => {
         shouldDeleteMessages: false,
       });
 
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       await pEvent(consumer, "message_processed");
@@ -866,7 +866,7 @@ describe("Consumer", () => {
     });
 
     it("consumes another message once one is processed", async () => {
-      handleMessage.resolves();
+      handleMessage.resolves(response.Messages[0]);
 
       consumer.start();
       await clock.runToLastAsync();
@@ -1156,7 +1156,7 @@ describe("Consumer", () => {
           },
         ],
       });
-      handleMessage.resolves(null);
+      handleMessage.resolves(response.Messages[0]);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1296,7 +1296,7 @@ describe("Consumer", () => {
       sandbox.assert.callCount(handleMessage, 0);
     });
 
-    it("ack the message if handleMessage returns void", async () => {
+    it("does not ack the message if handleMessage returns void", async () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
@@ -1305,19 +1305,12 @@ describe("Consumer", () => {
       });
 
       consumer.start();
-      await pEvent(consumer, "message_processed");
+      await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.callCount(sqs.send, 1);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-        }),
-      );
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
     });
 
     it("ack the message if handleMessage returns a message with the same ID", async () => {
@@ -1459,7 +1452,7 @@ describe("Consumer", () => {
       );
     });
 
-    it("ack all messages if handleMessageBatch returns void", async () => {
+    it("does not ack messages if handleMessageBatch returns void", async () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
@@ -1472,19 +1465,9 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.callCount(sqs.send, 1);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(
-        sqs.send.secondCall,
-        mockDeleteMessageBatch,
-      );
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
-        }),
-      );
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
     it("ack only returned messages if handleMessagesBatch returns an array", async () => {
@@ -1778,7 +1761,7 @@ describe("Consumer", () => {
       const deleteErr = new Error("Delete error");
       deleteErr.name = "SQSError";
 
-      handleMessage.resolves(null);
+      handleMessage.resolves(response.Messages[0]);
       sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
 
       consumer.start();

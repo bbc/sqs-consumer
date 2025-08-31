@@ -126,8 +126,13 @@ export interface ConsumerOptions {
    * An `async` function (or function that returns a `Promise`) to be called whenever
    * a message is received.
    *
-   * In the case that you need to acknowledge the message, return an object containing
-   * the MessageId that you'd like to acknowledge.
+   * **Message Acknowledgment Behavior:**
+   * - Returning `undefined` or `void` will **NOT acknowledge** the message (leaves it on queue for retry)
+   * - Returning the original message will cause the message to be **acknowledged and deleted**
+   * - To **prevent acknowledgment**, return `undefined` or an empty object `{}`
+   * - To **explicitly acknowledge** a specific message, return an object containing the MessageId you want to acknowledge
+   *
+   * **Important:** If `alwaysAcknowledge` is `true`, all messages will be acknowledged regardless of return value.
    */
   handleMessage?(message: Message): Promise<Message | void>;
   /**
@@ -137,8 +142,13 @@ export interface ConsumerOptions {
    *
    * **If both are set, `handleMessageBatch` overrides `handleMessage`**.
    *
-   * In the case that you need to ack only some of the messages, return an array with
-   * the successful messages only.
+   * **Message Acknowledgment Behavior:**
+   * - Returning `undefined` or `void` will **NOT acknowledge** any messages (leaves them on queue for retry)
+   * - Returning the original message array will cause **all messages to be acknowledged and deleted**
+   * - To **prevent acknowledgment** of all messages, return `undefined` or an empty array `[]`
+   * - To **selectively acknowledge** messages, return an array containing only the messages you want to acknowledge
+   *
+   * **Important:** If `alwaysAcknowledge` is `true`, all messages will be acknowledged regardless of return value.
    */
   handleMessageBatch?(messages: Message[]): Promise<Message[] | void>;
   /**
