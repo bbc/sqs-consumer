@@ -46,15 +46,16 @@ app.on("processing_error", (err) => {
 app.start();
 ```
 
-- The queue is polled continuously for messages using [long polling](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html).
-- Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
-- By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed here](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html#batchSize).
+- **Polling Behavior**: The queue is polled continuously for messages using [long polling](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html).
+- **Message Processing Behavior**: By default messages are processed one at a time – a new message won't be received until the first one has been processed. To process messages in parallel, use the `batchSize` option [detailed here](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html#batchSize).
   - It's also important to await any processing that you are doing to ensure that messages are processed one at a time.
-- By default, messages that are sent to the `handleMessage` and `handleMessageBatch` functions will be considered as processed if they return without an error.
-  - To acknowledge individual messages, please return the message that you want to acknowledge if you are using `handleMessage` or the messages for `handleMessageBatch`.
-    - To note, returning an empty object or an empty array will be considered an acknowledgement of no message(s) and will result in no messages being deleted. If you would like to change this behaviour, please use the `alwaysAcknowledge` option [detailed here](https://bbc.github.io/sqs-consumer/interfaces/ConsumerOptions.html).
-    - By default, if an object or an array is not returned, all messages will be acknowledged.
-- Messages are deleted from the queue once the handler function has completed successfully (the above items should also be taken into account).
+- **Message Acknowledgment Behavior** (when `alwaysAcknowledge` is `false` - the default):
+  - **Returning `undefined` or `void`**: Message will **NOT** be deleted (left on queue for retry)
+  - **Returning an empty object `{}`**: Message will **NOT** be deleted
+  - **Returning the message object or an array of messages in batch processing**: Message(s) will be **acknowledged and deleted**
+  - **When `alwaysAcknowledge` is `true`:** All messages will be acknowledged and deleted regardless of return value.
+- **Error Handling**: Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
+- **Deletion Process** Messages are deleted from the queue once the handler function has completed successfully (the above items should also be taken into account).
 
 ### FIFO Queue Support
 

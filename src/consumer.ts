@@ -555,9 +555,16 @@ export class Consumer extends TypedEventEmitter {
         result = await this.handleMessage(message);
       }
 
-      return !this.alwaysAcknowledge && result instanceof Object
-        ? result
-        : message;
+
+      if (this.alwaysAcknowledge) {
+        return message;
+      }
+
+      if (result instanceof Object) {
+        return result;
+      }
+
+      return null;
     } catch (err) {
       if (err instanceof TimeoutError) {
         throw toTimeoutError(
@@ -589,9 +596,16 @@ export class Consumer extends TypedEventEmitter {
     try {
       const result: void | Message[] = await this.handleMessageBatch(messages);
 
-      return !this.alwaysAcknowledge && result instanceof Object
-        ? result
-        : messages;
+
+      if (this.alwaysAcknowledge) {
+        return messages;
+      }
+
+      if (Array.isArray(result)) {
+        return result;
+      }
+
+      return [];
     } catch (err) {
       if (err instanceof Error) {
         throw toStandardError(
