@@ -45,7 +45,9 @@ export class Consumer extends TypedEventEmitter {
   private isFifoQueue: boolean;
   private suppressFifoWarning: boolean;
   private handleMessage: (message: Message) => Promise<Message | undefined>;
-  private handleMessageBatch: (messages: Message[]) => Promise<Message[] | undefined>;
+  private handleMessageBatch: (
+    messages: Message[],
+  ) => Promise<Message[] | undefined>;
   private preReceiveMessageCallback?: () => Promise<void>;
   private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
@@ -568,7 +570,9 @@ export class Consumer extends TypedEventEmitter {
       }
 
       if (result === null) {
-        console.warn('[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined.');
+        console.warn(
+          "[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined.",
+        );
         return null;
       }
 
@@ -602,7 +606,8 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      const result: Message[] | undefined | void = await this.handleMessageBatch(messages);
+      const result: Message[] | undefined | void =
+        await this.handleMessageBatch(messages);
 
       if (this.alwaysAcknowledge) {
         return messages;
@@ -617,7 +622,9 @@ export class Consumer extends TypedEventEmitter {
       }
 
       if (result === null) {
-        console.warn('[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined.');
+        console.warn(
+          "[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
+        );
         return [];
       }
 

@@ -76,7 +76,7 @@ describe("Consumer", () => {
     clock = sinon.useFakeTimers();
     handleMessage = sandbox.stub().resolves(response.Messages[0]);
     handleMessageBatch = sandbox.stub().resolves([]);
-    
+
     sqs = sinon.createStubInstance(SQSClient);
     sqs.send = sinon.stub();
 
@@ -1332,7 +1332,7 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(consoleWarnStub);
       sandbox.assert.calledWithMatch(
         consoleWarnStub,
-        "[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined."
+        "[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined.",
       );
     });
 
@@ -1531,7 +1531,7 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(consoleWarnStub);
       sandbox.assert.calledWithMatch(
         consoleWarnStub,
-        "[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined."
+        "[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
       );
     });
 
@@ -2302,7 +2302,8 @@ describe("Consumer", () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
-        handleMessage: () => new Promise((resolve) => setTimeout(() => resolve(undefined), 20)),
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 20)),
         sqs,
       });
 
