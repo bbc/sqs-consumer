@@ -606,7 +606,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      const result: Message[] | undefined | void =
+      const result: Message[] | undefined | null =
         await this.handleMessageBatch(messages);
 
       if (this.alwaysAcknowledge) {
