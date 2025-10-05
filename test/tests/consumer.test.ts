@@ -1513,6 +1513,36 @@ describe("Consumer", () => {
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
+    it("ack only returned messages if handleMessagesBatch returns an array", async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => [
+          { MessageId: "123", ReceiptHandle: "receipt-handle" },
+        ],
+        batchSize: 2,
+        sqs,
+      });
+
+      consumer.start();
+      await pEvent(consumer, "response_processed");
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 2);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledWithMatch(
+        sqs.send.secondCall,
+        mockDeleteMessageBatch,
+      );
+      sandbox.assert.match(
+        sqs.send.secondCall.args[0].input,
+        sinon.match({
+          QueueUrl: QUEUE_URL,
+          Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
+        }),
+      );
+    });
+
     it("logs deprecation warning when handleMessageBatch returns void", async () => {
       const consoleWarnStub = sandbox.stub(console, "warn");
 
