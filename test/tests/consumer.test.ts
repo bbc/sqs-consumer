@@ -12,7 +12,7 @@ import { assert } from "chai";
 import * as sinon from "sinon";
 import { pEvent } from "p-event";
 
-import { AWSError } from "../../src/types.js";
+import type { AWSError } from "../../src/types.js";
 import { Consumer } from "../../src/consumer.js";
 import { logger } from "../../src/logger.js";
 
@@ -75,7 +75,8 @@ describe("Consumer", () => {
   beforeEach(() => {
     clock = sinon.useFakeTimers();
     handleMessage = sandbox.stub().resolves(response.Messages[0]);
-    handleMessageBatch = sandbox.stub().resolves(null);
+    handleMessageBatch = sandbox.stub().resolves([]);
+    
     sqs = sinon.createStubInstance(SQSClient);
     sqs.send = sinon.stub();
 
@@ -333,7 +334,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 1000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 1000)),
         handleMessageTimeout,
         sqs,
         authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
@@ -1211,7 +1212,7 @@ describe("Consumer", () => {
       assert.ok(err);
       assert.equal(
         err.message,
-        "Unexpected message handler failure: unexpected parsing error",
+        "Unexpected message batch handler failure: unexpected parsing error",
       );
     });
 
@@ -1273,7 +1274,7 @@ describe("Consumer", () => {
       assert.ok(err);
       assert.equal(
         err.message,
-        "Unexpected message handler failure: unexpected parsing error",
+        "Unexpected message batch handler failure: unexpected parsing error",
       );
     });
 
@@ -1300,6 +1301,7 @@ describe("Consumer", () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
+        // @ts-expect-error - we want to test expected behaviour
         handleMessage: async () => {},
         sqs,
       });
@@ -1311,6 +1313,45 @@ describe("Consumer", () => {
       sandbox.assert.callCount(sqs.send, 1);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+    });
+
+    it("logs deprecation warning when handleMessage returns void", async () => {
+      const consoleWarnStub = sandbox.stub(console, "warn");
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: async () => null,
+        sqs,
+      });
+
+      consumer.start();
+      await pEvent(consumer, "response_processed");
+      consumer.stop();
+
+      sandbox.assert.calledOnce(consoleWarnStub);
+      sandbox.assert.calledWithMatch(
+        consoleWarnStub,
+        "[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined."
+      );
+    });
+
+    it("does not log deprecation warning when handleMessage returns undefined", async () => {
+      const consoleWarnStub = sandbox.stub(console, "warn");
+      const undefinedHandler = sandbox.stub().resolves(undefined);
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: undefinedHandler,
+        sqs,
+      });
+
+      consumer.start();
+      await pEvent(consumer, "response_processed");
+      consumer.stop();
+
+      sandbox.assert.notCalled(consoleWarnStub);
     });
 
     it("ack the message if handleMessage returns a message with the same ID", async () => {
@@ -1420,6 +1461,7 @@ describe("Consumer", () => {
       consumer.stop();
 
       sandbox.assert.callCount(sqs.send, 1);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
@@ -1456,6 +1498,7 @@ describe("Consumer", () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
+        // @ts-expect-error - we want to test expected behaviour
         handleMessageBatch: async () => {},
         batchSize: 2,
         sqs,
@@ -1470,13 +1513,13 @@ describe("Consumer", () => {
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
-    it("ack only returned messages if handleMessagesBatch returns an array", async () => {
+    it("logs deprecation warning when handleMessageBatch returns void", async () => {
+      const consoleWarnStub = sandbox.stub(console, "warn");
+
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
-        handleMessageBatch: async () => [
-          { MessageId: "123", ReceiptHandle: "receipt-handle" },
-        ],
+        handleMessageBatch: async () => null,
         batchSize: 2,
         sqs,
       });
@@ -1485,19 +1528,65 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.calledOnce(consoleWarnStub);
       sandbox.assert.calledWithMatch(
-        sqs.send.secondCall,
-        mockDeleteMessageBatch,
+        consoleWarnStub,
+        "[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined."
       );
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
-        }),
-      );
+    });
+
+    it("does not ack messages if handleMessageBatch returns undefined", async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => undefined,
+        batchSize: 2,
+        sqs,
+      });
+
+      consumer.start();
+      await pEvent(consumer, "response_processed");
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 1);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+    });
+
+    it("does not log deprecation warning when handleMessageBatch returns undefined", async () => {
+      const consoleWarnStub = sandbox.stub(console, "warn");
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => undefined,
+        batchSize: 2,
+        sqs,
+      });
+
+      consumer.start();
+      await pEvent(consumer, "response_processed");
+      consumer.stop();
+
+      sandbox.assert.notCalled(consoleWarnStub);
+    });
+
+    it("does not ack messages if handleMessageBatch returns []", async () => {
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => [],
+        batchSize: 2,
+        sqs,
+      });
+
+      consumer.start();
+      await pEvent(consumer, "response_processed");
+      consumer.stop();
+
+      sandbox.assert.callCount(sqs.send, 1);
+      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
     });
 
     it("uses the correct visibility timeout for long running handler functions", async () => {
@@ -1505,7 +1594,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 75000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
         sqs,
         visibilityTimeout: 40,
         heartbeatInterval: 30,
@@ -1558,7 +1647,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessageBatch: () =>
-          new Promise((resolve) => setTimeout(resolve, 75000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
         batchSize: 3,
         sqs,
         visibilityTimeout: 40,
@@ -1640,7 +1729,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 75000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
         sqs,
         visibilityTimeout: 40,
         heartbeatInterval: 30,
@@ -1673,7 +1762,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessageBatch: () =>
-          new Promise((resolve) => setTimeout(resolve, 75000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
         sqs,
         batchSize: 2,
         visibilityTimeout: 40,
@@ -1702,7 +1791,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 1000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 1000)),
         handleMessageTimeout,
         sqs,
         authenticationErrorTimeout: AUTHENTICATION_ERROR_TIMEOUT,
@@ -1752,7 +1841,7 @@ describe("Consumer", () => {
       assert.ok(err);
       assert.equal(
         err.message,
-        "Unexpected message handler failure: Batch processing error",
+        "Unexpected message batch handler failure: Batch processing error",
       );
       assert.deepEqual(err.messageIds, ["1", "2"]);
     });
@@ -1787,7 +1876,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessage: () =>
-          new Promise((resolve) => setTimeout(resolve, 75000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
         sqs,
         visibilityTimeout: 40,
         heartbeatInterval: 30,
@@ -1821,7 +1910,7 @@ describe("Consumer", () => {
         queueUrl: QUEUE_URL,
         region: REGION,
         handleMessageBatch: () =>
-          new Promise((resolve) => setTimeout(resolve, 75000)),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
         sqs,
         batchSize: 2,
         visibilityTimeout: 40,
@@ -2213,7 +2302,7 @@ describe("Consumer", () => {
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
-        handleMessage: () => new Promise((resolve) => setTimeout(resolve, 20)),
+        handleMessage: () => new Promise((resolve) => setTimeout(() => resolve(undefined), 20)),
         sqs,
       });
 

@@ -44,8 +44,8 @@ export class Consumer extends TypedEventEmitter {
   protected queueUrl: string;
   private isFifoQueue: boolean;
   private suppressFifoWarning: boolean;
-  private handleMessage: (message: Message) => Promise<Message | void>;
-  private handleMessageBatch: (message: Message[]) => Promise<Message[] | void>;
+  private handleMessage: (message: Message) => Promise<Message | undefined>;
+  private handleMessageBatch: (messages: Message[]) => Promise<Message[] | undefined>;
   private preReceiveMessageCallback?: () => Promise<void>;
   private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
@@ -542,7 +542,7 @@ export class Consumer extends TypedEventEmitter {
     let handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
 
     try {
-      let result: Message | void;
+      let result: Message | undefined | void;
 
       if (this.handleMessageTimeout) {
         const pending: Promise<void> = new Promise((_, reject): void => {
@@ -561,6 +561,15 @@ export class Consumer extends TypedEventEmitter {
 
       if (result instanceof Object) {
         return result;
+      }
+
+      if (result === undefined) {
+        return null;
+      }
+
+      if (result === null) {
+        console.warn('[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined.');
+        return null;
       }
 
       return null;
@@ -593,7 +602,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      const result: void | Message[] = await this.handleMessageBatch(messages);
+      const result: Message[] | undefined | void = await this.handleMessageBatch(messages);
 
       if (this.alwaysAcknowledge) {
         return messages;
@@ -603,12 +612,21 @@ export class Consumer extends TypedEventEmitter {
         return result;
       }
 
+      if (result === undefined) {
+        return [];
+      }
+
+      if (result === null) {
+        console.warn('[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined.');
+        return [];
+      }
+
       return [];
     } catch (err) {
       if (err instanceof Error) {
         throw toStandardError(
           err,
-          `Unexpected message handler failure: ${err.message}`,
+          `Unexpected message batch handler failure: ${err.message}`,
           messages,
         );
       }

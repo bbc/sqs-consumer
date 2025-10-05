@@ -51,10 +51,12 @@ app.start();
   - It's also important to await any processing that you are doing to ensure that messages are processed one at a time.
 - **Message Acknowledgment Behavior**:
   - When `alwaysAcknowledge` is `false` (the default)
-    - **Returning `undefined` or `void`**: Message will **NOT** be deleted (left on queue for retry)
-    - **Returning an empty object `{}` or an empty array `[]`**: Message(s) will **NOT** be deleted
-    - **Returning the message object or an array of messages in batch processing**: Message(s) will be **acknowledged and deleted**
+    - **Returning `undefined`, an empty object `{}`, or an empty array `[]`**: Message(s) will **NOT** be deleted (left on queue for retry)
+      - For batch processing, return `undefined` or `[]` to prevent acknowledgment of all messages.
+      - For single message handling, return `undefined` or `{}` to prevent acknowledgment.
+    - **Returning the message object (or an array of messages in batch processing)**: Message(s) will be **acknowledged and deleted**
       - Important: Only the message id(s) that are returned will be deleted.
+    - **Returning `void` is discouraged and will be deprecated in a future release.**
   - **When `alwaysAcknowledge` is `true`:** All messages will be acknowledged and deleted regardless of return value.
 - **Error Handling**: Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 - **Deletion Process** Messages are deleted from the queue once the handler function has completed successfully (the above items should also be taken into account).
