@@ -547,8 +547,8 @@ export class Consumer extends TypedEventEmitter {
       let result: Message | undefined | null;
 
       if (this.handleMessageTimeout) {
-        const pending: Promise<void> = new Promise((_, reject): void => {
-          handleMessageTimeoutId = setTimeout((): void => {
+        const pending: Promise<never> = new Promise<never>((_, reject) => {
+          handleMessageTimeoutId = setTimeout(() => {
             reject(new TimeoutError());
           }, this.handleMessageTimeout);
         });
