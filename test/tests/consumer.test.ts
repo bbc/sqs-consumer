@@ -1661,7 +1661,7 @@ describe("Consumer", () => {
         );
       });
 
-      it("works normally when strictReturn is disabled and handleMessage returns void", async () => {
+      it("works normally when strictReturn is disabled and handleMessage returns null", async () => {
         consumer = new Consumer({
           queueUrl: QUEUE_URL,
           region: REGION,
@@ -1679,7 +1679,7 @@ describe("Consumer", () => {
         sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
       });
 
-      it("works normally when strictReturn is disabled and handleMessageBatch returns void", async () => {
+      it("works normally when strictReturn is disabled and handleMessageBatch returns null", async () => {
         consumer = new Consumer({
           queueUrl: QUEUE_URL,
           region: REGION,
