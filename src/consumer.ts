@@ -578,7 +578,7 @@ export class Consumer extends TypedEventEmitter {
           );
         }
         console.warn(
-          "[DEPRECATION] Returning null from handleMessage is discouraged. Please return a Message or undefined.",
+          "[DEPRECATION] Future versions will throw on void/null returns. Enable `strictReturn` now to prepare.",
         );
         return null;
       }
@@ -636,7 +636,7 @@ export class Consumer extends TypedEventEmitter {
         }
 
         console.warn(
-          "[DEPRECATION] Returning null from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
+          "[DEPRECATION] Future versions will throw on void/null returns. Enable `strictReturn` now to prepare.",
         );
         return [];
       }
