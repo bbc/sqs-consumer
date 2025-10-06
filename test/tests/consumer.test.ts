@@ -1315,7 +1315,7 @@ describe("Consumer", () => {
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
     });
 
-    it("logs deprecation warning when handleMessage returns void", async () => {
+    it("logs deprecation warning when handleMessage returns null", async () => {
       const consoleWarnStub = sandbox.stub(console, "warn");
 
       consumer = new Consumer({
@@ -1332,7 +1332,7 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(consoleWarnStub);
       sandbox.assert.calledWithMatch(
         consoleWarnStub,
-        "[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined.",
+        "[DEPRECATION] Returning null from handleMessage is discouraged. Please return a Message or undefined.",
       );
     });
 
@@ -1543,7 +1543,7 @@ describe("Consumer", () => {
       );
     });
 
-    it("logs deprecation warning when handleMessageBatch returns void", async () => {
+    it("logs deprecation warning when handleMessageBatch returns null", async () => {
       const consoleWarnStub = sandbox.stub(console, "warn");
 
       consumer = new Consumer({
@@ -1561,7 +1561,7 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(consoleWarnStub);
       sandbox.assert.calledWithMatch(
         consoleWarnStub,
-        "[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
+        "[DEPRECATION] Returning null from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
       );
     });
 
@@ -1584,7 +1584,7 @@ describe("Consumer", () => {
     });
 
     it("does not log deprecation warning when handleMessageBatch returns undefined", async () => {
-      const consoleWarnStub = sandbox.stub(console, "warn");
+      const consoleLogStub = sandbox.stub(console, "warn");
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1598,7 +1598,7 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.notCalled(consoleWarnStub);
+      sandbox.assert.notCalled(consoleLogStub);
     });
 
     it("does not ack messages if handleMessageBatch returns []", async () => {
@@ -1617,6 +1617,86 @@ describe("Consumer", () => {
       sandbox.assert.callCount(sqs.send, 1);
       sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
       sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+    });
+
+    describe("strictReturn flag", () => {
+      it("throws error when strictReturn is enabled and handleMessage returns null", async () => {
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage: async () => null,
+          sqs,
+          strictReturn: true,
+        });
+
+        consumer.start();
+        const err: any = await pEvent(consumer, "processing_error");
+        consumer.stop();
+
+        assert.ok(err);
+        assert.equal(
+          err.message,
+          "Unexpected message handler failure: strictReturn is enabled: handleMessage must return a Message object or an object with the same MessageId. Returning null is not allowed.",
+        );
+      });
+
+      it("throws error when strictReturn is enabled and handleMessageBatch returns null", async () => {
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessageBatch: async () => null,
+          batchSize: 2,
+          sqs,
+          strictReturn: true,
+        });
+
+        consumer.start();
+        const err: any = await pEvent(consumer, "error");
+        consumer.stop();
+
+        assert.ok(err);
+        assert.equal(
+          err.message,
+          "Unexpected message batch handler failure: strictReturn is enabled: handleMessageBatch must return an array of Message objects. Returning null is not allowed.",
+        );
+      });
+
+      it("works normally when strictReturn is disabled and handleMessage returns void", async () => {
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessage: async () => null,
+          sqs,
+          strictReturn: false,
+        });
+
+        consumer.start();
+        await pEvent(consumer, "response_processed");
+        consumer.stop();
+
+        sandbox.assert.callCount(sqs.send, 1);
+        sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+        sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      });
+
+      it("works normally when strictReturn is disabled and handleMessageBatch returns void", async () => {
+        consumer = new Consumer({
+          queueUrl: QUEUE_URL,
+          region: REGION,
+          handleMessageBatch: async () => null,
+          batchSize: 2,
+          sqs,
+          strictReturn: false,
+        });
+
+        consumer.start();
+        await pEvent(consumer, "response_processed");
+        consumer.stop();
+
+        sandbox.assert.callCount(sqs.send, 1);
+        sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
+        sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+      });
     });
 
     it("uses the correct visibility timeout for long running handler functions", async () => {

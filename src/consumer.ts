@@ -72,6 +72,7 @@ export class Consumer extends TypedEventEmitter {
   private stopRequestedAtTimestamp: number;
   public abortController: AbortController;
   private extendedAWSErrors: boolean;
+  private strictReturn: boolean;
 
   constructor(options: ConsumerOptions) {
     super(options.queueUrl);
@@ -101,6 +102,7 @@ export class Consumer extends TypedEventEmitter {
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.extendedAWSErrors = options.extendedAWSErrors ?? false;
+    this.strictReturn = options.strictReturn ?? false;
     this.sqs =
       options.sqs ||
       new SQSClient({
@@ -570,8 +572,13 @@ export class Consumer extends TypedEventEmitter {
       }
 
       if (result === null) {
+        if (this.strictReturn) {
+          throw new Error(
+            "strictReturn is enabled: handleMessage must return a Message object or an object with the same MessageId. Returning null is not allowed.",
+          );
+        }
         console.warn(
-          "[DEPRECATION] Returning void from handleMessage is discouraged. Please return a Message or undefined.",
+          "[DEPRECATION] Returning null from handleMessage is discouraged. Please return a Message or undefined.",
         );
         return null;
       }
@@ -622,8 +629,14 @@ export class Consumer extends TypedEventEmitter {
       }
 
       if (result === null) {
+        if (this.strictReturn) {
+          throw new Error(
+            "strictReturn is enabled: handleMessageBatch must return an array of Message objects. Returning null is not allowed.",
+          );
+        }
+
         console.warn(
-          "[DEPRECATION] Returning void from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
+          "[DEPRECATION] Returning null from handleMessageBatch is discouraged. Please return an array of Messages or undefined.",
         );
         return [];
       }

@@ -57,6 +57,7 @@ app.start();
     - **Returning the message object (or an array of messages in batch processing)**: Message(s) will be **acknowledged and deleted**
       - Important: Only the message id(s) that are returned will be deleted.
     - **Returning `void` is discouraged and will be deprecated in a future release.**
+    - **When `strictReturn` is `true`:** Returning `undefined` or `null` will throw an error. This will be the default behavior in a future release.
   - **When `alwaysAcknowledge` is `true`:** All messages will be acknowledged and deleted regardless of return value.
 - **Error Handling**: Throwing an error (or returning a rejected promise) from the handler function will cause the message to be left on the queue. An [SQS redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html) can be used to move messages that cannot be processed to a dead letter queue.
 - **Deletion Process** Messages are deleted from the queue once the handler function has completed successfully (the above items should also be taken into account).
