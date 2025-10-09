@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Annotate CI run with test results
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@dc3a92680fcc15842eef52e8c4606ea7ce6bd3f3 # v2.1.1
         with:
           artifact: test-reports-${{ matrix.node-version }}
           name: Test Results (${{matrix.node-version}}
