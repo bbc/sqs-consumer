@@ -7,12 +7,13 @@ on:
       - 'main'
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   coverage_report:
     name: Generate coverage report
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     strategy:
       matrix:
         node-version: [22.16.0]
