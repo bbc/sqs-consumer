@@ -170,7 +170,7 @@
     "eslint-config-eslint": "^13.0.0",
     "jsr": "^0.13.5",
     "mocha": "^11.7.4",
-    "p-event": "^6.0.1",
+    "p-event": "^7.0.0",
     "prettier": "^3.6.2",
     "semantic-release": "^24.2.9",
     "sinon": "^21.0.0",
