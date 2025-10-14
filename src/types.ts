@@ -182,6 +182,16 @@ export interface ConsumerOptions {
    * @defaultvalue `false`
    */
   suppressFifoWarning?: boolean;
+  /**
+   * Set this to `true` if you want to enforce that message handlers must return a value.
+   * When enabled, handlers that return `null` will throw an error instead of treating it
+   * as "do not acknowledge".
+   * @defaultvalue `false`
+   *
+   * @remarks
+   * This option will be turned on by default in a future release.
+   */
+  strictReturn?: boolean;
 }
 
 /**
