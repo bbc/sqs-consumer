@@ -10,7 +10,7 @@ Build SQS-based applications without the boilerplate. Just define an async funct
 To install this package, simply enter the following command into your terminal (or the variant of whatever package manager you are using):
 
 ```bash
-npm install sqs-consumer
+pnpm install sqs-consumer
 ```
 
 If you would like to use JSR instead, you can find the package [here](https://jsr.io/@bbc/sqs-consumer).

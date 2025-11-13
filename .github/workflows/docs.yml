@@ -31,16 +31,16 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: 22.x
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: NPM Audit
-        run: npx audit-ci
+        run: pnpm audit-ci
 
       - name: Install Node Modules
-        run: npm ci
+        run: pnpm i --frozen-lockfile
 
       - name: Build Docs
-        run: npm run generate-docs
+        run: pnpm run generate-docs
 
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
