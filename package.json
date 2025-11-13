@@ -18,28 +18,29 @@
     }
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.0.0",
+    "pnpm": ">=10"
   },
   "scripts": {
     "clean": "rm -fr dist/*",
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json",
     "add-package-jsons": "node ./scripts/addPackageJsons.js",
-    "build": "npm run clean && npm run compile && npm run add-package-jsons",
+    "build": "pnpm run clean && pnpm run compile && pnpm run add-package-jsons",
     "watch": "tsc --watch",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "pnpm run build",
     "test:unit": "mocha --recursive --full-trace --exit",
     "test:unit:report": "mocha --recursive --full-trace --exit --reporter json > test/reports/test-results.json",
-    "pretest:integration:init": "npm run build",
+    "pretest:integration:init": "pnpm run build",
     "test:integration:init": "sh ./test/scripts/initIntTests.sh",
-    "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.mjs",
-    "test": "npm run test:unit:report && npm run test:integration",
+    "test:integration": "pnpm run test:integration:init && cucumber-js --config ./test/config/cucumber.mjs",
+    "test": "pnpm run test:unit:report && pnpm run test:integration",
     "coverage": "c8 mocha && c8 report --reporter=html && c8 report --reporter=json-summary",
     "lcov": "c8 mocha && c8 report --reporter=lcov",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --log-level warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
     "format:check": "prettier --check \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
-    "posttest": "npm run lint && npm run format:check",
+    "posttest": "pnpm run lint && pnpm run format:check",
     "generate-docs": "typedoc"
   },
   "repository": {
@@ -163,6 +164,7 @@
     "@types/sinon": "^17.0.4",
     "@typescript-eslint/eslint-plugin": "^8.46.1",
     "@typescript-eslint/parser": "^8.45.0",
+    "audit-ci": "^7.1.0",
     "c8": "^10.1.3",
     "chai": "^6.2.0",
     "conventional-changelog-conventionalcommits": "^9.1.0",

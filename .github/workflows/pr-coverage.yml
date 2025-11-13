@@ -24,13 +24,13 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Node Modules
-        run: npm ci
+        run: pnpm i --frozen-lockfile
 
       - name: Run Coverage Check
-        run: npm run lcov
+        run: pnpm run lcov
 
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@6c1aa0cc9e1c02f9f58f01ac599f1064ccc83470 # v1.1.0

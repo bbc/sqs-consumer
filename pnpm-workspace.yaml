@@ -1,0 +1,43 @@
+ # This config was generated using ibl-scripts
+
+# Dependency Resiliency
+
+## Set min package age to 7 days
+## https://confluence.dev.bbc.co.uk/spaces/SECARC/pages/480985004/Guidance+for+use+of+language+package+managers
+minimumReleaseAge: 10800
+
+## Exclude internal packages
+minimumReleaseAgeExclude:
+- '@bbc/*'
+- '@ibl/*'
+
+## pnpm <10 - don't run scripts from dependencies
+ignoreDepScripts: true
+
+## Most of ibl's estate comprises polyrepos. For these we want catalogMode: manual
+## For monorepos, change the below setting to catalogMode: prefer
+catalogMode: manual
+
+# Package Isolation
+
+## Specific lockfile per package
+sharedWorkspaceLockfile: false
+
+## Exclusively install the package in CWD.
+recursiveInstall: false
+
+## Deps of Deps are isolated
+hoist: false
+
+# Configure pnpm for non-monorepos
+packages:
+  - "."
+
+# Hoist eslint plugins for compatibility
+publicHoistPattern:
+  - "eslint-*"
+  - "@eslint/*"
+  - "@typescript-eslint/*"
+  - "jest"
+
+engineStrict: true

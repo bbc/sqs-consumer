@@ -30,16 +30,16 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: NPM Audit
-        run: npx audit-ci
+        run: pnpm audit-ci
 
       - name: Install Node Modules
-        run: npm ci
+        run: pnpm i --frozen-lockfile
 
       - name: Run Tests and Linting
-        run: npm run test
+        run: pnpm run test
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
