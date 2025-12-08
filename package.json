@@ -176,7 +176,7 @@
     "sinon": "^21.0.0",
     "sqs-producer": "^8.0.0",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.28.13",
+    "typedoc": "^0.28.15",
     "typescript": "^5.9.3"
   },
   "dependencies": {
