@@ -7,13 +7,13 @@ on:
       - 'main'
 permissions:
   contents: read
-  issues: write
 
 jobs:
   coverage_report:
     name: Generate coverage report
     runs-on: ubuntu-latest
     permissions:
+      issues: write
       pull-requests: write
     strategy:
       matrix:
