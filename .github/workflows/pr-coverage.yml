@@ -13,7 +13,6 @@ jobs:
     name: Generate coverage report
     runs-on: ubuntu-latest
     permissions:
-      issues: write
       pull-requests: write
     strategy:
       matrix:
