@@ -27,6 +27,7 @@
     "build": "npm run clean && npm run compile && npm run add-package-jsons",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
+    "release": "semantic-release",
     "test:unit": "mocha --recursive --full-trace --exit",
     "test:unit:report": "mocha --recursive --full-trace --exit --reporter json > test/reports/test-results.json",
     "pretest:integration:init": "npm run build",

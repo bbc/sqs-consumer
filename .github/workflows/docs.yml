@@ -34,7 +34,7 @@ jobs:
           cache: 'npm'
 
       - name: NPM Audit
-        run: npx audit-ci
+        run: npx audit-ci@7.1.0
 
       - name: Install Node Modules
         run: npm ci
