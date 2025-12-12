@@ -4,6 +4,7 @@ import { AWSError } from "./types.js";
 
 class SQSError extends Error {
   code: string;
+  cause: AWSError;
   statusCode: number;
   service: string;
   time: Date;
@@ -96,6 +97,7 @@ function toSQSError(
   sqsMessage?: Message | Message[],
 ): SQSError {
   const sqsError = new SQSError(message);
+  sqsError.cause = err;
   sqsError.code = err.name;
   sqsError.statusCode = err.$metadata?.httpStatusCode;
   sqsError.retryable = err.$retryable?.throttling;
