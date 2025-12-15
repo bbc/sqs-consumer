@@ -136,6 +136,50 @@ By default, the value of `abort` is set to `false` which means pre existing requ
 
 `consumer.stop({ abort: true })`
 
+#### Graceful shutdowns
+
+Calling `consumer.stop()` on its own only prevents new polls from being scheduled. The consumer will emit `stopped` immediately, even if the current long poll or message handler is still running. To wait for the final poll plus any in-flight message processing to finish, set `pollingCompleteWaitTimeMs` to the maximum amount of time you are willing to wait.
+
+- While waiting, the consumer emits `waiting_for_polling_to_complete` every second.
+- If the timeout elapses first, `waiting_for_polling_to_complete_timeout_exceeded` fires right before `stopped`.
+- For graceful shutdowns keep `abort: false` (the default). Passing `abort: true` cancels the shared `AbortController`, which halts heartbeat extensions and prevents acknowledgements/deletions from finishing.
+
+Here's an example of a graceful shutdown implementation:
+
+```js
+const consumer = Consumer.create({
+  queueUrl: "https://sqs.eu-west-1.amazonaws.com/account-id/queue-name",
+  handleMessage: async (message) => {
+    await doWork(message);
+    return message;
+  },
+  pollingCompleteWaitTimeMs: 10_000, // This will allow up to 10s for the last poll + handler
+});
+
+const shutdown = (signal) => {
+  console.log(`Received ${signal}, waiting for in-flight work...`);
+  consumer.stop();
+
+  consumer.once("waiting_for_polling_to_complete", () => {
+    console.log("Still processing in-flight messages...");
+  });
+
+  consumer.once("waiting_for_polling_to_complete_timeout_exceeded", () => {
+    console.warn("Graceful shutdown timed out, continuing shutdown anyway.");
+  });
+
+  consumer.once("stopped", () => {
+    console.log("Consumer stopped cleanly");
+    process.exit(0);
+  });
+};
+
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
+
+consumer.start();
+```
+
 ### `consumer.status`
 
 Returns the current status of the consumer.
