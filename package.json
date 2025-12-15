@@ -172,7 +172,7 @@
     "jsr": "^0.13.5",
     "mocha": "^11.7.4",
     "p-event": "^7.0.1",
-    "prettier": "^3.6.2",
+    "prettier": "^3.7.4",
     "semantic-release": "^25.0.2",
     "sinon": "^21.0.0",
     "sqs-producer": "^8.0.0",
