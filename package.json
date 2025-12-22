@@ -181,11 +181,11 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.943.0",
+    "@aws-sdk/client-sqs": "^3.948.0",
     "debug": "^4.4.3"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.943.0"
+    "@aws-sdk/client-sqs": "^3.948.0"
   },
   "mocha": {
     "extensions": [
