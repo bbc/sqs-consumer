@@ -175,7 +175,7 @@
     "prettier": "^3.7.4",
     "semantic-release": "^25.0.2",
     "sinon": "^21.0.0",
-    "sqs-producer": "^8.0.0",
+    "sqs-producer": "^8.0.1",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.15",
     "typescript": "^5.9.3"
