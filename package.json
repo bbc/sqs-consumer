@@ -169,7 +169,7 @@
     "conventional-changelog-conventionalcommits": "^9.1.0",
     "eslint": "^9.39.2",
     "eslint-config-eslint": "^13.0.0",
-    "jsr": "^0.13.5",
+    "jsr": "^0.14.3",
     "mocha": "^11.7.5",
     "p-event": "^7.0.2",
     "prettier": "^3.8.1",
