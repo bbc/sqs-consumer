@@ -28,6 +28,6 @@ jobs:
         with:
           artifact: test-reports-${{ matrix.node-version }}
           name: Test Results (${{matrix.node-version}}
-          path: "test-results.json"
-          reporter: mocha-json
+          path: "test-results.xml"
+          reporter: java-junit
           token: ${{ secrets.GITHUB_TOKEN }}

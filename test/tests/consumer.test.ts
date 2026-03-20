@@ -9,6 +9,7 @@ import {
 import type { QueueAttributeName, Message } from "@aws-sdk/client-sqs";
 import { assert } from "chai";
 import * as sinon from "sinon";
+import { afterEach, beforeEach, describe, it } from "vitest";
 import { pEvent } from "p-event";
 
 import type { AWSError } from "../../src/types.js";
@@ -2282,7 +2283,7 @@ describe("Consumer", () => {
     });
   });
 
-  describe("status", async () => {
+  describe("status", () => {
     it("returns the defaults before the consumer is started", () => {
       assert.isFalse(consumer.status.isRunning);
       assert.isFalse(consumer.status.isPolling);
@@ -2321,7 +2322,7 @@ describe("Consumer", () => {
     });
   });
 
-  describe("updateOption", async () => {
+  describe("updateOption", () => {
     it("updates the visibilityTimeout option and emits an event", () => {
       const optionUpdatedListener = sandbox.stub();
       consumer.on("option_updated", optionUpdatedListener);
