@@ -12,5 +12,4 @@ export const sqsConfig = {
 export const sqs = new SQSClient(sqsConfig);
 
 export const QUEUE_URL =
-  process.env.SQS_QUEUE_URL ||
-  "http://localhost:4566/000000000000/sqs-consumer-data";
+  process.env.SQS_QUEUE_URL || "http://localhost:4566/000000000000/sqs-consumer-data";

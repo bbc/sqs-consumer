@@ -2,9 +2,9 @@ name: Scorecard supply-chain security
 on:
   branch_protection_rule:
   schedule:
-    - cron: '24 23 * * 0'
+    - cron: "24 23 * * 0"
   push:
-    branches: [ "canary" ]
+    branches: ["canary"]
 permissions: read-all
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
           name: SARIF file
           path: results.sarif
           retention-days: 5
-  
+
       - name: "Upload to code-scanning"
         uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4.33.0
         with:

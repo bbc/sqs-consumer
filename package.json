@@ -2,6 +2,20 @@
   "name": "sqs-consumer",
   "version": "14.2.0",
   "description": "Build SQS-based Node applications without the boilerplate",
+  "keywords": [
+    "consumer",
+    "queue",
+    "sqs"
+  ],
+  "homepage": "https://bbc.github.io/sqs-consumer/",
+  "bugs": {
+    "url": "https://github.com/bbc/sqs-consumer/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bbc/sqs-consumer.git"
+  },
   "type": "module",
   "main": "dist/cjs/index.js",
   "types": "dist/cjs/index.d.ts",
@@ -17,8 +31,8 @@
       }
     }
   },
-  "engines": {
-    "node": ">=20.0.0"
+  "publishConfig": {
+    "provenance": true
   },
   "scripts": {
     "clean": "rm -fr dist/*",
@@ -45,22 +59,43 @@
     "posttest": "npm run check",
     "generate-docs": "typedoc"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/bbc/sqs-consumer.git"
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.989.0",
+    "debug": "^4.4.3"
   },
-  "bugs": {
-    "url": "https://github.com/bbc/sqs-consumer/issues"
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.6.0",
+    "@sebbo2002/semantic-release-jsr": "^3.1.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.6",
+    "@semantic-release/npm": "^13.1.4",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.2.3",
+    "@types/sinon": "^17.0.4",
+    "c8": "^10.1.3",
+    "chai": "^6.2.2",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
+    "jsr": "^0.14.3",
+    "mocha": "^11.7.5",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
+    "p-event": "^7.0.2",
+    "semantic-release": "^25.0.3",
+    "sinon": "^21.0.0",
+    "sqs-producer": "^8.0.2",
+    "ts-node": "^10.9.2",
+    "typedoc": "^0.28.16",
+    "typescript": "^5.9.3"
   },
-  "homepage": "https://bbc.github.io/sqs-consumer/",
-  "keywords": [
-    "sqs",
-    "queue",
-    "consumer"
-  ],
-  "license": "Apache-2.0",
-  "publishConfig": {
-    "provenance": true
+  "peerDependencies": {
+    "@aws-sdk/client-sqs": "^3.989.0"
+  },
+  "overrides": {
+    "cross-spawn": "^7.0.3"
   },
   "release": {
     "branches": [
@@ -148,61 +183,26 @@
       "@sebbo2002/semantic-release-jsr"
     ]
   },
-  "overrides": {
-    "cross-spawn": "^7.0.3"
-  },
-  "devDependencies": {
-    "@cucumber/cucumber": "^12.6.0",
-    "@sebbo2002/semantic-release-jsr": "^3.1.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.6",
-    "@semantic-release/npm": "^13.1.4",
-    "@semantic-release/release-notes-generator": "^14.1.0",
-    "@types/chai": "^5.2.2",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^25.2.3",
-    "@types/sinon": "^17.0.4",
-    "c8": "^10.1.3",
-    "chai": "^6.2.2",
-    "conventional-changelog-conventionalcommits": "^9.1.0",
-    "jsr": "^0.14.3",
-    "mocha": "^11.7.5",
-    "oxfmt": "^0.41.0",
-    "oxlint": "^1.56.0",
-    "p-event": "^7.0.2",
-    "semantic-release": "^25.0.3",
-    "sinon": "^21.0.0",
-    "sqs-producer": "^8.0.2",
-    "ts-node": "^10.9.2",
-    "typedoc": "^0.28.16",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@aws-sdk/client-sqs": "^3.989.0",
-    "debug": "^4.4.3"
-  },
-  "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.989.0"
-  },
   "mocha": {
     "extensions": [
       "ts"
     ],
-    "spec": "test/tests/**/**/*.test.ts",
     "node-option": [
       "loader=ts-node/esm"
-    ]
+    ],
+    "spec": "test/tests/**/**/*.test.ts"
   },
   "c8": {
-    "include": [
-      "src/**/*.ts"
-    ],
     "extension": [
       ".ts"
     ],
-    "sourceMap": true,
-    "instrument": true
+    "include": [
+      "src/**/*.ts"
+    ],
+    "instrument": true,
+    "sourceMap": true
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

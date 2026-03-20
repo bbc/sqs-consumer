@@ -21,23 +21,13 @@ function validateOption(
       }
       break;
     case "heartbeatInterval":
-      if (
-        !allOptions.visibilityTimeout ||
-        value >= allOptions.visibilityTimeout
-      ) {
-        throw new Error(
-          "heartbeatInterval must be less than visibilityTimeout.",
-        );
+      if (!allOptions.visibilityTimeout || value >= allOptions.visibilityTimeout) {
+        throw new Error("heartbeatInterval must be less than visibilityTimeout.");
       }
       break;
     case "visibilityTimeout":
-      if (
-        allOptions.heartbeatInterval &&
-        value <= allOptions.heartbeatInterval
-      ) {
-        throw new Error(
-          "heartbeatInterval must be less than visibilityTimeout.",
-        );
+      if (allOptions.heartbeatInterval && value <= allOptions.heartbeatInterval) {
+        throw new Error("heartbeatInterval must be less than visibilityTimeout.");
       }
       break;
     case "waitTimeSeconds":
@@ -66,9 +56,7 @@ function assertOptions(options: ConsumerOptions): void {
   requiredOptions.forEach((option) => {
     const possibilities = option.split("|");
     if (!possibilities.find((p) => options[p])) {
-      throw new Error(
-        `Missing SQS consumer option [ ${possibilities.join(" or ")} ].`,
-      );
+      throw new Error(`Missing SQS consumer option [ ${possibilities.join(" or ")} ].`);
     }
   });
 

@@ -53,35 +53,31 @@ Given("messages are sent to the SQS queue", async () => {
   strictEqual(size, 3);
 });
 
-Then(
-  "the messages should be consumed without error",
-  { timeout: 2 * 5000 },
-  async () => {
-    consumer.start();
+Then("the messages should be consumed without error", { timeout: 2 * 5000 }, async () => {
+  consumer.start();
 
-    strictEqual(consumer.status.isRunning, true);
+  strictEqual(consumer.status.isRunning, true);
 
-    await pEvent(consumer, "message_received");
-    const size = await producer.queueSize();
+  await pEvent(consumer, "message_received");
+  const size = await producer.queueSize();
 
-    strictEqual(size, 2);
+  strictEqual(size, 2);
 
-    await pEvent(consumer, "message_received");
+  await pEvent(consumer, "message_received");
 
-    const size2 = await producer.queueSize();
+  const size2 = await producer.queueSize();
 
-    strictEqual(size2, 1);
+  strictEqual(size2, 1);
 
-    await pEvent(consumer, "message_received");
+  await pEvent(consumer, "message_received");
 
-    const size3 = await producer.queueSize();
+  const size3 = await producer.queueSize();
 
-    strictEqual(size3, 0);
+  strictEqual(size3, 0);
 
-    consumer.stop();
+  consumer.stop();
 
-    strictEqual(consumer.status.isRunning, false);
-  },
-);
+  strictEqual(consumer.status.isRunning, false);
+});
 
 After(() => consumer.stop());
