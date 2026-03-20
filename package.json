@@ -56,7 +56,6 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
-    "posttest": "npm run check",
     "generate-docs": "typedoc"
   },
   "dependencies": {
