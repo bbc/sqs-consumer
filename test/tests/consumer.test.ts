@@ -5,9 +5,8 @@ import {
   DeleteMessageCommand,
   ReceiveMessageCommand,
   SQSClient,
-  QueueAttributeName,
-  Message,
 } from "@aws-sdk/client-sqs";
+import type { QueueAttributeName, Message } from "@aws-sdk/client-sqs";
 import { assert } from "chai";
 import * as sinon from "sinon";
 import { pEvent } from "p-event";

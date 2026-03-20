@@ -1,6 +1,6 @@
-import { Message } from "@aws-sdk/client-sqs";
+import type { Message } from "@aws-sdk/client-sqs";
 
-import { AWSError } from "./types.js";
+import type { AWSError } from "./types.js";
 
 class SQSError extends Error {
   code: string;

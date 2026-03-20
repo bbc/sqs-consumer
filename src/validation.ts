@@ -1,6 +1,6 @@
-import { ReceiveMessageCommandOutput } from "@aws-sdk/client-sqs";
+import type { ReceiveMessageCommandOutput } from "@aws-sdk/client-sqs";
 
-import { ConsumerOptions } from "./types.js";
+import type { ConsumerOptions } from "./types.js";
 
 const requiredOptions = [
   "queueUrl",
