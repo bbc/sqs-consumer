@@ -2,7 +2,7 @@ import { SQSClient } from "@aws-sdk/client-sqs";
 
 export const sqsConfig = {
   region: "eu-west-1",
-  endpoint: "http://localhost:4566",
+  endpoint: "http://localhost:9324",
   credentials: {
     accessKeyId: "key",
     secretAccessKey: "secret",
@@ -12,4 +12,4 @@ export const sqsConfig = {
 export const sqs = new SQSClient(sqsConfig);
 
 export const QUEUE_URL =
-  process.env.SQS_QUEUE_URL || "http://localhost:4566/000000000000/sqs-consumer-data";
+  process.env.SQS_QUEUE_URL || "http://localhost:9324/000000000000/sqs-consumer-data";
