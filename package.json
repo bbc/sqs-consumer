@@ -2,6 +2,20 @@
   "name": "sqs-consumer",
   "version": "14.2.0",
   "description": "Build SQS-based Node applications without the boilerplate",
+  "keywords": [
+    "consumer",
+    "queue",
+    "sqs"
+  ],
+  "homepage": "https://bbc.github.io/sqs-consumer/",
+  "bugs": {
+    "url": "https://github.com/bbc/sqs-consumer/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bbc/sqs-consumer.git"
+  },
   "type": "module",
   "main": "dist/cjs/index.js",
   "types": "dist/cjs/index.d.ts",
@@ -17,8 +31,8 @@
       }
     }
   },
-  "engines": {
-    "node": ">=20.0.0"
+  "publishConfig": {
+    "provenance": true
   },
   "scripts": {
     "clean": "rm -fr dist/*",
@@ -28,126 +42,25 @@
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
     "release": "semantic-release",
-    "test:unit": "mocha --recursive --full-trace --exit",
-    "test:unit:report": "mocha --recursive --full-trace --exit --reporter json > test/reports/test-results.json",
+    "test:unit": "vitest run --config ./vitest.config.ts",
+    "test:unit:report": "vitest run --config ./vitest.config.ts --reporter=junit --outputFile=test/reports/test-results.xml",
     "pretest:integration:init": "npm run build",
-    "test:integration:init": "sh ./test/scripts/initIntTests.sh",
+    "test:integration:init": "bash ./test/scripts/initIntTests.sh",
     "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.mjs",
     "test": "npm run test:unit:report && npm run test:integration",
-    "coverage": "c8 mocha && c8 report --reporter=html && c8 report --reporter=json-summary",
-    "lcov": "c8 mocha && c8 report --reporter=lcov",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --log-level warn --write \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
-    "format:check": "prettier --check \"**/*.{js,json,jsx,md,ts,tsx,html}\"",
-    "posttest": "npm run lint && npm run format:check",
+    "coverage": "vitest run --config ./vitest.config.ts --coverage --coverage.reporter=html --coverage.reporter=json-summary",
+    "lcov": "vitest run --config ./vitest.config.ts --coverage --coverage.reporter=lcov",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
     "generate-docs": "typedoc"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/bbc/sqs-consumer.git"
-  },
-  "bugs": {
-    "url": "https://github.com/bbc/sqs-consumer/issues"
-  },
-  "homepage": "https://bbc.github.io/sqs-consumer/",
-  "keywords": [
-    "sqs",
-    "queue",
-    "consumer"
-  ],
-  "license": "Apache-2.0",
-  "publishConfig": {
-    "provenance": true
-  },
-  "release": {
-    "branches": [
-      "main",
-      "*.x",
-      {
-        "name": "canary",
-        "prerelease": true
-      }
-    ],
-    "plugins": [
-      [
-        "@semantic-release/commit-analyzer",
-        {
-          "preset": "conventionalcommits",
-          "releaseRules": [
-            {
-              "type": "breaking",
-              "release": "major"
-            },
-            {
-              "type": "feat",
-              "release": "minor"
-            },
-            {
-              "type": "chore",
-              "release": "patch"
-            },
-            {
-              "type": "fix",
-              "release": "patch"
-            },
-            {
-              "type": "docs",
-              "release": "patch"
-            },
-            {
-              "type": "refactor",
-              "release": "patch"
-            },
-            {
-              "type": "test",
-              "release": "patch"
-            }
-          ]
-        }
-      ],
-      [
-        "@semantic-release/release-notes-generator",
-        {
-          "preset": "conventionalcommits",
-          "presetConfig": {
-            "types": [
-              {
-                "type": "feat",
-                "section": "Features"
-              },
-              {
-                "type": "fix",
-                "section": "Bug Fixes"
-              },
-              {
-                "type": "chore",
-                "section": "Chores"
-              },
-              {
-                "type": "docs",
-                "section": "Documentation"
-              },
-              {
-                "type": "refactor",
-                "section": "Refactors"
-              },
-              {
-                "type": "test",
-                "section": "Tests"
-              }
-            ]
-          }
-        }
-      ],
-      "@semantic-release/changelog",
-      "@semantic-release/github",
-      "@semantic-release/npm",
-      "@sebbo2002/semantic-release-jsr"
-    ]
-  },
-  "overrides": {
-    "cross-spawn": "^7.0.3"
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.989.0",
+    "debug": "^4.4.3"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^12.6.0",
@@ -159,51 +72,30 @@
     "@semantic-release/npm": "^13.1.4",
     "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/chai": "^5.2.2",
-    "@types/mocha": "^10.0.10",
     "@types/node": "^25.2.3",
     "@types/sinon": "^17.0.4",
-    "@typescript-eslint/eslint-plugin": "^8.55.0",
-    "@typescript-eslint/parser": "^8.50.1",
-    "c8": "^10.1.3",
+    "@vitest/coverage-v8": "^3.2.4",
     "chai": "^6.2.2",
     "conventional-changelog-conventionalcommits": "^9.1.0",
-    "eslint": "^9.39.3",
-    "eslint-config-eslint": "^13.0.0",
     "jsr": "^0.14.3",
-    "mocha": "^11.7.5",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
     "p-event": "^7.0.2",
-    "prettier": "^3.8.1",
     "semantic-release": "^25.0.3",
     "sinon": "^21.0.0",
     "sqs-producer": "^8.0.2",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.16",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@aws-sdk/client-sqs": "^3.989.0",
-    "debug": "^4.4.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "@aws-sdk/client-sqs": "^3.989.0"
   },
-  "mocha": {
-    "extensions": [
-      "ts"
-    ],
-    "spec": "test/tests/**/**/*.test.ts",
-    "node-option": [
-      "loader=ts-node/esm"
-    ]
+  "overrides": {
+    "cross-spawn": "^7.0.3"
   },
-  "c8": {
-    "include": [
-      "src/**/*.ts"
-    ],
-    "extension": [
-      ".ts"
-    ],
-    "sourceMap": true,
-    "instrument": true
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

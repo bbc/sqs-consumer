@@ -19,18 +19,13 @@ function buildPackageJson() {
       const packageJsonFile = join(buildDir, dir, "/package.json");
 
       if (!existsSync(packageJsonFile)) {
-        const value =
-          dir === "esm" ? '{"type": "module"}' : '{"type": "commonjs"}';
+        const value = dir === "esm" ? '{"type": "module"}' : '{"type": "commonjs"}';
 
-        writeFile(
-          packageJsonFile,
-          new Uint8Array(Buffer.from(value)),
-          (writeErr) => {
-            if (writeErr) {
-              throw writeErr;
-            }
-          },
-        );
+        writeFile(packageJsonFile, new Uint8Array(Buffer.from(value)), (writeErr) => {
+          if (writeErr) {
+            throw writeErr;
+          }
+        });
       }
     });
   });

@@ -1,28 +1,26 @@
 import {
   SQSClient,
-  Message,
   ChangeMessageVisibilityCommand,
+  ChangeMessageVisibilityBatchCommand,
+  DeleteMessageCommand,
+  DeleteMessageBatchCommand,
+  ReceiveMessageCommand,
+} from "@aws-sdk/client-sqs";
+import type {
+  Message,
   ChangeMessageVisibilityCommandInput,
   ChangeMessageVisibilityCommandOutput,
-  ChangeMessageVisibilityBatchCommand,
   ChangeMessageVisibilityBatchCommandInput,
   ChangeMessageVisibilityBatchCommandOutput,
-  DeleteMessageCommand,
   DeleteMessageCommandInput,
-  DeleteMessageBatchCommand,
   DeleteMessageBatchCommandInput,
-  ReceiveMessageCommand,
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput,
   QueueAttributeName,
   MessageSystemAttributeName,
 } from "@aws-sdk/client-sqs";
 
-import type {
-  ConsumerOptions,
-  StopOptions,
-  UpdatableOptions,
-} from "./types.js";
+import type { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
 import { TypedEventEmitter } from "./emitter.js";
 import {
   SQSError,
@@ -45,9 +43,7 @@ export class Consumer extends TypedEventEmitter {
   private isFifoQueue: boolean;
   private suppressFifoWarning: boolean;
   private handleMessage: (message: Message) => Promise<Message | undefined>;
-  private handleMessageBatch: (
-    messages: Message[],
-  ) => Promise<Message[] | undefined>;
+  private handleMessageBatch: (messages: Message[]) => Promise<Message[] | undefined>;
   private preReceiveMessageCallback?: () => Promise<void>;
   private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
@@ -59,10 +55,7 @@ export class Consumer extends TypedEventEmitter {
   private alwaysAcknowledge: boolean;
   private batchSize: number;
   private visibilityTimeout: number;
-  private terminateVisibilityTimeout:
-    | boolean
-    | number
-    | ((message: Message[]) => number);
+  private terminateVisibilityTimeout: boolean | number | ((message: Message[]) => number);
   private waitTimeSeconds: number;
   private authenticationErrorTimeout: number;
   private pollingWaitTimeMs: number;
@@ -87,16 +80,13 @@ export class Consumer extends TypedEventEmitter {
     this.handleMessageTimeout = options.handleMessageTimeout;
     this.attributeNames = options.attributeNames || [];
     this.messageAttributeNames = options.messageAttributeNames || [];
-    this.messageSystemAttributeNames =
-      options.messageSystemAttributeNames || [];
+    this.messageSystemAttributeNames = options.messageSystemAttributeNames || [];
     this.batchSize = options.batchSize || 1;
     this.visibilityTimeout = options.visibilityTimeout;
-    this.terminateVisibilityTimeout =
-      options.terminateVisibilityTimeout || false;
+    this.terminateVisibilityTimeout = options.terminateVisibilityTimeout || false;
     this.heartbeatInterval = options.heartbeatInterval;
     this.waitTimeSeconds = options.waitTimeSeconds ?? 20;
-    this.authenticationErrorTimeout =
-      options.authenticationErrorTimeout ?? 10000;
+    this.authenticationErrorTimeout = options.authenticationErrorTimeout ?? 10000;
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.pollingCompleteWaitTimeMs = options.pollingCompleteWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
@@ -186,8 +176,7 @@ export class Consumer extends TypedEventEmitter {
     }
 
     const exceededTimeout: boolean =
-      Date.now() - this.stopRequestedAtTimestamp >
-      this.pollingCompleteWaitTimeMs;
+      Date.now() - this.stopRequestedAtTimestamp > this.pollingCompleteWaitTimeMs;
     if (exceededTimeout) {
       this.emit("waiting_for_polling_to_complete_timeout_exceeded");
       this.emit("stopped");
@@ -217,10 +206,7 @@ export class Consumer extends TypedEventEmitter {
    * @param option The option to validate and then update
    * @param value The value to set the provided option to
    */
-  public updateOption(
-    option: UpdatableOptions,
-    value: ConsumerOptions[UpdatableOptions],
-  ): void {
+  public updateOption(option: UpdatableOptions, value: ConsumerOptions[UpdatableOptions]): void {
     validateOption(option, value, this, true);
 
     this[option] = value;
@@ -251,8 +237,7 @@ export class Consumer extends TypedEventEmitter {
   private poll(): void {
     if (this.stopped) {
       logger.debug("cancelling_poll", {
-        detail:
-          "Poll was called while consumer was stopped, cancelling poll...",
+        detail: "Poll was called while consumer was stopped, cancelling poll...",
       });
       return;
     }
@@ -271,16 +256,13 @@ export class Consumer extends TypedEventEmitter {
       WaitTimeSeconds: this.waitTimeSeconds,
       VisibilityTimeout: this.visibilityTimeout,
     })
-      .then((output: ReceiveMessageCommandOutput) =>
-        this.handleSqsResponse(output),
-      )
+      .then((output: ReceiveMessageCommandOutput) => this.handleSqsResponse(output))
       .catch((err): void => {
         this.emitError(err);
         if (isConnectionError(err)) {
           logger.debug("authentication_error", {
             code: err.code || "Unknown",
-            detail:
-              "There was an authentication error. Pausing before retrying.",
+            detail: "There was an authentication error. Pausing before retrying.",
           });
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
@@ -290,10 +272,7 @@ export class Consumer extends TypedEventEmitter {
         if (this.pollingTimeoutId) {
           clearTimeout(this.pollingTimeoutId);
         }
-        this.pollingTimeoutId = setTimeout(
-          () => this.poll(),
-          currentPollingTimeout,
-        );
+        this.pollingTimeoutId = setTimeout(() => this.poll(), currentPollingTimeout);
       })
       .catch((err): void => {
         this.emitError(err);
@@ -338,17 +317,13 @@ export class Consumer extends TypedEventEmitter {
    * the message handler.
    * @param response The output from AWS SQS
    */
-  private async handleSqsResponse(
-    response: ReceiveMessageCommandOutput,
-  ): Promise<void> {
+  private async handleSqsResponse(response: ReceiveMessageCommandOutput): Promise<void> {
     if (hasMessages(response)) {
       if (this.handleMessageBatch) {
         await this.processMessageBatch(response.Messages);
       } else {
         await Promise.all(
-          response.Messages.map((message: Message) =>
-            this.processMessage(message),
-          ),
+          response.Messages.map((message: Message) => this.processMessage(message)),
         );
       }
 
@@ -389,9 +364,7 @@ export class Consumer extends TypedEventEmitter {
           await this.changeVisibilityTimeout(message, timeout);
         } else {
           const timeout =
-            this.terminateVisibilityTimeout === true
-              ? 0
-              : this.terminateVisibilityTimeout;
+            this.terminateVisibilityTimeout === true ? 0 : this.terminateVisibilityTimeout;
           await this.changeVisibilityTimeout(message, timeout);
         }
       }
@@ -436,9 +409,7 @@ export class Consumer extends TypedEventEmitter {
           await this.changeVisibilityTimeoutBatch(messages, timeout);
         } else {
           const timeout =
-            this.terminateVisibilityTimeout === true
-              ? 0
-              : this.terminateVisibilityTimeout;
+            this.terminateVisibilityTimeout === true ? 0 : this.terminateVisibilityTimeout;
           await this.changeVisibilityTimeoutBatch(messages, timeout);
         }
       }
@@ -451,16 +422,10 @@ export class Consumer extends TypedEventEmitter {
    * Trigger a function on a set interval
    * @param heartbeatFn The function that should be triggered
    */
-  private startHeartbeat(
-    message?: Message,
-    messages?: Message[],
-  ): NodeJS.Timeout {
+  private startHeartbeat(message?: Message, messages?: Message[]): NodeJS.Timeout {
     return setInterval(() => {
       if (this.handleMessageBatch) {
-        return this.changeVisibilityTimeoutBatch(
-          messages,
-          this.visibilityTimeout,
-        );
+        return this.changeVisibilityTimeoutBatch(messages, this.visibilityTimeout);
       }
 
       return this.changeVisibilityTimeout(message, this.visibilityTimeout);
@@ -482,10 +447,7 @@ export class Consumer extends TypedEventEmitter {
         ReceiptHandle: message.ReceiptHandle,
         VisibilityTimeout: timeout,
       };
-      return await this.sqs.send(
-        new ChangeMessageVisibilityCommand(input),
-        this.sqsSendOptions,
-      );
+      return await this.sqs.send(new ChangeMessageVisibilityCommand(input), this.sqsSendOptions);
     } catch (err) {
       this.emit(
         "error",
@@ -593,11 +555,7 @@ export class Consumer extends TypedEventEmitter {
         );
       }
       if (err instanceof Error) {
-        throw toStandardError(
-          err,
-          `Unexpected message handler failure: ${err.message}`,
-          message,
-        );
+        throw toStandardError(err, `Unexpected message handler failure: ${err.message}`, message);
       }
       throw err;
     } finally {
@@ -613,8 +571,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      const result: Message[] | undefined | null =
-        await this.handleMessageBatch(messages);
+      const result: Message[] | undefined | null = await this.handleMessageBatch(messages);
 
       if (this.alwaysAcknowledge) {
         return messages;
@@ -661,8 +618,7 @@ export class Consumer extends TypedEventEmitter {
   private async deleteMessage(message: Message): Promise<void> {
     if (!this.shouldDeleteMessages) {
       logger.debug("skipping_delete", {
-        detail:
-          "Skipping message delete since shouldDeleteMessages is set to false",
+        detail: "Skipping message delete since shouldDeleteMessages is set to false",
       });
       return;
     }
@@ -674,10 +630,7 @@ export class Consumer extends TypedEventEmitter {
     };
 
     try {
-      await this.sqs.send(
-        new DeleteMessageCommand(deleteParams),
-        this.sqsSendOptions,
-      );
+      await this.sqs.send(new DeleteMessageCommand(deleteParams), this.sqsSendOptions);
     } catch (err) {
       throw toSQSError(
         err,
@@ -696,8 +649,7 @@ export class Consumer extends TypedEventEmitter {
   private async deleteMessageBatch(messages: Message[]): Promise<void> {
     if (!this.shouldDeleteMessages) {
       logger.debug("skipping_delete", {
-        detail:
-          "Skipping message delete since shouldDeleteMessages is set to false",
+        detail: "Skipping message delete since shouldDeleteMessages is set to false",
       });
       return;
     }
@@ -714,10 +666,7 @@ export class Consumer extends TypedEventEmitter {
     };
 
     try {
-      await this.sqs.send(
-        new DeleteMessageBatchCommand(deleteParams),
-        this.sqsSendOptions,
-      );
+      await this.sqs.send(new DeleteMessageBatchCommand(deleteParams), this.sqsSendOptions);
     } catch (err) {
       throw toSQSError(
         err,

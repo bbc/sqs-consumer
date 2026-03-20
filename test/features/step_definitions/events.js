@@ -1,5 +1,3 @@
-/* eslint-disable no-undefined -- This is a test file */
-
 import { Given, When, Then, After } from "@cucumber/cucumber";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import { PurgeQueueCommand } from "@aws-sdk/client-sqs";
@@ -69,13 +67,7 @@ Given("a consumer that processes messages normally", () => {
     waitTimeSeconds: 1,
   });
 
-  [
-    "message_received",
-    "message_processed",
-    "empty",
-    "started",
-    "stopped",
-  ].forEach((eventName) => {
+  ["message_received", "message_processed", "empty", "started", "stopped"].forEach((eventName) => {
     consumer.on(eventName, (...args) => {
       const metadata = args.at(-1);
       receivedEvents[eventName] = {
@@ -154,41 +146,24 @@ When("the consumer starts and stops", async () => {
   }
 });
 
-Then(
-  "an error event should be emitted with undefined as the second parameter",
-  () => {
-    ok(errorEvent, "Error event should be defined");
-    strictEqual(
-      messageParam,
-      undefined,
-      "Message parameter should be undefined",
-    );
-  },
-);
+Then("an error event should be emitted with undefined as the second parameter", () => {
+  ok(errorEvent, "Error event should be defined");
+  strictEqual(messageParam, undefined, "Message parameter should be undefined");
+});
 
-Then(
-  "an error event should be emitted with the message as the second parameter",
-  () => {
-    ok(errorEvent, "Error event should be defined");
-    ok(messageParam, "Message parameter should be defined");
-    ok(messageParam.MessageId, "Message should have an ID");
-    ok(messageParam.Body, "Message should have a body");
-  },
-);
+Then("an error event should be emitted with the message as the second parameter", () => {
+  ok(errorEvent, "Error event should be defined");
+  ok(messageParam, "Message parameter should be defined");
+  ok(messageParam.MessageId, "Message should have an ID");
+  ok(messageParam.Body, "Message should have a body");
+});
 
 Then("the event should include metadata with queueUrl", () => {
-  deepStrictEqual(
-    metadataParam,
-    { queueUrl: QUEUE_URL },
-    "Metadata should contain the queue URL",
-  );
+  deepStrictEqual(metadataParam, { queueUrl: QUEUE_URL }, "Metadata should contain the queue URL");
 });
 
 Then("message_received event should be emitted with metadata", () => {
-  ok(
-    receivedEvents.message_received,
-    "message_received event should be emitted",
-  );
+  ok(receivedEvents.message_received, "message_received event should be emitted");
   ok(
     receivedEvents.message_received.args.length > 0,
     "message_received event should have arguments",
@@ -201,10 +176,7 @@ Then("message_received event should be emitted with metadata", () => {
 });
 
 Then("message_processed event should be emitted with metadata", () => {
-  ok(
-    receivedEvents.message_processed,
-    "message_processed event should be emitted",
-  );
+  ok(receivedEvents.message_processed, "message_processed event should be emitted");
   ok(
     receivedEvents.message_processed.args.length > 0,
     "message_processed event should have arguments",
@@ -253,5 +225,3 @@ After(() => {
   metadataParam = undefined;
   receivedEvents = {};
 });
-
-/* eslint-enable no-undefined -- This is a test file */

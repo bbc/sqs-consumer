@@ -4,7 +4,7 @@ on:
     branches:
       - canary
       - "*.x"
-      - 'main'
+      - "main"
   push:
     branches:
       - canary
@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: NPM Audit
         run: npx audit-ci@7.1.0
@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Run Tests and Linting
-        run: npm run test
+        run: npm run check
 
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
@@ -53,12 +53,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Install Bun Packages
         run: bun install --no-save
-      
+
       - name: Run Bun Tests
         run: bun run test

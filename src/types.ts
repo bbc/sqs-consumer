@@ -1,4 +1,4 @@
-import {
+import type {
   SQSClient,
   Message,
   QueueAttributeName,
@@ -72,10 +72,7 @@ export interface ConsumerOptions {
    * a number and it will use that as the value for the timeout.
    * @defaultvalue `false`
    */
-  terminateVisibilityTimeout?:
-    | boolean
-    | number
-    | ((messages: Message[]) => number);
+  terminateVisibilityTimeout?: boolean | number | ((messages: Message[]) => number);
   /**
    * The interval (in seconds) between requests to extend the message visibility timeout.
    *

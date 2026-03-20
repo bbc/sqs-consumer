@@ -1,24 +1,6 @@
-version: '3'
 services:
-  localstack:
-    container_name: local_sqs_aws
-    image: localstack/localstack:3.0.1@sha256:de413eee81c94bfd9b2206c016b82e83a3b2b8abd5775d05dbf829be2b02afb4
-    environment:
-      - AWS_DEFAULT_REGION=eu-west-1
-      - EDGE_PORT=4566
-      - SERVICES=sqs
-      - AWS_ACCESS_KEY_ID=key
-      - AWS_SECRET_ACCESS_KEY=secret
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - DEBUG=1
+  elasticmq:
+    container_name: elasticmq_sqs
+    image: softwaremill/elasticmq-native:1.6.12@sha256:50c05a4068d124e355edd105ce6c16c2209cf19673ee0cdc069ba95e6a549e2a
     ports:
-      - "4566-4599:4566-4599"
-    volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock'
-      - ./localstack:/etc/localstack/init/ready.d
-    healthcheck:
-      test: curl http://localhost:4566/_localstack/health | jq '.services.sqs' | grep -q -x 'running'
-      interval: 20s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
+      - "9324:9324"

@@ -24,11 +24,7 @@ Given("Several messages are sent to the SQS queue", async () => {
     await sqs.send(command);
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const sizeAfterSecondPurge = await producer.queueSize();
-    strictEqual(
-      sizeAfterSecondPurge,
-      0,
-      "Queue should be empty after second purge",
-    );
+    strictEqual(sizeAfterSecondPurge, 0, "Queue should be empty after second purge");
   } else {
     strictEqual(size, 0, "Queue should be empty after purge");
   }
@@ -47,22 +43,19 @@ Then("the application is stopped while messages are in flight", async () => {
   strictEqual(consumer.status.isRunning, false);
 });
 
-Then(
-  "the in-flight messages should be processed before stopped is emitted",
-  async () => {
-    let numProcessed = 0;
-    consumer.on("message_processed", () => {
-      numProcessed++;
-    });
+Then("the in-flight messages should be processed before stopped is emitted", async () => {
+  let numProcessed = 0;
+  consumer.on("message_processed", () => {
+    numProcessed++;
+  });
 
-    await pEvent(consumer, "stopped");
+  await pEvent(consumer, "stopped");
 
-    strictEqual(numProcessed, 3, "Should process exactly 3 messages");
+  strictEqual(numProcessed, 3, "Should process exactly 3 messages");
 
-    const size = await producer.queueSize();
-    strictEqual(size, 0, "Queue should be empty after processing");
-  },
-);
+  const size = await producer.queueSize();
+  strictEqual(size, 0, "Queue should be empty after processing");
+});
 
 After(async () => {
   consumer.stop();
