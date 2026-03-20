@@ -45,7 +45,7 @@
     "test:unit": "vitest run --config ./vitest.config.ts",
     "test:unit:report": "vitest run --config ./vitest.config.ts --reporter=junit --outputFile=test/reports/test-results.xml",
     "pretest:integration:init": "npm run build",
-    "test:integration:init": "sh ./test/scripts/initIntTests.sh",
+    "test:integration:init": "bash ./test/scripts/initIntTests.sh",
     "test:integration": "npm run test:integration:init && cucumber-js --config ./test/config/cucumber.mjs",
     "test": "npm run test:unit:report && npm run test:integration",
     "coverage": "vitest run --config ./vitest.config.ts --coverage --coverage.reporter=html --coverage.reporter=json-summary",
