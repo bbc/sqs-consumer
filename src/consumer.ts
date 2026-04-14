@@ -258,7 +258,13 @@ export class Consumer extends TypedEventEmitter {
     })
       .then((output: ReceiveMessageCommandOutput) => this.handleSqsResponse(output))
       .catch((err): void => {
-        this.emitError(err);
+        try {
+          this.emitError(err);
+        } catch (listenerErr) {
+          logger.warn(
+            `An error event listener threw an error: ${listenerErr instanceof Error ? listenerErr.message : String(listenerErr)}`,
+          );
+        }
         if (isConnectionError(err)) {
           logger.debug("authentication_error", {
             code: err.code || "Unknown",
@@ -266,19 +272,15 @@ export class Consumer extends TypedEventEmitter {
           });
           currentPollingTimeout = this.authenticationErrorTimeout;
         }
-        return;
-      })
-      .then((): void => {
-        if (this.pollingTimeoutId) {
-          clearTimeout(this.pollingTimeoutId);
-        }
-        this.pollingTimeoutId = setTimeout(() => this.poll(), currentPollingTimeout);
-      })
-      .catch((err): void => {
-        this.emitError(err);
       })
       .finally((): void => {
         this.isPolling = false;
+        if (!this.stopped) {
+          if (this.pollingTimeoutId) {
+            clearTimeout(this.pollingTimeoutId);
+          }
+          this.pollingTimeoutId = setTimeout(() => this.poll(), currentPollingTimeout);
+        }
       });
   }
 
