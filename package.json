@@ -3,13 +3,13 @@
   "version": "14.2.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "keywords": [
-    "sqs",
     "aws-sqs",
-    "queue-consumer",
-    "message-queue",
     "backend",
+    "message-queue",
+    "nodejs",
+    "queue-consumer",
     "serverless",
-    "nodejs"
+    "sqs"
   ],
   "homepage": "https://bbc.github.io/sqs-consumer/",
   "bugs": {
