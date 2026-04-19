@@ -1,3 +1,9 @@
+## [14.2.8-canary.3](https://github.com/bbc/sqs-consumer/compare/v14.2.8-canary.2...v14.2.8-canary.3) (2026-04-19)
+
+### Chores
+
+* adding formatting config ([0d2e4a1](https://github.com/bbc/sqs-consumer/commit/0d2e4a1cb0b6aa326ce6531f9173f7ae3efadf2f))
+
 ## [14.2.8-canary.2](https://github.com/bbc/sqs-consumer/compare/v14.2.8-canary.1...v14.2.8-canary.2) (2026-04-19)
 
 ### Chores
