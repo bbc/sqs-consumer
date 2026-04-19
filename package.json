@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "14.2.8-canary.1",
+  "version": "14.2.8-canary.2",
   "description": "Build SQS-based Node applications without the boilerplate",
   "keywords": [
     "aws-sqs",

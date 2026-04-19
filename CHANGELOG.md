@@ -1,3 +1,9 @@
+## [14.2.8-canary.2](https://github.com/bbc/sqs-consumer/compare/v14.2.8-canary.1...v14.2.8-canary.2) (2026-04-19)
+
+### Chores
+
+* add oxlint config ([7517312](https://github.com/bbc/sqs-consumer/commit/751731240940dd6d86af3475973190126224cffb))
+
 ## [14.2.8-canary.1](https://github.com/bbc/sqs-consumer/compare/v14.2.7...v14.2.8-canary.1) (2026-04-19)
 
 ### Chores
