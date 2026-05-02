@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/tests/**/*.test.ts"],
-    dangerouslyIgnoreUnhandledErrors: true,
+    pool: "threads",
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

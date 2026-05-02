@@ -1788,11 +1788,14 @@ describe("Consumer", () => {
 
       const receiveErr = new MockSQSError("failed");
       sqs.send.withArgs(mockChangeMessageVisibility).rejects(receiveErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
 
       consumer.start();
-      const [err]: any[] = await Promise.all([pEvent(consumer, "error"), clock.tickAsync(75000)]);
+      await clock.tickAsync(75000);
       consumer.stop();
 
+      const err = errorListener.firstCall.args[0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -1819,11 +1822,14 @@ describe("Consumer", () => {
 
       const receiveErr = new MockSQSError("failed");
       sqs.send.withArgs(mockChangeMessageVisibilityBatch).rejects(receiveErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
 
       consumer.start();
-      const [err]: any[] = await Promise.all([pEvent(consumer, "error"), clock.tickAsync(75000)]);
+      await clock.tickAsync(75000);
       consumer.stop();
 
+      const err = errorListener.firstCall.args[0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -1916,11 +1922,14 @@ describe("Consumer", () => {
 
       const receiveErr = new MockSQSError("failed");
       sqs.send.withArgs(mockChangeMessageVisibility).rejects(receiveErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
 
       consumer.start();
-      const [err]: any = await Promise.all([pEvent(consumer, "error"), clock.tickAsync(75000)]);
+      await clock.tickAsync(75000);
       consumer.stop();
 
+      const err = errorListener.firstCall.args[0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -1948,11 +1957,14 @@ describe("Consumer", () => {
 
       const receiveErr = new MockSQSError("failed");
       sqs.send.withArgs(mockChangeMessageVisibilityBatch).rejects(receiveErr);
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
 
       consumer.start();
-      const [err]: any = await Promise.all([pEvent(consumer, "error"), clock.tickAsync(75000)]);
+      await clock.tickAsync(75000);
       consumer.stop();
 
+      const err = errorListener.firstCall.args[0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -2218,7 +2230,7 @@ describe("Consumer", () => {
       );
 
       consumer.start();
-      await Promise.all([clock.tickAsync(1)]);
+      await clock.tickAsync(1);
       consumer.stop();
 
       await clock.runAllAsync();
@@ -2266,7 +2278,7 @@ describe("Consumer", () => {
       );
 
       consumer.start();
-      await Promise.all([clock.tickAsync(1)]);
+      await clock.tickAsync(1);
       consumer.stop();
 
       await clock.runAllAsync();
@@ -2313,11 +2325,11 @@ describe("Consumer", () => {
       });
 
       consumer.start();
-      await Promise.all([clock.tickAsync(1)]);
+      await clock.tickAsync(1);
       assert.isTrue(consumer.status.isPolling);
       consumer.stop();
       assert.isTrue(consumer.status.isPolling);
-      await Promise.all([clock.tickAsync(21)]);
+      await clock.tickAsync(21);
       assert.isFalse(consumer.status.isPolling);
     });
   });
