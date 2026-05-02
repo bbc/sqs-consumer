@@ -1,0 +1,53 @@
+const isStable = process.env.STABLE_RELEASE === "true";
+
+const branches = isStable ? ["main"] : [{ name: "main", prerelease: true }];
+
+/** @type {import('semantic-release').GlobalConfig} */
+module.exports = {
+  branches,
+  plugins: [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        preset: "conventionalcommits",
+        releaseRules: [
+          { type: "breaking", release: "major" },
+          { type: "feat", release: "minor" },
+          { type: "chore", release: "patch" },
+          { type: "fix", release: "patch" },
+          { type: "docs", release: "patch" },
+          { type: "refactor", release: "patch" },
+          { type: "test", release: "patch" },
+        ],
+      },
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        preset: "conventionalcommits",
+        presetConfig: {
+          types: [
+            { type: "feat", section: "Features" },
+            { type: "fix", section: "Bug Fixes" },
+            { type: "chore", section: "Chores" },
+            { type: "docs", section: "Documentation" },
+            { type: "refactor", section: "Refactors" },
+            { type: "test", section: "Tests" },
+          ],
+        },
+      },
+    ],
+    "@semantic-release/changelog",
+    "@semantic-release/npm",
+    [
+      "@semantic-release/git",
+      {
+        assets: ["package.json", "package-lock.json", "CHANGELOG.md"],
+        message:
+          "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
+      },
+    ],
+    "@semantic-release/github",
+    "@sebbo2002/semantic-release-jsr",
+  ],
+};

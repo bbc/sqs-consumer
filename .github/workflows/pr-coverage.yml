@@ -2,9 +2,7 @@ name: Comment PR Coverage
 on:
   pull_request:
     branches:
-      - canary
-      - "*.x"
-      - "main"
+      - main
 permissions:
   contents: read
 

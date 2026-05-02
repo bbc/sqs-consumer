@@ -1,19 +1,13 @@
-name: Publish Package to npmjs
+name: Publish Stable Release to npmjs
 
 on:
-  workflow_run:
-    workflows:
-      - "Run Tests"
-    branches: ["main"]
-    types:
-      - completed
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,4 +33,5 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STABLE_RELEASE: "true"
         run: npm run release

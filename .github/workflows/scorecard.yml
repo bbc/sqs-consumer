@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "24 23 * * 0"
   push:
-    branches: ["canary"]
+    branches: ["main"]
 permissions: read-all
 
 jobs:
