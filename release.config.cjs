@@ -1,10 +1,6 @@
-const isStable = process.env.STABLE_RELEASE === "true";
-
-const branches = isStable ? ["main"] : [{ name: "main", prerelease: true }];
-
 /** @type {import('semantic-release').GlobalConfig} */
 module.exports = {
-  branches,
+  branches: ["main"],
   plugins: [
     [
       "@semantic-release/commit-analyzer",
