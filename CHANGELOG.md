@@ -1,3 +1,12 @@
+## [15.0.0-canary.1](https://github.com/bbc/sqs-consumer/compare/v14.2.8-canary.3...v15.0.0-canary.1) (2026-05-02)
+
+### Chores
+
+* adjusting node versions per lts only support ([#785](https://github.com/bbc/sqs-consumer/issues/785)) ([fa5529d](https://github.com/bbc/sqs-consumer/commit/fa5529dd9f6e81e76c8a0bb24677739e9c7a6450))
+* **deps-dev:** bump conventional-changelog-conventionalcommits ([#774](https://github.com/bbc/sqs-consumer/issues/774)) ([8983c95](https://github.com/bbc/sqs-consumer/commit/8983c950ee959aea537b3d293185bede6a051fa8))
+* **deps-dev:** bump sqs-producer from 8.0.2 to 8.0.7 ([#776](https://github.com/bbc/sqs-consumer/issues/776)) ([e50a6c1](https://github.com/bbc/sqs-consumer/commit/e50a6c1e33fa4c429cbe98f95814988be7b1c32d))
+* **deps:** bump zgosalvez/github-actions-report-lcov ([#783](https://github.com/bbc/sqs-consumer/issues/783)) ([eff2927](https://github.com/bbc/sqs-consumer/commit/eff29274c23b712be3d4ff521d9f8b59b4c2c0b8))
+
 ## [14.2.8](https://github.com/bbc/sqs-consumer/compare/v14.2.7...v14.2.8) (2026-04-19)
 
 ### Chores
