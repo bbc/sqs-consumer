@@ -1,3 +1,12 @@
+## [15.0.0-canary.2](https://github.com/bbc/sqs-consumer/compare/v15.0.0-canary.1...v15.0.0-canary.2) (2026-05-02)
+
+### Chores
+
+* **deps-dev:** bump oxfmt from 0.41.0 to 0.44.0 ([#779](https://github.com/bbc/sqs-consumer/issues/779)) ([59c2c44](https://github.com/bbc/sqs-consumer/commit/59c2c44034c306c6387ee3dafbb195447cd43be4))
+* **deps:** bump actions/setup-node from 6.3.0 to 6.4.0 ([#781](https://github.com/bbc/sqs-consumer/issues/781)) ([0f21cb2](https://github.com/bbc/sqs-consumer/commit/0f21cb2f8c02f1f976e55a1dac4bb08fee0314c8))
+* **deps:** bump dependabot/fetch-metadata from 3.0.0 to 3.1.0 ([#782](https://github.com/bbc/sqs-consumer/issues/782)) ([ae4e35a](https://github.com/bbc/sqs-consumer/commit/ae4e35a84e0f642a6c77b67f26beb5e0f4b4920e))
+* **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([#784](https://github.com/bbc/sqs-consumer/issues/784)) ([215e5c8](https://github.com/bbc/sqs-consumer/commit/215e5c81c24e247244c677ad0d6c1835d94d688a))
+
 ## [15.0.0-canary.1](https://github.com/bbc/sqs-consumer/compare/v14.2.8-canary.3...v15.0.0-canary.1) (2026-05-02)
 
 ### Chores
