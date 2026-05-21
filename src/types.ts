@@ -95,6 +95,14 @@ export interface ConsumerOptions {
   /**
    * Set this value to false to ignore the `queueUrl` and use the
    * client's resolved endpoint, which may be a custom endpoint.
+   *
+   * Treat `queueUrl` as trusted application configuration. If your application
+   * accepts queue URLs from users or other external sources, validate those
+   * values before passing them to SQS Consumer, or set this option to `false`
+   * when that is compatible with your SQS setup. When this option is enabled
+   * and `queueUrl` does not point to an AWS endpoint, SQS Consumer will log a
+   * warning.
+   *
    * @defaultValue `true`
    */
   useQueueUrlAsEndpoint?: boolean;

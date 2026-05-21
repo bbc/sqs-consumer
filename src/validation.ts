@@ -68,6 +68,20 @@ function assertOptions(options: ConsumerOptions): void {
   }
 }
 
+function isAwsQueueUrl(queueUrl: string): boolean {
+  try {
+    const parsedQueueUrl = new URL(queueUrl);
+    const hostname = parsedQueueUrl.hostname.toLowerCase();
+
+    return (
+      parsedQueueUrl.protocol === "https:" &&
+      (hostname.endsWith(".amazonaws.com") || hostname.endsWith(".api.aws"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Determine if the response from SQS has messages in it.
  * @param response The response from SQS.
@@ -76,4 +90,4 @@ function hasMessages(response: ReceiveMessageCommandOutput): boolean {
   return response.Messages && response.Messages.length > 0;
 }
 
-export { hasMessages, assertOptions, validateOption };
+export { hasMessages, assertOptions, validateOption, isAwsQueueUrl };
