@@ -2,6 +2,9 @@ import type { Message } from "@aws-sdk/client-sqs";
 
 import type { AWSError } from "./types.js";
 
+const DEFAULT_TIMEOUT_ERROR_MESSAGE = "Operation timed out.";
+const DEFAULT_STANDARD_ERROR_MESSAGE = "An unexpected error occurred:";
+
 class SQSError extends Error {
   code: string;
   cause: AWSError;
@@ -26,9 +29,11 @@ class TimeoutError extends Error {
   cause: Error;
   time: Date;
 
-  constructor(message = "Operation timed out.") {
-    super(message);
-    this.message = message;
+  constructor(message?: string) {
+    const errorMessage = message === undefined ? DEFAULT_TIMEOUT_ERROR_MESSAGE : message;
+
+    super(errorMessage);
+    this.message = errorMessage;
     this.name = "TimeoutError";
     this.messageIds = [];
   }
@@ -39,9 +44,11 @@ class StandardError extends Error {
   cause: Error;
   time: Date;
 
-  constructor(message = "An unexpected error occurred:") {
-    super(message);
-    this.message = message;
+  constructor(message?: string) {
+    const errorMessage = message === undefined ? DEFAULT_STANDARD_ERROR_MESSAGE : message;
+
+    super(errorMessage);
+    this.message = errorMessage;
     this.name = "StandardError";
     this.messageIds = [];
   }
