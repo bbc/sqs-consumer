@@ -7,6 +7,7 @@ describe("validation", () => {
   describe("isAwsQueueUrl", () => {
     it("returns true for AWS queue URLs", () => {
       assert.isTrue(isAwsQueueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/queue"));
+      assert.isTrue(isAwsQueueUrl("https://sqs.eu-west-1.amazonaws.com.cn/123456789012/queue"));
       assert.isTrue(isAwsQueueUrl("https://sqs.eu-west-1.api.aws/123456789012/queue"));
     });
 

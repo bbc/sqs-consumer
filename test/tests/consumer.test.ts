@@ -2144,6 +2144,20 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(pollStub);
     });
 
+    it("does not emit a warning when the queue URL is the amazonaws.com.cn endpoint", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.cn-north-1.amazonaws.com.cn/123456789012/queue",
+        region: REGION,
+        handleMessage,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+      sandbox.assert.calledOnce(pollStub);
+    });
+
     it("does not emit a warning when the queue URL is the api.aws endpoint", () => {
       consumer = new Consumer({
         queueUrl: "https://sqs.us-east-1.api.aws/123456789012/queue",

@@ -84,8 +84,9 @@ function isAwsQueueUrl(queueUrl: string): boolean {
 
 function isAwsQueueHostname(hostname: string): boolean {
   const normalisedHostname = hostname.toLowerCase();
+  const awsHostSuffixes = [".amazonaws.com", ".amazonaws.com.cn", ".api.aws"];
 
-  return normalisedHostname.endsWith(".amazonaws.com") || normalisedHostname.endsWith(".api.aws");
+  return awsHostSuffixes.some((suffix) => normalisedHostname.endsWith(suffix));
 }
 
 /**
