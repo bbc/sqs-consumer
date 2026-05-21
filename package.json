@@ -67,7 +67,7 @@
     "debug": "^4.4.3"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^12.7.0",
+    "@cucumber/cucumber": "^12.8.2",
     "@sebbo2002/semantic-release-jsr": "^3.2.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
