@@ -93,12 +93,13 @@ export class Consumer extends TypedEventEmitter {
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.extendedAWSErrors = options.extendedAWSErrors ?? false;
     this.strictReturn = options.strictReturn ?? false;
-    this.sqs =
-      options.sqs ||
-      new SQSClient({
-        useQueueUrlAsEndpoint: options.useQueueUrlAsEndpoint ?? true,
-        region: options.region || process.env.AWS_REGION || "eu-west-1",
-      });
+    if (options.sqs) {
+      this.sqs = options.sqs;
+    } else {
+      const useQueueUrlAsEndpoint = options.useQueueUrlAsEndpoint ?? true;
+      const region = options.region || process.env.AWS_REGION || "eu-west-1";
+      this.sqs = new SQSClient({ useQueueUrlAsEndpoint, region });
+    }
   }
 
   /**
@@ -131,10 +132,12 @@ export class Consumer extends TypedEventEmitter {
    * A reusable options object for sqs.send that's used to avoid duplication.
    */
   private get sqsSendOptions(): { abortSignal: AbortSignal } {
+    const abortSignal = this.abortController?.signal || new AbortController().signal;
+
     return {
       // return the current abortController signal or a fresh signal that has not been aborted.
       // This effectively defaults the signal sent to the AWS SDK to not aborted
-      abortSignal: this.abortController?.signal || new AbortController().signal,
+      abortSignal,
     };
   }
 
@@ -261,13 +264,15 @@ export class Consumer extends TypedEventEmitter {
         try {
           this.emitError(err);
         } catch (listenerErr) {
-          logger.warn(
-            `An error event listener threw an error: ${listenerErr instanceof Error ? listenerErr.message : String(listenerErr)}`,
-          );
+          const listenerErrorMessage =
+            listenerErr instanceof Error ? listenerErr.message : String(listenerErr);
+          logger.warn(`An error event listener threw an error: ${listenerErrorMessage}`);
         }
         if (isConnectionError(err)) {
+          const errorCode = err.code || "Unknown";
+
           logger.debug("authentication_error", {
-            code: err.code || "Unknown",
+            code: errorCode,
             detail: "There was an authentication error. Pausing before retrying.",
           });
           currentPollingTimeout = this.authenticationErrorTimeout;
