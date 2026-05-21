@@ -71,15 +71,21 @@ function assertOptions(options: ConsumerOptions): void {
 function isAwsQueueUrl(queueUrl: string): boolean {
   try {
     const parsedQueueUrl = new URL(queueUrl);
-    const hostname = parsedQueueUrl.hostname.toLowerCase();
 
-    return (
-      parsedQueueUrl.protocol === "https:" &&
-      (hostname.endsWith(".amazonaws.com") || hostname.endsWith(".api.aws"))
-    );
+    if (parsedQueueUrl.protocol !== "https:") {
+      return false;
+    }
+
+    return isAwsQueueHostname(parsedQueueUrl.hostname);
   } catch {
     return false;
   }
+}
+
+function isAwsQueueHostname(hostname: string): boolean {
+  const normalisedHostname = hostname.toLowerCase();
+
+  return normalisedHostname.endsWith(".amazonaws.com") || normalisedHostname.endsWith(".api.aws");
 }
 
 /**
