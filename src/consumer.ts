@@ -526,18 +526,9 @@ export class Consumer extends TypedEventEmitter {
     action: string,
     messages: Message[],
   ): void {
-    if (!failed) {
-      return;
-    }
-
-    for (const entry of failed) {
+    for (const entry of failed ?? []) {
       const message = messages.find((m) => m.MessageId === entry.Id);
-      let failureMessage = "unknown batch failure";
-      if (entry.Message) {
-        failureMessage = entry.Message;
-      } else if (entry.Code) {
-        failureMessage = entry.Code;
-      }
+      const failureMessage = entry.Message || entry.Code || "unknown batch failure";
 
       const sqsError = new SQSError(`${errorPrefix}: ${failureMessage}`);
 
@@ -545,11 +536,7 @@ export class Consumer extends TypedEventEmitter {
       sqsError.queueUrl = this.queueUrl;
       sqsError.messageIds = entry.Id ? [entry.Id] : [];
 
-      if (message) {
-        this.emit("error", sqsError, message);
-      } else {
-        this.emit("error", sqsError, messages);
-      }
+      this.emit("error", sqsError, message ?? messages);
 
       logger.debug("batch_entry_failed", {
         action,
