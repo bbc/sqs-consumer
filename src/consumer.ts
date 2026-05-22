@@ -14,6 +14,7 @@ import type {
   ChangeMessageVisibilityBatchCommandOutput,
   DeleteMessageCommandInput,
   DeleteMessageBatchCommandInput,
+  DeleteMessageBatchCommandOutput,
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput,
   QueueAttributeName,
@@ -401,9 +402,9 @@ export class Consumer extends TypedEventEmitter {
       const ackedMessages: Message[] = await this.executeBatchHandler(messages);
 
       if (ackedMessages?.length > 0) {
-        await this.deleteMessageBatch(ackedMessages);
+        const deletedMessages = await this.deleteMessageBatch(ackedMessages);
 
-        ackedMessages.forEach((message: Message): void => {
+        deletedMessages.forEach((message: Message): void => {
           this.emit("message_processed", message);
         });
       }
@@ -488,10 +489,21 @@ export class Consumer extends TypedEventEmitter {
       })),
     };
     try {
-      return await this.sqs.send(
+      const response = await this.sqs.send(
         new ChangeMessageVisibilityBatchCommand(params),
         this.sqsSendOptions,
       );
+
+      if (response) {
+        this.emitBatchFailures(
+          response.Failed,
+          "Error changing visibility timeout",
+          "change visibility timeout",
+          messages,
+        );
+      }
+
+      return response;
     } catch (err) {
       this.emit(
         "error",
@@ -505,6 +517,32 @@ export class Consumer extends TypedEventEmitter {
         messages,
       );
     }
+  }
+
+  private emitBatchFailures(
+    failed: ChangeMessageVisibilityBatchCommandOutput["Failed"],
+    errorPrefix: string,
+    action: string,
+    messages: Message[],
+  ): void {
+    failed?.forEach((entry) => {
+      const message = messages.find((m) => m.MessageId === entry.Id);
+      const sqsError = new SQSError(
+        `${errorPrefix}: ${entry.Message ?? entry.Code ?? "unknown batch failure"}`,
+      );
+
+      sqsError.code = entry.Code;
+      sqsError.queueUrl = this.queueUrl;
+      sqsError.messageIds = entry.Id ? [entry.Id] : [];
+
+      this.emit("error", sqsError, message ?? messages);
+      logger.debug("batch_entry_failed", {
+        action,
+        messageId: entry.Id,
+        code: entry.Code,
+        senderFault: entry.SenderFault,
+      });
+    });
   }
 
   /**
@@ -653,12 +691,12 @@ export class Consumer extends TypedEventEmitter {
    * Delete a batch of messages from the SQS queue.
    * @param messages The messages that should be deleted from SQS
    */
-  private async deleteMessageBatch(messages: Message[]): Promise<void> {
+  private async deleteMessageBatch(messages: Message[]): Promise<Message[]> {
     if (!this.shouldDeleteMessages) {
       logger.debug("skipping_delete", {
         detail: "Skipping message delete since shouldDeleteMessages is set to false",
       });
-      return;
+      return messages;
     }
     logger.debug("deleting_messages", {
       messageIds: messages.map((msg: Message) => msg.MessageId),
@@ -673,7 +711,23 @@ export class Consumer extends TypedEventEmitter {
     };
 
     try {
-      await this.sqs.send(new DeleteMessageBatchCommand(deleteParams), this.sqsSendOptions);
+      const response = await this.sqs.send(
+        new DeleteMessageBatchCommand(deleteParams),
+        this.sqsSendOptions,
+      );
+
+      if (!response) {
+        return messages;
+      }
+
+      this.emitBatchFailures(
+        response.Failed,
+        "SQS delete message failed",
+        "delete message",
+        messages,
+      );
+
+      return this.getSuccessfulBatchMessages(response, messages);
     } catch (err) {
       throw toSQSError(
         err,
@@ -683,5 +737,22 @@ export class Consumer extends TypedEventEmitter {
         messages,
       );
     }
+  }
+
+  private getSuccessfulBatchMessages(
+    response: DeleteMessageBatchCommandOutput,
+    messages: Message[],
+  ): Message[] {
+    if (response.Successful) {
+      const successfulIds = new Set(response.Successful.map(({ Id }) => Id));
+      return messages.filter((message) => successfulIds.has(message.MessageId));
+    }
+
+    if (response.Failed) {
+      const failedIds = new Set(response.Failed.map(({ Id }) => Id));
+      return messages.filter((message) => !failedIds.has(message.MessageId));
+    }
+
+    return messages;
   }
 }
