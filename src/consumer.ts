@@ -7,6 +7,7 @@ import {
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
 import type {
+  BatchResultErrorEntry,
   Message,
   ChangeMessageVisibilityCommandInput,
   ChangeMessageVisibilityCommandOutput,
@@ -520,29 +521,43 @@ export class Consumer extends TypedEventEmitter {
   }
 
   private emitBatchFailures(
-    failed: ChangeMessageVisibilityBatchCommandOutput["Failed"],
+    failed: BatchResultErrorEntry[] | undefined,
     errorPrefix: string,
     action: string,
     messages: Message[],
   ): void {
-    failed?.forEach((entry) => {
+    if (!failed) {
+      return;
+    }
+
+    for (const entry of failed) {
       const message = messages.find((m) => m.MessageId === entry.Id);
-      const sqsError = new SQSError(
-        `${errorPrefix}: ${entry.Message ?? entry.Code ?? "unknown batch failure"}`,
-      );
+      let failureMessage = "unknown batch failure";
+      if (entry.Message) {
+        failureMessage = entry.Message;
+      } else if (entry.Code) {
+        failureMessage = entry.Code;
+      }
+
+      const sqsError = new SQSError(`${errorPrefix}: ${failureMessage}`);
 
       sqsError.code = entry.Code;
       sqsError.queueUrl = this.queueUrl;
       sqsError.messageIds = entry.Id ? [entry.Id] : [];
 
-      this.emit("error", sqsError, message ?? messages);
+      if (message) {
+        this.emit("error", sqsError, message);
+      } else {
+        this.emit("error", sqsError, messages);
+      }
+
       logger.debug("batch_entry_failed", {
         action,
         messageId: entry.Id,
         code: entry.Code,
         senderFault: entry.SenderFault,
       });
-    });
+    }
   }
 
   /**
@@ -743,16 +758,11 @@ export class Consumer extends TypedEventEmitter {
     response: DeleteMessageBatchCommandOutput,
     messages: Message[],
   ): Message[] {
-    if (response.Successful) {
-      const successfulIds = new Set(response.Successful.map(({ Id }) => Id));
-      return messages.filter((message) => successfulIds.has(message.MessageId));
+    if (!response.Successful) {
+      return [];
     }
 
-    if (response.Failed) {
-      const failedIds = new Set(response.Failed.map(({ Id }) => Id));
-      return messages.filter((message) => !failedIds.has(message.MessageId));
-    }
-
-    return messages;
+    const successfulIds = new Set(response.Successful.map(({ Id }) => Id));
+    return messages.filter((message) => successfulIds.has(message.MessageId));
   }
 }

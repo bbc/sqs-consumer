@@ -1482,6 +1482,8 @@ describe("Consumer", () => {
     });
 
     it("ack only returned messages if handleMessagesBatch returns an array", async () => {
+      sqs.send.withArgs(mockDeleteMessageBatch).resolves({ Successful: [{ Id: "123" }] });
+
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
@@ -1552,6 +1554,48 @@ describe("Consumer", () => {
         "SQS delete message failed: simulated partial delete failure",
       );
       assert.equal(errorListener.firstCall.args[0].queueUrl, QUEUE_URL);
+      assert.deepEqual(errorListener.firstCall.args[0].messageIds, ["2"]);
+    });
+
+    it("does not emit message_processed when DeleteMessageBatch has no successful entries", async () => {
+      const messages = [
+        { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+        { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+      ];
+      sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+      sqs.send.withArgs(mockDeleteMessageBatch).resolves({
+        Failed: [
+          {
+            Id: "2",
+            SenderFault: false,
+            Code: "InternalError",
+            Message: "simulated partial delete failure",
+          },
+        ],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => messages,
+        batchSize: 2,
+        sqs,
+      });
+
+      const messageProcessedListener = sandbox.stub();
+      const errorListener = sandbox.stub();
+      consumer.on("message_processed", messageProcessedListener);
+      consumer.on("error", errorListener);
+
+      const responseProcessed = new Promise<void>((resolve) => {
+        consumer.once("response_processed", () => resolve());
+      });
+      consumer.start();
+      await responseProcessed;
+      consumer.stop();
+
+      sandbox.assert.notCalled(messageProcessedListener);
+      sandbox.assert.calledOnce(errorListener);
       assert.deepEqual(errorListener.firstCall.args[0].messageIds, ["2"]);
     });
 
