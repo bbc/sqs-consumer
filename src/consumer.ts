@@ -496,12 +496,7 @@ export class Consumer extends TypedEventEmitter {
       );
 
       if (response) {
-        this.emitBatchFailures(
-          response.Failed,
-          "Error changing visibility timeout",
-          "change visibility timeout",
-          messages,
-        );
+        this.emitBatchFailures(response.Failed, messages);
       }
 
       return response;
@@ -522,29 +517,19 @@ export class Consumer extends TypedEventEmitter {
 
   private emitBatchFailures(
     failed: BatchResultErrorEntry[] | undefined,
-    errorPrefix: string,
-    action: string,
     messages: Message[],
   ): void {
-    for (const entry of failed ?? []) {
-      const message = messages.find((m) => m.MessageId === entry.Id);
-      const failureMessage = entry.Message || entry.Code || "unknown batch failure";
-
-      const sqsError = new SQSError(`${errorPrefix}: ${failureMessage}`);
-
-      sqsError.code = entry.Code;
-      sqsError.queueUrl = this.queueUrl;
-      sqsError.messageIds = entry.Id ? [entry.Id] : [];
-
-      this.emit("error", sqsError, message ?? messages);
-
-      logger.debug("batch_entry_failed", {
-        action,
-        messageId: entry.Id,
-        code: entry.Code,
-        senderFault: entry.SenderFault,
-      });
+    if (!failed?.length) {
+      return;
     }
+
+    const failedIds = failed.map((entry) => entry.Id).filter((id): id is string => Boolean(id));
+
+    this.emit(
+      "error",
+      new Error(`Batch operation failed for entries with Ids: ${failedIds.join(", ")}`),
+      messages,
+    );
   }
 
   /**
@@ -722,12 +707,7 @@ export class Consumer extends TypedEventEmitter {
         return messages;
       }
 
-      this.emitBatchFailures(
-        response.Failed,
-        "SQS delete message failed",
-        "delete message",
-        messages,
-      );
+      this.emitBatchFailures(response.Failed, messages);
 
       return this.getSuccessfulBatchMessages(response, messages);
     } catch (err) {

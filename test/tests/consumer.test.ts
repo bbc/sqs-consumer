@@ -1551,10 +1551,9 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(errorListener);
       assert.equal(
         errorListener.firstCall.args[0].message,
-        "SQS delete message failed: simulated partial delete failure",
+        "Batch operation failed for entries with Ids: 2",
       );
-      assert.equal(errorListener.firstCall.args[0].queueUrl, QUEUE_URL);
-      assert.deepEqual(errorListener.firstCall.args[0].messageIds, ["2"]);
+      assert.deepEqual(errorListener.firstCall.args[1], messages);
     });
 
     it("does not emit message_processed when DeleteMessageBatch has no successful entries", async () => {
@@ -1596,7 +1595,11 @@ describe("Consumer", () => {
 
       sandbox.assert.notCalled(messageProcessedListener);
       sandbox.assert.calledOnce(errorListener);
-      assert.deepEqual(errorListener.firstCall.args[0].messageIds, ["2"]);
+      assert.equal(
+        errorListener.firstCall.args[0].message,
+        "Batch operation failed for entries with Ids: 2",
+      );
+      assert.deepEqual(errorListener.firstCall.args[1], messages);
     });
 
     it("logs deprecation warning when handleMessageBatch returns null", async () => {
@@ -1968,12 +1971,11 @@ describe("Consumer", () => {
 
       sandbox.assert.calledOnce(errorListener);
       const err = errorListener.firstCall.args[0];
-      assert.equal(
-        err.message,
-        "Error changing visibility timeout: simulated partial visibility failure",
-      );
-      assert.equal(err.queueUrl, QUEUE_URL);
-      assert.deepEqual(err.messageIds, ["2"]);
+      assert.equal(err.message, "Batch operation failed for entries with Ids: 2");
+      assert.deepEqual(errorListener.firstCall.args[1], [
+        { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+        { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+      ]);
     });
 
     it("includes messageIds in timeout errors", async () => {
