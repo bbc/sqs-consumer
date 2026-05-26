@@ -7,6 +7,7 @@ import {
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
 import type {
+  BatchResultErrorEntry,
   Message,
   ChangeMessageVisibilityCommandInput,
   ChangeMessageVisibilityCommandOutput,
@@ -14,6 +15,7 @@ import type {
   ChangeMessageVisibilityBatchCommandOutput,
   DeleteMessageCommandInput,
   DeleteMessageBatchCommandInput,
+  DeleteMessageBatchCommandOutput,
   ReceiveMessageCommandInput,
   ReceiveMessageCommandOutput,
   QueueAttributeName,
@@ -401,9 +403,9 @@ export class Consumer extends TypedEventEmitter {
       const ackedMessages: Message[] = await this.executeBatchHandler(messages);
 
       if (ackedMessages?.length > 0) {
-        await this.deleteMessageBatch(ackedMessages);
+        const deletedMessages = await this.deleteMessageBatch(ackedMessages);
 
-        ackedMessages.forEach((message: Message): void => {
+        deletedMessages.forEach((message: Message): void => {
           this.emit("message_processed", message);
         });
       }
@@ -488,10 +490,16 @@ export class Consumer extends TypedEventEmitter {
       })),
     };
     try {
-      return await this.sqs.send(
+      const response = await this.sqs.send(
         new ChangeMessageVisibilityBatchCommand(params),
         this.sqsSendOptions,
       );
+
+      if (response) {
+        this.emitBatchFailures(response.Failed, messages);
+      }
+
+      return response;
     } catch (err) {
       this.emit(
         "error",
@@ -505,6 +513,23 @@ export class Consumer extends TypedEventEmitter {
         messages,
       );
     }
+  }
+
+  private emitBatchFailures(
+    failed: BatchResultErrorEntry[] | undefined,
+    messages: Message[],
+  ): void {
+    if (!failed?.length) {
+      return;
+    }
+
+    const failedIds = failed.map((entry) => entry.Id).filter((id): id is string => Boolean(id));
+
+    this.emit(
+      "error",
+      new Error(`Batch operation failed for entries with Ids: ${failedIds.join(", ")}`),
+      messages,
+    );
   }
 
   /**
@@ -653,12 +678,12 @@ export class Consumer extends TypedEventEmitter {
    * Delete a batch of messages from the SQS queue.
    * @param messages The messages that should be deleted from SQS
    */
-  private async deleteMessageBatch(messages: Message[]): Promise<void> {
+  private async deleteMessageBatch(messages: Message[]): Promise<Message[]> {
     if (!this.shouldDeleteMessages) {
       logger.debug("skipping_delete", {
         detail: "Skipping message delete since shouldDeleteMessages is set to false",
       });
-      return;
+      return messages;
     }
     logger.debug("deleting_messages", {
       messageIds: messages.map((msg: Message) => msg.MessageId),
@@ -673,7 +698,18 @@ export class Consumer extends TypedEventEmitter {
     };
 
     try {
-      await this.sqs.send(new DeleteMessageBatchCommand(deleteParams), this.sqsSendOptions);
+      const response = await this.sqs.send(
+        new DeleteMessageBatchCommand(deleteParams),
+        this.sqsSendOptions,
+      );
+
+      if (!response) {
+        return messages;
+      }
+
+      this.emitBatchFailures(response.Failed, messages);
+
+      return this.getSuccessfulBatchMessages(response, messages);
     } catch (err) {
       throw toSQSError(
         err,
@@ -683,5 +719,17 @@ export class Consumer extends TypedEventEmitter {
         messages,
       );
     }
+  }
+
+  private getSuccessfulBatchMessages(
+    response: DeleteMessageBatchCommandOutput,
+    messages: Message[],
+  ): Message[] {
+    if (!response.Successful) {
+      return [];
+    }
+
+    const successfulIds = new Set(response.Successful.map(({ Id }) => Id));
+    return messages.filter((message) => successfulIds.has(message.MessageId));
   }
 }

@@ -1482,6 +1482,8 @@ describe("Consumer", () => {
     });
 
     it("ack only returned messages if handleMessagesBatch returns an array", async () => {
+      sqs.send.withArgs(mockDeleteMessageBatch).resolves({ Successful: [{ Id: "123" }] });
+
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
         region: REGION,
@@ -1504,6 +1506,100 @@ describe("Consumer", () => {
           Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
         }),
       );
+    });
+
+    it("emits message_processed only for successful DeleteMessageBatch entries", async () => {
+      const messages = [
+        { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+        { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+      ];
+      sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+      sqs.send.withArgs(mockDeleteMessageBatch).resolves({
+        Successful: [{ Id: "1" }],
+        Failed: [
+          {
+            Id: "2",
+            SenderFault: false,
+            Code: "InternalError",
+            Message: "simulated partial delete failure",
+          },
+        ],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => messages,
+        batchSize: 2,
+        sqs,
+      });
+
+      const messageProcessedListener = sandbox.stub();
+      const errorListener = sandbox.stub();
+      consumer.on("message_processed", messageProcessedListener);
+      consumer.on("error", errorListener);
+
+      const responseProcessed = new Promise<void>((resolve) => {
+        consumer.once("response_processed", () => resolve());
+      });
+      consumer.start();
+      await responseProcessed;
+      consumer.stop();
+
+      sandbox.assert.calledOnce(messageProcessedListener);
+      assert.equal(messageProcessedListener.firstCall.args[0].MessageId, "1");
+      sandbox.assert.calledOnce(errorListener);
+      assert.equal(
+        errorListener.firstCall.args[0].message,
+        "Batch operation failed for entries with Ids: 2",
+      );
+      assert.deepEqual(errorListener.firstCall.args[1], messages);
+    });
+
+    it("does not emit message_processed when DeleteMessageBatch has no successful entries", async () => {
+      const messages = [
+        { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+        { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+      ];
+      sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
+      sqs.send.withArgs(mockDeleteMessageBatch).resolves({
+        Failed: [
+          {
+            Id: "2",
+            SenderFault: false,
+            Code: "InternalError",
+            Message: "simulated partial delete failure",
+          },
+        ],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: async () => messages,
+        batchSize: 2,
+        sqs,
+      });
+
+      const messageProcessedListener = sandbox.stub();
+      const errorListener = sandbox.stub();
+      consumer.on("message_processed", messageProcessedListener);
+      consumer.on("error", errorListener);
+
+      const responseProcessed = new Promise<void>((resolve) => {
+        consumer.once("response_processed", () => resolve());
+      });
+      consumer.start();
+      await responseProcessed;
+      consumer.stop();
+
+      sandbox.assert.notCalled(messageProcessedListener);
+      sandbox.assert.calledOnce(errorListener);
+      assert.equal(
+        errorListener.firstCall.args[0].message,
+        "Batch operation failed for entries with Ids: 2",
+      );
+      assert.deepEqual(errorListener.firstCall.args[1], messages);
     });
 
     it("logs deprecation warning when handleMessageBatch returns null", async () => {
@@ -1834,6 +1930,52 @@ describe("Consumer", () => {
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
       assert.deepEqual(err.messageIds, ["1", "2"]);
+    });
+
+    it("emits error when ChangeMessageVisibilityBatch returns failed entries", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+          { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+        ],
+      });
+      sqs.send.withArgs(mockChangeMessageVisibilityBatch).resolves({
+        Successful: [{ Id: "1" }],
+        Failed: [
+          {
+            Id: "2",
+            SenderFault: false,
+            Code: "InternalError",
+            Message: "simulated partial visibility failure",
+          },
+        ],
+      });
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: () =>
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 75000)),
+        sqs,
+        batchSize: 2,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30,
+      });
+
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await clock.tickAsync(30000);
+      consumer.stop();
+
+      sandbox.assert.calledOnce(errorListener);
+      const err = errorListener.firstCall.args[0];
+      assert.equal(err.message, "Batch operation failed for entries with Ids: 2");
+      assert.deepEqual(errorListener.firstCall.args[1], [
+        { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+        { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+      ]);
     });
 
     it("includes messageIds in timeout errors", async () => {
