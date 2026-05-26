@@ -35,13 +35,6 @@ module.exports = {
     ],
     "@semantic-release/changelog",
     "@semantic-release/npm",
-    [
-      "@semantic-release/git",
-      {
-        assets: ["package.json", "package-lock.json", "CHANGELOG.md"],
-        message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
-      },
-    ],
     "@semantic-release/github",
     "@sebbo2002/semantic-release-jsr",
   ],
