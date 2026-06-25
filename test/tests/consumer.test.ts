@@ -2231,6 +2231,120 @@ describe("Consumer", () => {
     });
   });
 
+  describe("queue URL endpoint warning", () => {
+    let warnStub: sinon.SinonStub;
+    let pollStub: sinon.SinonStub;
+    let originalPrototype: { poll: () => void };
+    let originalPoll: () => void;
+
+    beforeEach(() => {
+      warnStub = sandbox.stub(logger, "warn");
+      pollStub = sandbox.stub();
+      originalPrototype = Object.getPrototypeOf(consumer);
+      originalPoll = originalPrototype.poll;
+
+      Object.defineProperty(originalPrototype, "poll", {
+        value: pollStub,
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(originalPrototype, "poll", {
+        value: originalPoll,
+      });
+    });
+
+    it("emits a warning when using a non-AWS queue URL as the endpoint", () => {
+      consumer = new Consumer({
+        queueUrl: "http://localhost:9324/000000000000/sqs-consumer-data",
+        region: REGION,
+        handleMessage,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.calledOnce(warnStub);
+      sandbox.assert.calledWithMatch(
+        warnStub,
+        "WARNING: A non-AWS queue URL was provided while useQueueUrlAsEndpoint is enabled.",
+      );
+      sandbox.assert.calledOnce(pollStub);
+    });
+
+    it("does not emit a warning when the queue URL is the amazonaws.com endpoint", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/queue",
+        region: REGION,
+        handleMessage,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+      sandbox.assert.calledOnce(pollStub);
+    });
+
+    it("does not emit a warning when the queue URL is the amazonaws.com.cn endpoint", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.cn-north-1.amazonaws.com.cn/123456789012/queue",
+        region: REGION,
+        handleMessage,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+      sandbox.assert.calledOnce(pollStub);
+    });
+
+    it("does not emit a warning when the queue URL is the api.aws endpoint", () => {
+      consumer = new Consumer({
+        queueUrl: "https://sqs.us-east-1.api.aws/123456789012/queue",
+        region: REGION,
+        handleMessage,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+      sandbox.assert.calledOnce(pollStub);
+    });
+
+    it("does not emit a warning when queue URLs are not used as endpoints", () => {
+      consumer = new Consumer({
+        queueUrl: "http://localhost:9324/000000000000/sqs-consumer-data",
+        region: REGION,
+        handleMessage,
+        useQueueUrlAsEndpoint: false,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+      sandbox.assert.calledOnce(pollStub);
+    });
+
+    it("does not emit a warning when a custom SQS client is provided", () => {
+      consumer = new Consumer({
+        queueUrl: "http://localhost:9324/000000000000/sqs-consumer-data",
+        region: REGION,
+        handleMessage,
+        sqs,
+      });
+
+      consumer.start();
+      consumer.stop();
+
+      sandbox.assert.notCalled(warnStub);
+      sandbox.assert.calledOnce(pollStub);
+    });
+  });
+
   describe("event listeners", () => {
     it("fires the event multiple times", async () => {
       sqs.send.withArgs(mockReceiveMessage).resolves({});

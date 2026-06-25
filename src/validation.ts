@@ -68,6 +68,27 @@ function assertOptions(options: ConsumerOptions): void {
   }
 }
 
+function isAwsQueueUrl(queueUrl: string): boolean {
+  try {
+    const parsedQueueUrl = new URL(queueUrl);
+
+    if (parsedQueueUrl.protocol !== "https:") {
+      return false;
+    }
+
+    return isAwsQueueHostname(parsedQueueUrl.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isAwsQueueHostname(hostname: string): boolean {
+  const normalisedHostname = hostname.toLowerCase();
+  const awsHostSuffixes = [".amazonaws.com", ".amazonaws.com.cn", ".api.aws"];
+
+  return awsHostSuffixes.some((suffix) => normalisedHostname.endsWith(suffix));
+}
+
 /**
  * Determine if the response from SQS has messages in it.
  * @param response The response from SQS.
@@ -76,4 +97,4 @@ function hasMessages(response: ReceiveMessageCommandOutput): boolean {
   return response.Messages && response.Messages.length > 0;
 }
 
-export { hasMessages, assertOptions, validateOption };
+export { hasMessages, assertOptions, validateOption, isAwsQueueUrl };

@@ -32,7 +32,7 @@ import {
   toSQSError,
   isConnectionError,
 } from "./errors.js";
-import { validateOption, assertOptions, hasMessages } from "./validation.js";
+import { validateOption, assertOptions, hasMessages, isAwsQueueUrl } from "./validation.js";
 import { logger } from "./logger.js";
 
 /**
@@ -68,6 +68,7 @@ export class Consumer extends TypedEventEmitter {
   public abortController: AbortController;
   private extendedAWSErrors: boolean;
   private strictReturn: boolean;
+  private shouldWarnAboutQueueUrlEndpoint: boolean;
 
   constructor(options: ConsumerOptions) {
     super(options.queueUrl);
@@ -95,11 +96,13 @@ export class Consumer extends TypedEventEmitter {
     this.alwaysAcknowledge = options.alwaysAcknowledge ?? false;
     this.extendedAWSErrors = options.extendedAWSErrors ?? false;
     this.strictReturn = options.strictReturn ?? false;
+    this.shouldWarnAboutQueueUrlEndpoint = false;
     if (options.sqs) {
       this.sqs = options.sqs;
     } else {
       const useQueueUrlAsEndpoint = options.useQueueUrlAsEndpoint ?? true;
       const region = options.region || process.env.AWS_REGION || "eu-west-1";
+      this.shouldWarnAboutQueueUrlEndpoint = useQueueUrlAsEndpoint && !isAwsQueueUrl(this.queueUrl);
       this.sqs = new SQSClient({ useQueueUrlAsEndpoint, region });
     }
   }
@@ -119,6 +122,11 @@ export class Consumer extends TypedEventEmitter {
       if (this.isFifoQueue && !this.suppressFifoWarning) {
         logger.warn(
           "WARNING: A FIFO queue was detected. SQS Consumer does not guarantee FIFO queues will work as expected. Set 'suppressFifoWarning: true' to disable this warning.",
+        );
+      }
+      if (this.shouldWarnAboutQueueUrlEndpoint) {
+        logger.warn(
+          "WARNING: A non-AWS queue URL was provided while useQueueUrlAsEndpoint is enabled. SQS Consumer will use the queueUrl hostname as the request endpoint. Treat queueUrl as trusted application configuration or set 'useQueueUrlAsEndpoint: false' to use the client's resolved endpoint.",
         );
       }
       // Create a new abort controller each time the consumer is started
