@@ -82,7 +82,7 @@
     "chai": "^6.2.2",
     "conventional-changelog-conventionalcommits": "^9.3.0",
     "jsr": "^0.14.3",
-    "oxfmt": "^0.46.0",
+    "oxfmt": "^0.55.0",
     "oxlint": "^1.68.0",
     "p-event": "^7.1.0",
     "semantic-release": "^25.0.3",
