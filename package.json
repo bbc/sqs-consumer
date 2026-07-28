@@ -85,7 +85,7 @@
     "oxfmt": "^0.55.0",
     "oxlint": "^1.68.0",
     "p-event": "^7.1.0",
-    "semantic-release": "^25.0.3",
+    "semantic-release": "^25.0.6",
     "sinon": "^21.1.2",
     "sqs-producer": "^8.0.9",
     "ts-node": "^10.9.2",
