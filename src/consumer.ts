@@ -22,7 +22,7 @@ import type {
   MessageSystemAttributeName,
 } from "@aws-sdk/client-sqs";
 
-import type { ConsumerOptions, StopOptions, UpdatableOptions } from "./types.js";
+import type { ConsumerOptions, Heartbeat, StopOptions, UpdatableOptions } from "./types.js";
 import { TypedEventEmitter } from "./emitter.js";
 import {
   SQSError,
@@ -349,17 +349,22 @@ export class Consumer extends TypedEventEmitter {
    */
   private async processMessage(message: Message): Promise<void> {
     let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+    const heartbeat: Heartbeat = {};
 
     try {
       this.emit("message_received", message);
 
       if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(message);
+        heartbeatTimeoutId = this.startHeartbeat(heartbeat, message);
       }
 
       const ackedMessage: Message = await this.executeHandler(message);
 
       if (ackedMessage?.MessageId === message.MessageId) {
+        if (this.heartbeatInterval) {
+          await this.stopHeartbeat(heartbeatTimeoutId, heartbeat);
+        }
+
         await this.deleteMessage(message);
 
         this.emit("message_processed", message);
@@ -390,6 +395,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private async processMessageBatch(messages: Message[]): Promise<void> {
     let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+    const heartbeat: Heartbeat = {};
 
     try {
       messages.forEach((message: Message): void => {
@@ -397,12 +403,16 @@ export class Consumer extends TypedEventEmitter {
       });
 
       if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(null, messages);
+        heartbeatTimeoutId = this.startHeartbeat(heartbeat, null, messages);
       }
 
       const ackedMessages: Message[] = await this.executeBatchHandler(messages);
 
       if (ackedMessages?.length > 0) {
+        if (this.heartbeatInterval) {
+          await this.stopHeartbeat(heartbeatTimeoutId, heartbeat);
+        }
+
         const deletedMessages = await this.deleteMessageBatch(ackedMessages);
 
         deletedMessages.forEach((message: Message): void => {
@@ -429,16 +439,40 @@ export class Consumer extends TypedEventEmitter {
 
   /**
    * Trigger a function on a set interval
-   * @param heartbeatFn The function that should be triggered
+   * @param heartbeat Keeps track of the visibility timeout change that is currently in flight
+   * @param message The message to extend the visibility timeout of
+   * @param messages The messages to extend the visibility timeout of
    */
-  private startHeartbeat(message?: Message, messages?: Message[]): NodeJS.Timeout {
+  private startHeartbeat(
+    heartbeat: Heartbeat,
+    message?: Message,
+    messages?: Message[],
+  ): NodeJS.Timeout {
     return setInterval(() => {
-      if (this.handleMessageBatch) {
-        return this.changeVisibilityTimeoutBatch(messages, this.visibilityTimeout);
-      }
+      heartbeat.inFlight = this.handleMessageBatch
+        ? this.changeVisibilityTimeoutBatch(messages, this.visibilityTimeout)
+        : this.changeVisibilityTimeout(message, this.visibilityTimeout);
 
-      return this.changeVisibilityTimeout(message, this.visibilityTimeout);
+      return heartbeat.inFlight;
     }, this.heartbeatInterval * 1000);
+  }
+
+  /**
+   * Stop extending the visibility timeout of a message that has finished being processed.
+   *
+   * Waiting for the tick that is already in flight is what makes this safe to call before
+   * deleting: `clearInterval` only cancels future ticks, so a tick still on its way to SQS would
+   * otherwise be able to land after the delete, and fail with "Message does not exist or is not
+   * available for visibility timeout change".
+   * @param heartbeatTimeoutId The interval to cancel
+   * @param heartbeat The visibility timeout change that is currently in flight, if any
+   */
+  private async stopHeartbeat(
+    heartbeatTimeoutId: NodeJS.Timeout | undefined,
+    heartbeat: Heartbeat,
+  ): Promise<void> {
+    clearInterval(heartbeatTimeoutId);
+    await heartbeat.inFlight;
   }
 
   /**
