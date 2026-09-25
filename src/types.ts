@@ -220,6 +220,14 @@ export interface QueueMetadata {
 }
 
 /**
+ * Keeps track of the visibility timeout change that the heartbeat currently has in flight,
+ * so that it can be waited on before the message is deleted.
+ */
+export interface Heartbeat {
+  inFlight?: Promise<unknown>;
+}
+
+/**
  * These are the events that the consumer emits.
  * Each event will receive QueueMetadata as the last argument, which is added automatically by the emitter.
  * @example

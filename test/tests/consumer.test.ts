@@ -1794,6 +1794,55 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
+    it("waits for an in flight heartbeat before deleting the message", async () => {
+      // SQS rejects a visibility timeout change for a message that has already been deleted, so a
+      // heartbeat that is still on its way out when the handler finishes must be given the chance
+      // to land first.
+      let deleted = false;
+      sqs.send.withArgs(mockDeleteMessage).callsFake(async () => {
+        deleted = true;
+      });
+      sqs.send.withArgs(mockChangeMessageVisibility).callsFake(
+        () =>
+          new Promise((resolve, reject) =>
+            setTimeout(() => {
+              if (deleted) {
+                reject(
+                  new MockSQSError(
+                    "Value receipt-handle for parameter ReceiptHandle is invalid. Reason: " +
+                      "Message does not exist or is not available for visibility timeout change.",
+                  ),
+                );
+              } else {
+                resolve({});
+              }
+            }, 50),
+          ),
+      );
+
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        // Finishes a millisecond after the heartbeat has fired, while it is still in flight.
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(() => resolve(response.Messages[0]), 30001)),
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 30,
+      });
+
+      const errorListener = sandbox.stub();
+      consumer.on("error", errorListener);
+
+      consumer.start();
+      await Promise.all([pEvent(consumer, "message_processed"), clock.tickAsync(30200)]);
+      consumer.stop();
+
+      sandbox.assert.calledWith(sqs.send, mockChangeMessageVisibility);
+      sandbox.assert.calledWith(sqs.send, mockDeleteMessage);
+      sandbox.assert.notCalled(errorListener);
+    });
+
     it("passes in the correct visibility timeout for long running batch handler functions", async () => {
       sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [
