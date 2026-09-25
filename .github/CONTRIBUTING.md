@@ -5,7 +5,7 @@ Thank you for your interest in contributing to the sqs-consumer.
 - If you're unsure if a feature would make a good addition, you can always [create an issue](https://github.com/bbc/sqs-consumer/issues/new) first. Raising an issue before creating a pull request is recommended.
 - We aim for 100% test coverage. Please write tests for any new functionality or changes.
 - Any API changes should be fully documented.
-- Make sure your code meets our linting standards. Run `npm run lint` to check your code.
+- Make sure your code meets our linting standards. Run `pnpm lint` to check your code.
 - Maintain the existing coding style.
 - Be mindful of others when making suggestions and/or code reviewing.
 
@@ -46,6 +46,14 @@ ask you to do this. You must complete this step in order for your PR to be merge
 
 ## Pull Request Process
 
-1. Make sure you have opened an issue and it was approved by a project maintainer before working on a PR
-2. Read and complete all relevant sections of the PR template
-3. Wait for the PR get approved
+1. Make sure you have opened an issue and it was approved by a project maintainer before working on a PR.
+2. Run `pnpm change` and commit the generated change intent. Select `none` when the change must not publish a package release.
+3. Read and complete all relevant sections of the PR template.
+4. Run `pnpm check`.
+5. Wait for the PR to be approved.
+
+## Releasing
+
+Run the **Prepare release** workflow when the changes on `main` are ready to publish. The workflow consumes the committed change intents and opens a `release/vX.Y.Z` pull request containing the version and changelog updates.
+
+Review and merge that pull request to create the matching GitHub prerelease. Check the tag, changelog, and prerelease contents, then edit the release, clear **Set as a pre-release**, and update it to promote the release. That promotion publishes the tagged version to npm and JSR.
