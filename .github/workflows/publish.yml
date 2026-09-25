@@ -30,11 +30,17 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.release.tag_name }}
 
-      - name: Setup pnpm and Node.js
+      - name: Setup pnpm
         uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          runtime: node@24
           install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
 
       - name: Verify release target
         env:
@@ -78,7 +84,7 @@ jobs:
 
       - name: Verify npm package
         if: steps.npm.outputs.published != 'true'
-        run: npm publish --dry-run
+        run: npm pack --dry-run
 
       - name: Verify JSR package
         run: pnpm exec jsr publish --dry-run
