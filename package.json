@@ -89,7 +89,7 @@
     "sinon": "^21.1.2",
     "sqs-producer": "^8.0.9",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.28.19",
+    "typedoc": "^0.28.20",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
   },
