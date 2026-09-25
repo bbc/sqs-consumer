@@ -4,20 +4,27 @@ on:
   release:
     types:
       - released
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable release tag
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.event.release.tag_name }}
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
   publish:
     if: >-
-      github.event.release.draft == false &&
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.release.draft == false &&
       github.event.release.prerelease == false &&
-      startsWith(github.event.release.tag_name, 'v')
+      startsWith(github.event.release.tag_name, 'v'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
 
       - name: Setup pnpm
         uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
@@ -44,10 +51,19 @@ jobs:
 
       - name: Verify release target
         env:
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
           RELEASE_TARGET: ${{ github.event.release.target_commitish }}
         run: |
           release_sha=$(git rev-parse HEAD)
-          if [ "$release_sha" != "$RELEASE_TARGET" ]; then
+          if [ "$MANUAL_RELEASE" = "true" ]; then
+            release_state=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '"\(.isDraft):\(.isPrerelease)"')
+            if [ "$release_state" != "false:false" ]; then
+              echo "Release $RELEASE_TAG is not a stable GitHub release" >&2
+              exit 1
+            fi
+          elif [ "$release_sha" != "$RELEASE_TARGET" ]; then
             echo "Release tag does not match its reviewed merge commit" >&2
             exit 1
           fi
@@ -62,7 +78,7 @@ jobs:
       - name: Validate release metadata
         id: release
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           metadata=$(pnpm --silent release:validate -- "$RELEASE_TAG")
           node -e 'const release = JSON.parse(process.argv[1]); for (const [key, value] of Object.entries(release)) console.log(`${key}=${value}`)' "$metadata" >> "$GITHUB_OUTPUT"
