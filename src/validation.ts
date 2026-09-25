@@ -1,12 +1,6 @@
-import type { ReceiveMessageCommandOutput } from "@aws-sdk/client-sqs";
+import type { Message, ReceiveMessageCommandOutput } from "@aws-sdk/client-sqs";
 
 import type { ConsumerOptions } from "./types.js";
-
-const requiredOptions = [
-  "queueUrl",
-  // only one of handleMessage / handleMessagesBatch is required
-  "handleMessage|handleMessageBatch",
-];
 
 function validateOption(
   option: string,
@@ -53,12 +47,13 @@ function validateOption(
  * @param options The options that have been set by the application.
  */
 function assertOptions(options: ConsumerOptions): void {
-  requiredOptions.forEach((option) => {
-    const possibilities = option.split("|");
-    if (!possibilities.find((p) => options[p])) {
-      throw new Error(`Missing SQS consumer option [ ${possibilities.join(" or ")} ].`);
-    }
-  });
+  if (!options.queueUrl) {
+    throw new Error("Missing SQS consumer option [ queueUrl ].");
+  }
+
+  if (!options.handleMessage && !options.handleMessageBatch) {
+    throw new Error("Missing SQS consumer option [ handleMessage or handleMessageBatch ].");
+  }
 
   if (options.batchSize) {
     validateOption("batchSize", options.batchSize, options);
@@ -72,8 +67,10 @@ function assertOptions(options: ConsumerOptions): void {
  * Determine if the response from SQS has messages in it.
  * @param response The response from SQS.
  */
-function hasMessages(response: ReceiveMessageCommandOutput): boolean {
-  return response.Messages && response.Messages.length > 0;
+function hasMessages(
+  response: ReceiveMessageCommandOutput,
+): response is ReceiveMessageCommandOutput & { Messages: Message[] } {
+  return Boolean(response.Messages?.length);
 }
 
 export { hasMessages, assertOptions, validateOption };

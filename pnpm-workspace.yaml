@@ -1,6 +1,9 @@
 packages:
   - "."
 
+minimumReleaseAgeExclude:
+  - sqs-producer@9.0.6
+
 versioning:
   changelog:
     storage: repository

@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./dist/esm",
+    "tsBuildInfoFile": "./node_modules/.cache/sqs-consumer-esm.tsbuildinfo",
     "module": "Node16",
     "moduleResolution": "Node16",
     "noEmit": false,
