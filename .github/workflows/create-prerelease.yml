@@ -1,0 +1,64 @@
+name: Create prerelease
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: create-prerelease
+  cancel-in-progress: false
+
+jobs:
+  create:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout merged release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Validate release metadata
+        id: release
+        env:
+          RELEASE_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          metadata=$(pnpm --silent release:validate -- "$RELEASE_BRANCH")
+          node -e 'const release = JSON.parse(process.argv[1]); for (const [key, value] of Object.entries(release)) console.log(`${key}=${value}`)' "$metadata" >> "$GITHUB_OUTPUT"
+
+      - name: Write GitHub release notes
+        env:
+          RELEASE_NOTES: ${{ runner.temp }}/release-notes.md
+        run: pnpm release:notes -- "$RELEASE_NOTES"
+
+      - name: Create GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ runner.temp }}/release-notes.md
+          RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --title "$RELEASE_TAG" --notes-file "$RELEASE_NOTES" --prerelease

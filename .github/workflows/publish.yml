@@ -1,36 +1,91 @@
-name: Publish Package to npmjs
+name: Publish release
 
 on:
-  workflow_dispatch:
+  release:
+    types:
+      - released
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  publish:
+    if: >-
+      github.event.release.draft == false &&
+      github.event.release.prerelease == false &&
+      startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
       id-token: write
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version: "24.x"
-          cache: "npm"
-          registry-url: "https://registry.npmjs.org"
-      - name: Install Dependencies
-        run: npm ci
-      - name: Audit Signatures
-        run: npm audit signatures
-      - name: Release
+          runtime: node@24
+          install: false
+
+      - name: Verify release target
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
+          RELEASE_TARGET: ${{ github.event.release.target_commitish }}
+        run: |
+          release_sha=$(git rev-parse HEAD)
+          if [ "$release_sha" != "$RELEASE_TARGET" ]; then
+            echo "Release tag does not match its reviewed merge commit" >&2
+            exit 1
+          fi
+          git merge-base --is-ancestor "$release_sha" refs/remotes/origin/main
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Audit dependency signatures
+        run: pnpm audit signatures
+
+      - name: Validate release metadata
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          metadata=$(pnpm --silent release:validate -- "$RELEASE_TAG")
+          node -e 'const release = JSON.parse(process.argv[1]); for (const [key, value] of Object.entries(release)) console.log(`${key}=${value}`)' "$metadata" >> "$GITHUB_OUTPUT"
+
+      - name: Build package
+        run: pnpm build
+
+      - name: Check npm release status
+        id: npm
+        env:
+          PACKAGE_NAME: ${{ steps.release.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify npm package
+        if: steps.npm.outputs.published != 'true'
+        run: npm publish --dry-run
+
+      - name: Verify JSR package
+        run: pnpm exec jsr publish --dry-run
+
+      - name: Publish npm package
+        if: steps.npm.outputs.published != 'true'
+        run: npm publish
+
+      - name: Publish JSR package
+        run: pnpm exec jsr publish

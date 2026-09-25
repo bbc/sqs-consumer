@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "15.0.1",
+  "version": "15.0.3",
   "description": "Build SQS-based Node applications without the boilerplate",
   "keywords": [
     "aws-sqs",
@@ -45,7 +45,9 @@
     "build": "npm run clean && npm run compile && npm run add-package-jsons",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "release": "semantic-release",
+    "release:sync": "node ./scripts/release.js sync",
+    "release:validate": "node ./scripts/release.js validate",
+    "release:notes": "node ./scripts/release.js notes",
     "test:unit": "vitest run --config ./vitest.config.ts",
     "test:unit:report": "vitest run --config ./vitest.config.ts --reporter=junit --outputFile=test/reports/test-results.xml",
     "pretest:integration:init": "npm run build",
@@ -68,24 +70,15 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.0.0",
-    "@sebbo2002/semantic-release-jsr": "^4.0.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.9",
-    "@semantic-release/npm": "^13.1.5",
-    "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/chai": "^5.2.2",
     "@types/node": "^25.9.3",
     "@types/sinon": "^21.0.1",
     "@vitest/coverage-v8": "^4.1.10",
     "chai": "^6.2.2",
-    "conventional-changelog-conventionalcommits": "^9.3.0",
     "jsr": "^0.14.3",
     "oxfmt": "^0.55.0",
     "oxlint": "^1.68.0",
     "p-event": "^7.1.0",
-    "semantic-release": "^25.0.8",
     "sinon": "^21.1.2",
     "sqs-producer": "^8.0.9",
     "ts-node": "^10.9.2",
@@ -101,5 +94,6 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "packageManager": "pnpm@12.6.0"
 }

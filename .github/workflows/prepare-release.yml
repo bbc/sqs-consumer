@@ -1,0 +1,65 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - name: Apply release plan
+        run: |
+          pnpm version -r
+          pnpm release:sync
+          pnpm install --lockfile-only
+
+      - name: Read release version
+        id: release
+        run: node -e 'const { version } = require("./package.json"); console.log(`version=${version}`)' >> "$GITHUB_OUTPUT"
+
+      - name: Commit release changes
+        env:
+          RELEASE_BRANCH: release/v${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$RELEASE_BRANCH"
+          git add package.json jsr.json pnpm-lock.yaml CHANGELOG.md .changeset
+          git diff --cached --exit-code && { echo "No pending change intents to release"; exit 1; }
+          git commit -m "chore(release): v${RELEASE_VERSION}"
+          git push origin "$RELEASE_BRANCH"
+
+      - name: Open release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: release/v${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: >-
+          gh pr create
+          --base main
+          --head "$RELEASE_BRANCH"
+          --title "chore(release): v${RELEASE_VERSION}"
+          --body "Review the version and changelog updates. Merging this pull request creates a GitHub prerelease for v${RELEASE_VERSION}. Promoting that prerelease publishes the same version to npm and JSR."
