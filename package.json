@@ -65,29 +65,25 @@
     "generate-docs": "typedoc"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.1072.0",
+    "@aws-sdk/client-sqs": "^3.1136.0",
     "debug": "^4.4.3"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^13.0.0",
-    "@types/chai": "^5.2.2",
+    "@cucumber/cucumber": "^13.2.1",
+    "@types/debug": "^4.1.13",
     "@types/node": "^25.9.3",
-    "@types/sinon": "^21.0.1",
     "@vitest/coverage-v8": "^4.1.10",
-    "chai": "^6.2.2",
     "jsr": "^0.14.3",
-    "oxfmt": "^0.55.0",
-    "oxlint": "^1.68.0",
-    "p-event": "^7.1.0",
-    "sinon": "^21.1.2",
-    "sqs-producer": "^8.0.9",
-    "ts-node": "^10.9.2",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "p-event": "^7.1.1",
+    "sqs-producer": "^9.0.6",
     "typedoc": "^0.28.20",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.1072.0"
+    "@aws-sdk/client-sqs": "^3.1136.0"
   },
   "overrides": {
     "cross-spawn": "^7.0.3"

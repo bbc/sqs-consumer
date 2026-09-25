@@ -7,29 +7,18 @@ import {
   SQSClient,
 } from "@aws-sdk/client-sqs";
 import type { QueueAttributeName, Message } from "@aws-sdk/client-sqs";
-import { assert } from "chai";
-import * as sinon from "sinon";
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { strict as assert } from "node:assert";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pEvent } from "p-event";
 
 import type { AWSError } from "../../src/types.js";
 import { Consumer } from "../../src/consumer.js";
 import { logger } from "../../src/logger.js";
 
-const sandbox = sinon.createSandbox();
-
 const AUTHENTICATION_ERROR_TIMEOUT = 20;
 const POLLING_TIMEOUT = 100;
 const QUEUE_URL = "some-queue-url";
 const REGION = "some-region";
-
-const mockReceiveMessage = sinon.match.instanceOf(ReceiveMessageCommand);
-const mockDeleteMessage = sinon.match.instanceOf(DeleteMessageCommand);
-const mockDeleteMessageBatch = sinon.match.instanceOf(DeleteMessageBatchCommand);
-const mockChangeMessageVisibility = sinon.match.instanceOf(ChangeMessageVisibilityCommand);
-const mockChangeMessageVisibilityBatch = sinon.match.instanceOf(
-  ChangeMessageVisibilityBatchCommand,
-);
 
 class MockSQSError extends Error implements AWSError {
   name: string;
@@ -54,10 +43,14 @@ class MockSQSError extends Error implements AWSError {
 
 describe("Consumer", () => {
   let consumer;
-  let clock;
   let handleMessage;
   let handleMessageBatch;
   let sqs;
+  let receiveMessageMock;
+  let deleteMessageMock;
+  let deleteMessageBatchMock;
+  let changeMessageVisibilityMock;
+  let changeMessageVisibilityBatchMock;
   const response = {
     Messages: [
       {
@@ -69,18 +62,35 @@ describe("Consumer", () => {
   };
 
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
-    handleMessage = sandbox.stub().resolves(response.Messages[0]);
-    handleMessageBatch = sandbox.stub().resolves([]);
+    vi.useFakeTimers();
+    handleMessage = vi.fn().mockResolvedValue(response.Messages[0]);
+    handleMessageBatch = vi.fn().mockResolvedValue([]);
+    receiveMessageMock = vi.fn().mockResolvedValue(response);
+    deleteMessageMock = vi.fn().mockResolvedValue(undefined);
+    deleteMessageBatchMock = vi.fn().mockResolvedValue(undefined);
+    changeMessageVisibilityMock = vi.fn().mockResolvedValue(undefined);
+    changeMessageVisibilityBatchMock = vi.fn().mockResolvedValue(undefined);
 
-    sqs = sinon.createStubInstance(SQSClient);
-    sqs.send = sinon.stub();
+    sqs = new SQSClient({ region: REGION });
+    vi.spyOn(sqs, "send").mockImplementation((command) => {
+      if (command instanceof ReceiveMessageCommand) {
+        return receiveMessageMock(command);
+      }
+      if (command instanceof DeleteMessageCommand) {
+        return deleteMessageMock(command);
+      }
+      if (command instanceof DeleteMessageBatchCommand) {
+        return deleteMessageBatchMock(command);
+      }
+      if (command instanceof ChangeMessageVisibilityCommand) {
+        return changeMessageVisibilityMock(command);
+      }
+      if (command instanceof ChangeMessageVisibilityBatchCommand) {
+        return changeMessageVisibilityBatchMock(command);
+      }
 
-    sqs.send.withArgs(mockReceiveMessage).resolves(response);
-    sqs.send.withArgs(mockDeleteMessage).resolves();
-    sqs.send.withArgs(mockDeleteMessageBatch).resolves();
-    sqs.send.withArgs(mockChangeMessageVisibility).resolves();
-    sqs.send.withArgs(mockChangeMessageVisibilityBatch).resolves();
+      throw new Error(`Unexpected SQS command: ${command.constructor.name}`);
+    });
 
     consumer = new Consumer({
       queueUrl: QUEUE_URL,
@@ -92,56 +102,56 @@ describe("Consumer", () => {
   });
 
   afterEach(() => {
-    clock.restore();
-    sandbox.restore();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe("options validation", () => {
     it("requires a handleMessage or handleMessagesBatch function to be set", () => {
-      assert.throws(() => {
+      expect(() => {
         new Consumer({
           handleMessage: undefined,
           region: REGION,
           queueUrl: QUEUE_URL,
         });
-      }, `Missing SQS consumer option [ handleMessage or handleMessageBatch ].`);
+      }).toThrow(`Missing SQS consumer option [ handleMessage or handleMessageBatch ].`);
     });
 
     it("requires the batchSize option to be no greater than 10", () => {
-      assert.throws(() => {
+      expect(() => {
         new Consumer({
           region: REGION,
           queueUrl: QUEUE_URL,
           handleMessage,
           batchSize: 11,
         });
-      }, "batchSize must be between 1 and 10.");
+      }).toThrow("batchSize must be between 1 and 10.");
     });
 
     it("requires the batchSize option to be greater than 0", () => {
-      assert.throws(() => {
+      expect(() => {
         new Consumer({
           region: REGION,
           queueUrl: QUEUE_URL,
           handleMessage,
           batchSize: -1,
         });
-      }, "batchSize must be between 1 and 10.");
+      }).toThrow("batchSize must be between 1 and 10.");
     });
 
     it("requires visibilityTimeout to be set with heartbeatInterval", () => {
-      assert.throws(() => {
+      expect(() => {
         new Consumer({
           region: REGION,
           queueUrl: QUEUE_URL,
           handleMessage,
           heartbeatInterval: 30,
         });
-      }, "heartbeatInterval must be less than visibilityTimeout.");
+      }).toThrow("heartbeatInterval must be less than visibilityTimeout.");
     });
 
     it("requires heartbeatInterval to be less than visibilityTimeout", () => {
-      assert.throws(() => {
+      expect(() => {
         new Consumer({
           region: REGION,
           queueUrl: QUEUE_URL,
@@ -149,7 +159,7 @@ describe("Consumer", () => {
           heartbeatInterval: 30,
           visibilityTimeout: 30,
         });
-      }, "heartbeatInterval must be less than visibilityTimeout.");
+      }).toThrow("heartbeatInterval must be less than visibilityTimeout.");
     });
   });
 
@@ -164,50 +174,50 @@ describe("Consumer", () => {
         handleMessage,
       });
 
-      assert.instanceOf(instance, Consumer);
+      expect(instance).toBeInstanceOf(Consumer);
     });
   });
 
   describe(".start", () => {
     it("uses the correct abort signal", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves(new Promise((res) => setTimeout(res, 100)));
+      receiveMessageMock.mockResolvedValue(new Promise((res) => setTimeout(res, 100)));
 
       // Starts and abort is false
       consumer.start();
-      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+      expect(vi.mocked(sqs.send).mock.lastCall?.[1]?.abortSignal?.aborted).toBe(false);
 
       // normal stop without an abort and abort is false
       consumer.stop();
-      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+      expect(vi.mocked(sqs.send).mock.lastCall?.[1]?.abortSignal?.aborted).toBe(false);
 
       // Starts and abort is false
       consumer.start();
-      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+      expect(vi.mocked(sqs.send).mock.lastCall?.[1]?.abortSignal?.aborted).toBe(false);
 
       // Stop with abort and abort is true
       consumer.stop({ abort: true });
-      assert.isTrue(sqs.send.lastCall.lastArg.abortSignal.aborted);
+      expect(vi.mocked(sqs.send).mock.lastCall?.[1]?.abortSignal?.aborted).toBe(true);
 
       // Starts and abort is false
       consumer.start();
-      assert.isFalse(sqs.send.lastCall.lastArg.abortSignal.aborted);
+      expect(vi.mocked(sqs.send).mock.lastCall?.[1]?.abortSignal?.aborted).toBe(false);
     });
 
     it("fires an event when the consumer is started", async () => {
-      const handleStart = sandbox.stub().returns(null);
+      const handleStart = vi.fn().mockReturnValue(null);
 
       consumer.on("started", handleStart);
 
       consumer.start();
       consumer.stop();
 
-      sandbox.assert.calledOnce(handleStart);
+      expect(handleStart).toHaveBeenCalledOnce();
     });
 
     it("fires an error event when an error occurs receiving a message", async () => {
       const receiveErr = new Error("Receive error");
 
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      receiveMessageMock.mockRejectedValue(receiveErr);
 
       consumer.start();
 
@@ -230,7 +240,7 @@ describe("Consumer", () => {
       receiveErr.time = new Date();
       receiveErr.$service = "service";
 
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      receiveMessageMock.mockRejectedValue(receiveErr);
 
       consumer.start();
       const err: any = await pEvent(consumer, "error");
@@ -244,8 +254,8 @@ describe("Consumer", () => {
       assert.equal(err.time.toString(), receiveErr.time.toString());
       assert.equal(err.service, receiveErr.$service);
       assert.equal(err.fault, receiveErr.$fault);
-      assert.isUndefined(err.response);
-      assert.isUndefined(err.metadata);
+      expect(err.response).toBeUndefined();
+      expect(err.metadata).toBeUndefined();
     });
 
     it('includes the response and metadata in the error when "extendedAWSErrors" is true', async () => {
@@ -265,7 +275,7 @@ describe("Consumer", () => {
         body: "body",
       };
 
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      receiveMessageMock.mockRejectedValue(receiveErr);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -302,7 +312,7 @@ describe("Consumer", () => {
         body: "body",
       };
 
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      receiveMessageMock.mockRejectedValue(receiveErr);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -318,8 +328,8 @@ describe("Consumer", () => {
       consumer.stop();
 
       assert.ok(err);
-      assert.isUndefined(err.response);
-      assert.isUndefined(err.metadata);
+      expect(err.response).toBeUndefined();
+      expect(err.metadata).toBeUndefined();
     });
 
     it("fires a timeout event if handler function takes too long", async () => {
@@ -336,7 +346,7 @@ describe("Consumer", () => {
       consumer.start();
       const [err]: any = await Promise.all([
         pEvent(consumer, "timeout_error"),
-        clock.tickAsync(handleMessageTimeout),
+        vi.advanceTimersByTimeAsync(handleMessageTimeout),
       ]);
       consumer.stop();
 
@@ -424,8 +434,8 @@ describe("Consumer", () => {
     it("fires an error event when an error occurs deleting a message", async () => {
       const deleteErr = new Error("Delete error");
 
-      handleMessage.resolves(response.Messages[0]);
-      sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
+      handleMessage.mockResolvedValue(response.Messages[0]);
+      deleteMessageMock.mockRejectedValue(deleteErr);
 
       consumer.start();
       const err: any = await pEvent(consumer, "error");
@@ -438,7 +448,7 @@ describe("Consumer", () => {
     it("fires a `processing_error` event when a non-`SQSError` error occurs processing a message", async () => {
       const processingErr = new Error("Processing error");
 
-      handleMessage.rejects(processingErr);
+      handleMessage.mockRejectedValue(processingErr);
 
       consumer.start();
       const [err, message] = await pEvent<string | symbol, { [key: string]: string }[]>(
@@ -462,8 +472,8 @@ describe("Consumer", () => {
       const sqsError = new Error("Processing error");
       sqsError.name = "SQSError";
 
-      handleMessage.resolves(response.Messages[0]);
-      sqs.send.withArgs(mockDeleteMessage).rejects(sqsError);
+      handleMessage.mockResolvedValue(response.Messages[0]);
+      deleteMessageMock.mockRejectedValue(sqsError);
 
       consumer.start();
       const [err, message] = await pEvent<string | symbol, { [key: string]: string }[]>(
@@ -480,32 +490,32 @@ describe("Consumer", () => {
     });
 
     it("waits before repolling when a credentials error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsErr = {
         name: "CredentialsError",
         message: "Missing credentials in config",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "CredentialsError",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a 403 error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const invalidSignatureErr = {
         $metadata: {
@@ -513,228 +523,228 @@ describe("Consumer", () => {
         },
         message: "The security token included in the request is invalid",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(invalidSignatureErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(invalidSignatureErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "Unknown",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a UnknownEndpoint error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const unknownEndpointErr = {
         name: "UnknownEndpoint",
         message:
           "Inaccessible host: `sqs.eu-west-1.amazonaws.com`. This service may not be available in the `eu-west-1` region.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(unknownEndpointErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(unknownEndpointErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "UnknownEndpoint",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a NonExistentQueue error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const nonExistentQueueErr = {
         name: "AWS.SimpleQueueService.NonExistentQueue",
         message: "The specified queue does not exist for this wsdl version.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(nonExistentQueueErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(nonExistentQueueErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "AWS.SimpleQueueService.NonExistentQueue",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a CredentialsProviderError error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsProviderErr = {
         name: "CredentialsProviderError",
         message: "Could not load credentials from any providers.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsProviderErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "CredentialsProviderError",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a InvalidAddress error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsProviderErr = {
         name: "InvalidAddress",
         message: "The address some-queue-url is not valid for this endpoint.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsProviderErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "InvalidAddress",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a InvalidSecurity error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsProviderErr = {
         name: "InvalidSecurity",
         message: "The queue is not is not HTTPS and SigV4.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsProviderErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "InvalidSecurity",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a QueueDoesNotExist error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsProviderErr = {
         name: "QueueDoesNotExist",
         message: "The queue does not exist.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsProviderErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "QueueDoesNotExist",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a RequestThrottled error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsProviderErr = {
         name: "RequestThrottled",
         message: "Requests have been throttled.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsProviderErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "RequestThrottled",
         detail: "There was an authentication error. Pausing before retrying.",
       });
     });
 
     it("waits before repolling when a RequestThrottled error occurs", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       const credentialsProviderErr = {
         name: "OverLimit",
         message: "An over limit error.",
       };
-      sqs.send.withArgs(mockReceiveMessage).rejects(credentialsProviderErr);
-      const errorListener = sandbox.stub();
+      receiveMessageMock.mockRejectedValue(credentialsProviderErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(AUTHENTICATION_ERROR_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(AUTHENTICATION_ERROR_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.calledTwice(errorListener);
-      sandbox.assert.calledTwice(sqs.send);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockReceiveMessage);
+      expect(errorListener).toHaveBeenCalledTimes(2);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
 
-      sandbox.assert.calledWith(loggerDebug, "authentication_error", {
+      expect(loggerDebug).toHaveBeenCalledWith("authentication_error", {
         code: "OverLimit",
         detail: "There was an authentication error. Pausing before retrying.",
       });
@@ -751,14 +761,14 @@ describe("Consumer", () => {
       });
 
       consumer.start();
-      await clock.tickAsync(POLLING_TIMEOUT);
+      await vi.advanceTimersByTimeAsync(POLLING_TIMEOUT);
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 4);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
-      sandbox.assert.calledWithMatch(sqs.send.thirdCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.getCall(3), mockDeleteMessage);
+      expect(sqs.send).toHaveBeenCalledTimes(4);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(DeleteMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[2]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[3]?.[0]).toBeInstanceOf(DeleteMessageCommand);
     });
 
     it("fires a message_received event when a message is received", async () => {
@@ -770,7 +780,7 @@ describe("Consumer", () => {
     });
 
     it("fires a message_processed event when a message is successfully deleted", async () => {
-      handleMessage.resolves(response.Messages[0]);
+      handleMessage.mockResolvedValue(response.Messages[0]);
 
       consumer.start();
       const message = await pEvent(consumer, "message_received");
@@ -784,12 +794,12 @@ describe("Consumer", () => {
       await pEvent(consumer, "message_processed");
       consumer.stop();
 
-      sandbox.assert.calledWith(handleMessage, response.Messages[0]);
+      expect(handleMessage).toHaveBeenCalledWith(response.Messages[0]);
     });
 
     it("calls the preReceiveMessageCallback and postReceiveMessageCallback function before receiving a message", async () => {
-      const preReceiveMessageCallbackStub = sandbox.stub().resolves(null);
-      const postReceiveMessageCallbackStub = sandbox.stub().resolves(null);
+      const preReceiveMessageCallbackStub = vi.fn().mockResolvedValue(null);
+      const postReceiveMessageCallbackStub = vi.fn().mockResolvedValue(null);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -805,25 +815,22 @@ describe("Consumer", () => {
       await pEvent(consumer, "message_processed");
       consumer.stop();
 
-      sandbox.assert.calledOnce(preReceiveMessageCallbackStub);
-      sandbox.assert.calledOnce(postReceiveMessageCallbackStub);
+      expect(preReceiveMessageCallbackStub).toHaveBeenCalledOnce();
+      expect(postReceiveMessageCallbackStub).toHaveBeenCalledOnce();
     });
 
     it("deletes the message when the handleMessage function is called", async () => {
-      handleMessage.resolves(response.Messages[0]);
+      handleMessage.mockResolvedValue(response.Messages[0]);
 
       consumer.start();
       await pEvent(consumer, "message_processed");
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockDeleteMessage);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-        }),
-      );
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(DeleteMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+      });
     });
 
     it("does not delete the message if shouldDeleteMessages is false", async () => {
@@ -836,37 +843,41 @@ describe("Consumer", () => {
         shouldDeleteMessages: false,
       });
 
-      handleMessage.resolves(response.Messages[0]);
+      handleMessage.mockResolvedValue(response.Messages[0]);
 
       consumer.start();
       await pEvent(consumer, "message_processed");
       consumer.stop();
 
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      expect(
+        vi.mocked(sqs.send).mock.calls.some(([command]) => command instanceof DeleteMessageCommand),
+      ).toBe(false);
     });
 
     it("doesn't delete the message when a processing error is reported", async () => {
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
 
       consumer.start();
       await pEvent(consumer, "processing_error");
       consumer.stop();
 
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      expect(
+        vi.mocked(sqs.send).mock.calls.some(([command]) => command instanceof DeleteMessageCommand),
+      ).toBe(false);
     });
 
     it("consumes another message once one is processed", async () => {
-      handleMessage.resolves(response.Messages[0]);
+      handleMessage.mockResolvedValue(response.Messages[0]);
 
       consumer.start();
-      await clock.runToLastAsync();
+      await vi.runOnlyPendingTimersAsync();
       consumer.stop();
 
-      sandbox.assert.calledTwice(handleMessage);
+      expect(handleMessage).toHaveBeenCalledTimes(2);
     });
 
     it("doesn't consume more messages when called multiple times", () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves(new Promise((res) => setTimeout(res, 100)));
+      receiveMessageMock.mockResolvedValue(new Promise((res) => setTimeout(res, 100)));
       consumer.start();
       consumer.start();
       consumer.start();
@@ -874,11 +885,12 @@ describe("Consumer", () => {
       consumer.start();
       consumer.stop();
 
-      sqs.send.calledOnceWith(mockReceiveMessage);
+      expect(sqs.send).toHaveBeenCalledOnce();
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
     });
 
     it("doesn't consume more messages when called multiple times after stopped", () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves(new Promise((res) => setTimeout(res, 100)));
+      receiveMessageMock.mockResolvedValue(new Promise((res) => setTimeout(res, 100)));
       consumer.start();
       consumer.stop();
 
@@ -887,11 +899,13 @@ describe("Consumer", () => {
       consumer.start();
       consumer.start();
 
-      sqs.send.calledOnceWith(mockReceiveMessage);
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
     });
 
     it("consumes multiple messages when the batchSize is greater than 1", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           {
             ReceiptHandle: "receipt-handle-1",
@@ -925,20 +939,17 @@ describe("Consumer", () => {
       await pEvent(consumer, "message_received");
       consumer.stop();
 
-      sandbox.assert.callCount(handleMessage, 3);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.match(
-        sqs.send.firstCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          AttributeNames: [],
-          MessageAttributeNames: ["attribute-1", "attribute-2"],
-          MessageSystemAttributeNames: ["All"],
-          MaxNumberOfMessages: 3,
-          WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
-          VisibilityTimeout: undefined,
-        }),
-      );
+      expect(handleMessage).toHaveBeenCalledTimes(3);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        AttributeNames: [],
+        MessageAttributeNames: ["attribute-1", "attribute-2"],
+        MessageSystemAttributeNames: ["All"],
+        MaxNumberOfMessages: 3,
+        WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
+        VisibilityTimeout: undefined,
+      });
     });
 
     it("consumes messages with message attribute 'ApproximateReceiveCount'", async () => {
@@ -951,7 +962,7 @@ describe("Consumer", () => {
         },
       };
 
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [messageWithAttr],
       });
 
@@ -971,25 +982,22 @@ describe("Consumer", () => {
       const message = await pEvent(consumer, "message_received");
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send, mockReceiveMessage);
-      sandbox.assert.match(
-        sqs.send.firstCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          AttributeNames: ["ApproximateReceiveCount"],
-          MessageAttributeNames: [],
-          MessageSystemAttributeNames: [],
-          MaxNumberOfMessages: 1,
-          WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
-          VisibilityTimeout: undefined,
-        }),
-      );
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        AttributeNames: ["ApproximateReceiveCount"],
+        MessageAttributeNames: [],
+        MessageSystemAttributeNames: [],
+        MaxNumberOfMessages: 1,
+        WaitTimeSeconds: AUTHENTICATION_ERROR_TIMEOUT,
+        VisibilityTimeout: undefined,
+      });
 
       assert.equal(message, messageWithAttr);
     });
 
     it("fires an emptyQueue event when all messages have been consumed", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({});
+      receiveMessageMock.mockResolvedValue({});
 
       consumer.start();
       await pEvent(consumer, "empty");
@@ -997,7 +1005,7 @@ describe("Consumer", () => {
     });
 
     it("terminates message visibility timeout on processing error", async () => {
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
 
       consumer.terminateVisibilityTimeout = true;
 
@@ -1005,15 +1013,12 @@ describe("Consumer", () => {
       await pEvent(consumer, "processing_error");
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-          VisibilityTimeout: 0,
-        }),
-      );
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ChangeMessageVisibilityCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+        VisibilityTimeout: 0,
+      });
     });
 
     it("terminates message visibility timeout with a function to calculate timeout on processing error", async () => {
@@ -1025,7 +1030,7 @@ describe("Consumer", () => {
           ApproximateReceiveCount: 2,
         },
       };
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [messageWithAttr],
       });
 
@@ -1042,25 +1047,22 @@ describe("Consumer", () => {
         },
       });
 
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
 
       consumer.start();
       await pEvent(consumer, "processing_error");
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-          VisibilityTimeout: 20,
-        }),
-      );
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ChangeMessageVisibilityCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+        VisibilityTimeout: 20,
+      });
     });
 
     it("changes message visibility timeout on processing error", async () => {
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
 
       consumer.terminateVisibilityTimeout = 10;
 
@@ -1068,53 +1070,51 @@ describe("Consumer", () => {
       await pEvent(consumer, "processing_error");
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-          VisibilityTimeout: 10,
-        }),
-      );
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ChangeMessageVisibilityCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+        VisibilityTimeout: 10,
+      });
     });
 
     it("does not terminate visibility timeout when `terminateVisibilityTimeout` option is false", async () => {
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
       consumer.terminateVisibilityTimeout = false;
 
       consumer.start();
       await pEvent(consumer, "processing_error");
       consumer.stop();
 
-      sqs.send.neverCalledWith(mockChangeMessageVisibility);
+      expect(
+        vi
+          .mocked(sqs.send)
+          .mock.calls.some(([command]) => command instanceof ChangeMessageVisibilityCommand),
+      ).toBe(false);
     });
 
     it("fires error event when failed to terminate visibility timeout on processing error", async () => {
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
 
       const sqsError = new Error("Processing error");
       sqsError.name = "SQSError";
-      sqs.send.withArgs(mockChangeMessageVisibility).rejects(sqsError);
+      changeMessageVisibilityMock.mockRejectedValue(sqsError);
       consumer.terminateVisibilityTimeout = true;
 
       consumer.start();
       await pEvent(consumer, "error");
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-          VisibilityTimeout: 0,
-        }),
-      );
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ChangeMessageVisibilityCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+        VisibilityTimeout: 0,
+      });
     });
 
     it("fires response_processed event for each batch", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           {
             ReceiptHandle: "receipt-handle-1",
@@ -1128,7 +1128,7 @@ describe("Consumer", () => {
           },
         ],
       });
-      handleMessage.resolves(response.Messages[0]);
+      handleMessage.mockResolvedValue(response.Messages[0]);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1143,7 +1143,7 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(handleMessage, 2);
+      expect(handleMessage).toHaveBeenCalledTimes(2);
     });
 
     it("calls the handleMessagesBatch function when a batch of messages is received", async () => {
@@ -1160,7 +1160,7 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(handleMessageBatch, 1);
+      expect(handleMessageBatch).toHaveBeenCalledTimes(1);
     });
 
     it("handles unexpected exceptions thrown by the handler batch function", async () => {
@@ -1264,8 +1264,8 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(handleMessageBatch, 1);
-      sandbox.assert.callCount(handleMessage, 0);
+      expect(handleMessageBatch).toHaveBeenCalledTimes(1);
+      expect(handleMessage).toHaveBeenCalledTimes(0);
     });
 
     it("does not ack the message if handleMessage returns void", async () => {
@@ -1281,13 +1281,15 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(
+        vi.mocked(sqs.send).mock.calls.some(([command]) => command instanceof DeleteMessageCommand),
+      ).toBe(false);
     });
 
     it("logs deprecation warning when handleMessage returns null", async () => {
-      const consoleWarnStub = sandbox.stub(console, "warn");
+      const consoleWarnStub = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1300,16 +1302,15 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.calledOnce(consoleWarnStub);
-      sandbox.assert.calledWithMatch(
-        consoleWarnStub,
+      expect(consoleWarnStub).toHaveBeenCalledOnce();
+      expect(consoleWarnStub).toHaveBeenCalledWith(
         "[DEPRECATION] Future versions will throw on void/null returns. Enable `strictReturn` now to prepare.",
       );
     });
 
     it("does not log deprecation warning when handleMessage returns undefined", async () => {
-      const consoleWarnStub = sandbox.stub(console, "warn");
-      const undefinedHandler = sandbox.stub().resolves(undefined);
+      const consoleWarnStub = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const undefinedHandler = vi.fn().mockResolvedValue(undefined);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1322,7 +1323,7 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.notCalled(consoleWarnStub);
+      expect(consoleWarnStub).not.toHaveBeenCalled();
     });
 
     it("ack the message if handleMessage returns a message with the same ID", async () => {
@@ -1341,16 +1342,13 @@ describe("Consumer", () => {
       await pEvent(consumer, "message_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-        }),
-      );
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(DeleteMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+      });
     });
 
     it("does not ack the message if handleMessage returns an empty object", async () => {
@@ -1367,8 +1365,10 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(sqs.send).mock.calls.some(([command]) => command instanceof DeleteMessageCommand),
+      ).toBe(false);
     });
 
     it("does not ack the message if handleMessage returns a different ID", async () => {
@@ -1387,8 +1387,10 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(sqs.send).mock.calls.some(([command]) => command instanceof DeleteMessageCommand),
+      ).toBe(false);
     });
 
     it("deletes the message if alwaysAcknowledge is `true` and handleMessage returns an empty object", async () => {
@@ -1406,16 +1408,13 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessage);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-        }),
-      );
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(DeleteMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+      });
     });
 
     it("does not call deleteMessageBatch if handleMessagesBatch returns an empty array", async () => {
@@ -1431,9 +1430,13 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(
+        vi
+          .mocked(sqs.send)
+          .mock.calls.some(([command]) => command instanceof DeleteMessageBatchCommand),
+      ).toBe(false);
     });
 
     it("calls deleteMessageBatch if alwaysAcknowledge is `true` and handleMessagesBatch returns an empty array", async () => {
@@ -1450,16 +1453,13 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessageBatch);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
-        }),
-      );
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(DeleteMessageBatchCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
+      });
     });
 
     it("does not ack messages if handleMessageBatch returns void", async () => {
@@ -1476,13 +1476,17 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(
+        vi
+          .mocked(sqs.send)
+          .mock.calls.some(([command]) => command instanceof DeleteMessageBatchCommand),
+      ).toBe(false);
     });
 
     it("ack only returned messages if handleMessagesBatch returns an array", async () => {
-      sqs.send.withArgs(mockDeleteMessageBatch).resolves({ Successful: [{ Id: "123" }] });
+      deleteMessageBatchMock.mockResolvedValue({ Successful: [{ Id: "123" }] });
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1496,16 +1500,13 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 2);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.calledWithMatch(sqs.send.secondCall, mockDeleteMessageBatch);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
-        }),
-      );
+      expect(sqs.send).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(DeleteMessageBatchCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        Entries: [{ Id: "123", ReceiptHandle: "receipt-handle" }],
+      });
     });
 
     it("emits message_processed only for successful DeleteMessageBatch entries", async () => {
@@ -1513,8 +1514,8 @@ describe("Consumer", () => {
         { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
         { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
       ];
-      sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
-      sqs.send.withArgs(mockDeleteMessageBatch).resolves({
+      receiveMessageMock.mockResolvedValue({ Messages: messages });
+      deleteMessageBatchMock.mockResolvedValue({
         Successful: [{ Id: "1" }],
         Failed: [
           {
@@ -1534,8 +1535,8 @@ describe("Consumer", () => {
         sqs,
       });
 
-      const messageProcessedListener = sandbox.stub();
-      const errorListener = sandbox.stub();
+      const messageProcessedListener = vi.fn();
+      const errorListener = vi.fn();
       consumer.on("message_processed", messageProcessedListener);
       consumer.on("error", errorListener);
 
@@ -1546,14 +1547,14 @@ describe("Consumer", () => {
       await responseProcessed;
       consumer.stop();
 
-      sandbox.assert.calledOnce(messageProcessedListener);
-      assert.equal(messageProcessedListener.firstCall.args[0].MessageId, "1");
-      sandbox.assert.calledOnce(errorListener);
+      expect(messageProcessedListener).toHaveBeenCalledOnce();
+      assert.equal(vi.mocked(messageProcessedListener).mock.calls[0][0].MessageId, "1");
+      expect(errorListener).toHaveBeenCalledOnce();
       assert.equal(
-        errorListener.firstCall.args[0].message,
+        vi.mocked(errorListener).mock.calls[0][0].message,
         "Batch operation failed for entries with Ids: 2",
       );
-      assert.deepEqual(errorListener.firstCall.args[1], messages);
+      assert.deepEqual(vi.mocked(errorListener).mock.calls[0][1], messages);
     });
 
     it("does not emit message_processed when DeleteMessageBatch has no successful entries", async () => {
@@ -1561,8 +1562,8 @@ describe("Consumer", () => {
         { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
         { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
       ];
-      sqs.send.withArgs(mockReceiveMessage).resolves({ Messages: messages });
-      sqs.send.withArgs(mockDeleteMessageBatch).resolves({
+      receiveMessageMock.mockResolvedValue({ Messages: messages });
+      deleteMessageBatchMock.mockResolvedValue({
         Failed: [
           {
             Id: "2",
@@ -1581,8 +1582,8 @@ describe("Consumer", () => {
         sqs,
       });
 
-      const messageProcessedListener = sandbox.stub();
-      const errorListener = sandbox.stub();
+      const messageProcessedListener = vi.fn();
+      const errorListener = vi.fn();
       consumer.on("message_processed", messageProcessedListener);
       consumer.on("error", errorListener);
 
@@ -1593,17 +1594,17 @@ describe("Consumer", () => {
       await responseProcessed;
       consumer.stop();
 
-      sandbox.assert.notCalled(messageProcessedListener);
-      sandbox.assert.calledOnce(errorListener);
+      expect(messageProcessedListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledOnce();
       assert.equal(
-        errorListener.firstCall.args[0].message,
+        vi.mocked(errorListener).mock.calls[0][0].message,
         "Batch operation failed for entries with Ids: 2",
       );
-      assert.deepEqual(errorListener.firstCall.args[1], messages);
+      assert.deepEqual(vi.mocked(errorListener).mock.calls[0][1], messages);
     });
 
     it("logs deprecation warning when handleMessageBatch returns null", async () => {
-      const consoleWarnStub = sandbox.stub(console, "warn");
+      const consoleWarnStub = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1617,9 +1618,8 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.calledOnce(consoleWarnStub);
-      sandbox.assert.calledWithMatch(
-        consoleWarnStub,
+      expect(consoleWarnStub).toHaveBeenCalledOnce();
+      expect(consoleWarnStub).toHaveBeenCalledWith(
         "[DEPRECATION] Future versions will throw on void/null returns. Enable `strictReturn` now to prepare.",
       );
     });
@@ -1637,13 +1637,17 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(
+        vi
+          .mocked(sqs.send)
+          .mock.calls.some(([command]) => command instanceof DeleteMessageBatchCommand),
+      ).toBe(false);
     });
 
     it("does not log deprecation warning when handleMessageBatch returns undefined", async () => {
-      const consoleLogStub = sandbox.stub(console, "warn");
+      const consoleLogStub = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -1657,7 +1661,7 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.notCalled(consoleLogStub);
+      expect(consoleLogStub).not.toHaveBeenCalled();
     });
 
     it("does not ack messages if handleMessageBatch returns []", async () => {
@@ -1673,9 +1677,13 @@ describe("Consumer", () => {
       await pEvent(consumer, "response_processed");
       consumer.stop();
 
-      sandbox.assert.callCount(sqs.send, 1);
-      sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-      sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+      expect(sqs.send).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+      expect(
+        vi
+          .mocked(sqs.send)
+          .mock.calls.some(([command]) => command instanceof DeleteMessageBatchCommand),
+      ).toBe(false);
     });
 
     describe("strictReturn flag", () => {
@@ -1733,9 +1741,13 @@ describe("Consumer", () => {
         await pEvent(consumer, "response_processed");
         consumer.stop();
 
-        sandbox.assert.callCount(sqs.send, 1);
-        sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-        sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessage);
+        expect(sqs.send).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+        expect(
+          vi
+            .mocked(sqs.send)
+            .mock.calls.some(([command]) => command instanceof DeleteMessageCommand),
+        ).toBe(false);
       });
 
       it("works normally when strictReturn is disabled and handleMessageBatch returns null", async () => {
@@ -1752,9 +1764,13 @@ describe("Consumer", () => {
         await pEvent(consumer, "response_processed");
         consumer.stop();
 
-        sandbox.assert.callCount(sqs.send, 1);
-        sandbox.assert.calledWithMatch(sqs.send.firstCall, mockReceiveMessage);
-        sandbox.assert.neverCalledWithMatch(sqs.send, mockDeleteMessageBatch);
+        expect(sqs.send).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(sqs.send).mock.calls[0]?.[0]).toBeInstanceOf(ReceiveMessageCommand);
+        expect(
+          vi
+            .mocked(sqs.send)
+            .mock.calls.some(([command]) => command instanceof DeleteMessageBatchCommand),
+        ).toBe(false);
       });
     });
 
@@ -1767,35 +1783,32 @@ describe("Consumer", () => {
         visibilityTimeout: 40,
         heartbeatInterval: 30,
       });
-      const clearIntervalSpy = sinon.spy(global, "clearInterval");
+      const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
 
       consumer.start();
-      await Promise.all([pEvent(consumer, "response_processed"), clock.tickAsync(75000)]);
+      await Promise.all([
+        pEvent(consumer, "response_processed"),
+        vi.advanceTimersByTimeAsync(75000),
+      ]);
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibility);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-          VisibilityTimeout: 40,
-        }),
-      );
-      sandbox.assert.calledWith(sqs.send.thirdCall, mockChangeMessageVisibility);
-      sandbox.assert.match(
-        sqs.send.thirdCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          ReceiptHandle: "receipt-handle",
-          VisibilityTimeout: 40,
-        }),
-      );
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(ChangeMessageVisibilityCommand);
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+        VisibilityTimeout: 40,
+      });
+      expect(vi.mocked(sqs.send).mock.calls[2]?.[0]).toBeInstanceOf(ChangeMessageVisibilityCommand);
+      expect(vi.mocked(sqs.send).mock.calls[2]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        ReceiptHandle: "receipt-handle",
+        VisibilityTimeout: 40,
+      });
+      expect(clearIntervalSpy).toHaveBeenCalledOnce();
     });
 
     it("passes in the correct visibility timeout for long running batch handler functions", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
           { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
@@ -1812,65 +1825,66 @@ describe("Consumer", () => {
         visibilityTimeout: 40,
         heartbeatInterval: 30,
       });
-      const clearIntervalSpy = sinon.spy(global, "clearInterval");
+      const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
 
       consumer.start();
-      await Promise.all([pEvent(consumer, "response_processed"), clock.tickAsync(75000)]);
+      await Promise.all([
+        pEvent(consumer, "response_processed"),
+        vi.advanceTimersByTimeAsync(75000),
+      ]);
       consumer.stop();
 
-      sandbox.assert.calledWith(sqs.send.secondCall, mockChangeMessageVisibilityBatch);
-      sandbox.assert.match(
-        sqs.send.secondCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          Entries: sinon.match.array.deepEquals([
-            {
-              Id: "1",
-              ReceiptHandle: "receipt-handle-1",
-              VisibilityTimeout: 40,
-            },
-            {
-              Id: "2",
-              ReceiptHandle: "receipt-handle-2",
-              VisibilityTimeout: 40,
-            },
-            {
-              Id: "3",
-              ReceiptHandle: "receipt-handle-3",
-              VisibilityTimeout: 40,
-            },
-          ]),
-        }),
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0]).toBeInstanceOf(
+        ChangeMessageVisibilityBatchCommand,
       );
-      sandbox.assert.calledWith(sqs.send.thirdCall, mockChangeMessageVisibilityBatch);
-      sandbox.assert.match(
-        sqs.send.thirdCall.args[0].input,
-        sinon.match({
-          QueueUrl: QUEUE_URL,
-          Entries: [
-            {
-              Id: "1",
-              ReceiptHandle: "receipt-handle-1",
-              VisibilityTimeout: 40,
-            },
-            {
-              Id: "2",
-              ReceiptHandle: "receipt-handle-2",
-              VisibilityTimeout: 40,
-            },
-            {
-              Id: "3",
-              ReceiptHandle: "receipt-handle-3",
-              VisibilityTimeout: 40,
-            },
-          ],
-        }),
+      expect(vi.mocked(sqs.send).mock.calls[1]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        Entries: [
+          {
+            Id: "1",
+            ReceiptHandle: "receipt-handle-1",
+            VisibilityTimeout: 40,
+          },
+          {
+            Id: "2",
+            ReceiptHandle: "receipt-handle-2",
+            VisibilityTimeout: 40,
+          },
+          {
+            Id: "3",
+            ReceiptHandle: "receipt-handle-3",
+            VisibilityTimeout: 40,
+          },
+        ],
+      });
+      expect(vi.mocked(sqs.send).mock.calls[2]?.[0]).toBeInstanceOf(
+        ChangeMessageVisibilityBatchCommand,
       );
-      sandbox.assert.calledOnce(clearIntervalSpy);
+      expect(vi.mocked(sqs.send).mock.calls[2]?.[0].input).toMatchObject({
+        QueueUrl: QUEUE_URL,
+        Entries: [
+          {
+            Id: "1",
+            ReceiptHandle: "receipt-handle-1",
+            VisibilityTimeout: 40,
+          },
+          {
+            Id: "2",
+            ReceiptHandle: "receipt-handle-2",
+            VisibilityTimeout: 40,
+          },
+          {
+            Id: "3",
+            ReceiptHandle: "receipt-handle-3",
+            VisibilityTimeout: 40,
+          },
+        ],
+      });
+      expect(clearIntervalSpy).toHaveBeenCalledOnce();
     });
 
     it("emit error when changing visibility timeout fails", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
       });
       consumer = new Consumer({
@@ -1883,15 +1897,15 @@ describe("Consumer", () => {
       });
 
       const receiveErr = new MockSQSError("failed");
-      sqs.send.withArgs(mockChangeMessageVisibility).rejects(receiveErr);
-      const errorListener = sandbox.stub();
+      changeMessageVisibilityMock.mockRejectedValue(receiveErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(75000);
+      await vi.advanceTimersByTimeAsync(75000);
       consumer.stop();
 
-      const err = errorListener.firstCall.args[0];
+      const err = vi.mocked(errorListener).mock.calls[0][0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -1899,7 +1913,7 @@ describe("Consumer", () => {
     });
 
     it("emit error when changing visibility timeout fails for batch handler functions", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
           { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
@@ -1917,15 +1931,15 @@ describe("Consumer", () => {
       });
 
       const receiveErr = new MockSQSError("failed");
-      sqs.send.withArgs(mockChangeMessageVisibilityBatch).rejects(receiveErr);
-      const errorListener = sandbox.stub();
+      changeMessageVisibilityBatchMock.mockRejectedValue(receiveErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(75000);
+      await vi.advanceTimersByTimeAsync(75000);
       consumer.stop();
 
-      const err = errorListener.firstCall.args[0];
+      const err = vi.mocked(errorListener).mock.calls[0][0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -1933,13 +1947,13 @@ describe("Consumer", () => {
     });
 
     it("emits error when ChangeMessageVisibilityBatch returns failed entries", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
           { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
         ],
       });
-      sqs.send.withArgs(mockChangeMessageVisibilityBatch).resolves({
+      changeMessageVisibilityBatchMock.mockResolvedValue({
         Successful: [{ Id: "1" }],
         Failed: [
           {
@@ -1962,17 +1976,17 @@ describe("Consumer", () => {
         heartbeatInterval: 30,
       });
 
-      const errorListener = sandbox.stub();
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(30000);
+      await vi.advanceTimersByTimeAsync(30000);
       consumer.stop();
 
-      sandbox.assert.calledOnce(errorListener);
-      const err = errorListener.firstCall.args[0];
+      expect(errorListener).toHaveBeenCalledOnce();
+      const err = vi.mocked(errorListener).mock.calls[0][0];
       assert.equal(err.message, "Batch operation failed for entries with Ids: 2");
-      assert.deepEqual(errorListener.firstCall.args[1], [
+      assert.deepEqual(vi.mocked(errorListener).mock.calls[0][1], [
         { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
         { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
       ]);
@@ -1992,7 +2006,7 @@ describe("Consumer", () => {
       consumer.start();
       const [err]: any = await Promise.all([
         pEvent(consumer, "timeout_error"),
-        clock.tickAsync(handleMessageTimeout),
+        vi.advanceTimersByTimeAsync(handleMessageTimeout),
       ]);
       consumer.stop();
 
@@ -2005,7 +2019,7 @@ describe("Consumer", () => {
     });
 
     it("includes messageIds in batch processing errors", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
           { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
@@ -2024,7 +2038,10 @@ describe("Consumer", () => {
       });
 
       consumer.start();
-      const [err]: any = await Promise.all([pEvent(consumer, "error"), clock.tickAsync(100)]);
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "error"),
+        vi.advanceTimersByTimeAsync(100),
+      ]);
       consumer.stop();
 
       assert.ok(err);
@@ -2036,11 +2053,14 @@ describe("Consumer", () => {
       const deleteErr = new Error("Delete error");
       deleteErr.name = "SQSError";
 
-      handleMessage.resolves(response.Messages[0]);
-      sqs.send.withArgs(mockDeleteMessage).rejects(deleteErr);
+      handleMessage.mockResolvedValue(response.Messages[0]);
+      deleteMessageMock.mockRejectedValue(deleteErr);
 
       consumer.start();
-      const [err]: any = await Promise.all([pEvent(consumer, "error"), clock.tickAsync(100)]);
+      const [err]: any = await Promise.all([
+        pEvent(consumer, "error"),
+        vi.advanceTimersByTimeAsync(100),
+      ]);
       consumer.stop();
 
       assert.ok(err);
@@ -2050,7 +2070,7 @@ describe("Consumer", () => {
     });
 
     it("includes queueUrl and messageIds in SQS errors when changing visibility timeout", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
       });
       consumer = new Consumer({
@@ -2063,15 +2083,15 @@ describe("Consumer", () => {
       });
 
       const receiveErr = new MockSQSError("failed");
-      sqs.send.withArgs(mockChangeMessageVisibility).rejects(receiveErr);
-      const errorListener = sandbox.stub();
+      changeMessageVisibilityMock.mockRejectedValue(receiveErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(75000);
+      await vi.advanceTimersByTimeAsync(75000);
       consumer.stop();
 
-      const err = errorListener.firstCall.args[0];
+      const err = vi.mocked(errorListener).mock.calls[0][0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -2079,7 +2099,7 @@ describe("Consumer", () => {
     });
 
     it("includes queueUrl and messageIds in batch SQS errors", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [
           { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
           { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
@@ -2098,15 +2118,15 @@ describe("Consumer", () => {
       });
 
       const receiveErr = new MockSQSError("failed");
-      sqs.send.withArgs(mockChangeMessageVisibilityBatch).rejects(receiveErr);
-      const errorListener = sandbox.stub();
+      changeMessageVisibilityBatchMock.mockRejectedValue(receiveErr);
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
-      await clock.tickAsync(75000);
+      await vi.advanceTimersByTimeAsync(75000);
       consumer.stop();
 
-      const err = errorListener.firstCall.args[0];
+      const err = vi.mocked(errorListener).mock.calls[0][0];
       assert.ok(err);
       assert.equal(err.message, "Error changing visibility timeout: failed");
       assert.equal(err.queueUrl, QUEUE_URL);
@@ -2115,17 +2135,17 @@ describe("Consumer", () => {
 
     it("includes undefined in error event when receiveMessage fails", async () => {
       const receiveErr = new Error("Receive error");
-      sqs.send.withArgs(mockReceiveMessage).rejects(receiveErr);
+      receiveMessageMock.mockRejectedValue(receiveErr);
 
-      const errorListener = sandbox.stub();
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
       await pEvent(consumer, "error");
       consumer.stop();
 
-      sandbox.assert.calledOnce(errorListener);
-      sandbox.assert.calledWith(errorListener, sinon.match.instanceOf(Error), undefined, {
+      expect(errorListener).toHaveBeenCalledOnce();
+      expect(errorListener).toHaveBeenCalledWith(expect.any(Error), undefined, {
         queueUrl: QUEUE_URL,
       });
     });
@@ -2133,16 +2153,18 @@ describe("Consumer", () => {
     it("includes undefined in error event when poll method catches an error", async () => {
       const pollError = new Error("Poll error");
 
-      sqs.send.withArgs(mockReceiveMessage).resolves({});
+      receiveMessageMock.mockResolvedValue({});
 
       const originalPrototype = Object.getPrototypeOf(consumer);
       const originalHandleSqsResponse = originalPrototype.handleSqsResponse;
 
       Object.defineProperty(originalPrototype, "handleSqsResponse", {
-        value: sandbox.stub().throws(pollError),
+        value: vi.fn().mockImplementation(() => {
+          throw pollError;
+        }),
       });
 
-      const errorListener = sandbox.stub();
+      const errorListener = vi.fn();
       consumer.on("error", errorListener);
 
       consumer.start();
@@ -2153,18 +2175,18 @@ describe("Consumer", () => {
         value: originalHandleSqsResponse,
       });
 
-      sandbox.assert.calledOnce(errorListener);
-      sandbox.assert.calledWith(errorListener, sinon.match.instanceOf(Error), undefined, {
+      expect(errorListener).toHaveBeenCalledOnce();
+      expect(errorListener).toHaveBeenCalledWith(expect.any(Error), undefined, {
         queueUrl: QUEUE_URL,
       });
     });
   });
 
   describe("FIFO Queue Warning", () => {
-    let warnStub: sinon.SinonStub;
+    let warnStub;
 
     beforeEach(() => {
-      warnStub = sandbox.stub(logger, "warn");
+      warnStub = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
     });
 
     it("emits a warning when starting with a FIFO queue URL", () => {
@@ -2178,9 +2200,8 @@ describe("Consumer", () => {
       consumer.start();
       consumer.stop();
 
-      sandbox.assert.calledOnce(warnStub);
-      sandbox.assert.calledWithMatch(
-        warnStub,
+      expect(warnStub).toHaveBeenCalledOnce();
+      expect(warnStub).toHaveBeenCalledWith(
         "WARNING: A FIFO queue was detected. SQS Consumer does not guarantee FIFO queues will work as expected. Set 'suppressFifoWarning: true' to disable this warning.",
       );
     });
@@ -2196,7 +2217,7 @@ describe("Consumer", () => {
       consumer.start();
       consumer.stop();
 
-      sandbox.assert.notCalled(warnStub);
+      expect(warnStub).not.toHaveBeenCalled();
     });
 
     it("suppresses warning when suppressFifoWarning option is true", () => {
@@ -2211,7 +2232,7 @@ describe("Consumer", () => {
       consumer.start();
       consumer.stop();
 
-      sandbox.assert.notCalled(warnStub);
+      expect(warnStub).not.toHaveBeenCalled();
     });
 
     it("emits warning on multiple start calls with FIFO queue", () => {
@@ -2227,77 +2248,77 @@ describe("Consumer", () => {
       consumer.start();
       consumer.stop();
 
-      sandbox.assert.calledTwice(warnStub);
+      expect(warnStub).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("event listeners", () => {
     it("fires the event multiple times", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({});
+      receiveMessageMock.mockResolvedValue({});
 
-      const handleEmpty = sandbox.stub().returns(null);
+      const handleEmpty = vi.fn().mockReturnValue(null);
 
       consumer.on("empty", handleEmpty);
 
       consumer.start();
 
-      await clock.tickAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       consumer.stop();
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledTwice(handleEmpty);
+      expect(handleEmpty).toHaveBeenCalledTimes(2);
     });
 
     it("fires the events only once", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({});
+      receiveMessageMock.mockResolvedValue({});
 
-      const handleEmpty = sandbox.stub().returns(null);
+      const handleEmpty = vi.fn().mockReturnValue(null);
 
       consumer.once("empty", handleEmpty);
 
       consumer.start();
 
-      await clock.tickAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       consumer.stop();
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledOnce(handleEmpty);
+      expect(handleEmpty).toHaveBeenCalledOnce();
     });
   });
 
   describe(".stop", () => {
     it("stops the consumer polling for messages", async () => {
-      const handleStop = sandbox.stub().returns(null);
+      const handleStop = vi.fn().mockReturnValue(null);
 
       consumer.on("stopped", handleStop);
 
       consumer.start();
       consumer.stop();
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledOnce(handleStop);
-      sandbox.assert.calledOnce(handleMessage);
+      expect(handleStop).toHaveBeenCalledOnce();
+      expect(handleMessage).toHaveBeenCalledOnce();
     });
 
     it("clears the polling timeout when stopped", async () => {
-      sinon.spy(clock, "clearTimeout");
+      const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
 
       consumer.start();
-      await clock.tickAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
       consumer.stop();
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sinon.assert.calledTwice(clock.clearTimeout);
+      expect(clearTimeoutSpy).toHaveBeenCalledTimes(2);
     });
 
     it("fires a stopped event only once when stopped multiple times", async () => {
-      const handleStop = sandbox.stub().returns(null);
+      const handleStop = vi.fn().mockReturnValue(null);
 
       consumer.on("stopped", handleStop);
 
@@ -2305,13 +2326,13 @@ describe("Consumer", () => {
       consumer.stop();
       consumer.stop();
       consumer.stop();
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledOnce(handleStop);
+      expect(handleStop).toHaveBeenCalledOnce();
     });
 
     it("fires a stopped event a second time if started and stopped twice", async () => {
-      const handleStop = sandbox.stub().returns(null);
+      const handleStop = vi.fn().mockReturnValue(null);
 
       consumer.on("stopped", handleStop);
 
@@ -2319,14 +2340,14 @@ describe("Consumer", () => {
       consumer.stop();
       consumer.start();
       consumer.stop();
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledTwice(handleStop);
+      expect(handleStop).toHaveBeenCalledTimes(2);
     });
 
     it("aborts requests when the abort param is true", async () => {
-      const handleStop = sandbox.stub().returns(null);
-      const handleAbort = sandbox.stub().returns(null);
+      const handleStop = vi.fn().mockReturnValue(null);
+      const handleAbort = vi.fn().mockReturnValue(null);
 
       consumer.on("stopped", handleStop);
       consumer.on("aborted", handleAbort);
@@ -2334,25 +2355,27 @@ describe("Consumer", () => {
       consumer.start();
       consumer.stop({ abort: true });
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      assert.isTrue(consumer.abortController.signal.aborted);
-      sandbox.assert.calledOnce(handleMessage);
-      sandbox.assert.calledOnce(handleAbort);
-      sandbox.assert.calledOnce(handleStop);
+      expect(consumer.abortController?.signal.aborted).toBe(true);
+      expect(handleMessage).toHaveBeenCalledOnce();
+      expect(handleAbort).toHaveBeenCalledOnce();
+      expect(handleStop).toHaveBeenCalledOnce();
     });
 
     it("waits for in-flight messages before emitting stopped (within timeout)", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
       });
-      const handleStop = sandbox.stub().returns(null);
-      const handleResponseProcessed = sandbox.stub().returns(null);
-      const waitingForPollingComplete = sandbox.stub().returns(null);
-      const waitingForPollingCompleteTimeoutExceeded = sandbox.stub().returns(null);
+      const handleStop = vi.fn().mockReturnValue(null);
+      const handleResponseProcessed = vi.fn().mockReturnValue(null);
+      const waitingForPollingComplete = vi.fn().mockReturnValue(null);
+      const waitingForPollingCompleteTimeoutExceeded = vi.fn().mockReturnValue(null);
 
       // A slow message handler
-      handleMessage = sandbox.stub().resolves(new Promise((resolve) => setTimeout(resolve, 5000)));
+      handleMessage = vi
+        .fn()
+        .mockResolvedValue(new Promise((resolve) => setTimeout(resolve, 5000)));
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -2372,35 +2395,41 @@ describe("Consumer", () => {
       );
 
       consumer.start();
-      await clock.tickAsync(1);
+      await vi.advanceTimersByTimeAsync(1);
       consumer.stop();
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledOnce(handleStop);
-      sandbox.assert.calledOnce(handleResponseProcessed);
-      sandbox.assert.calledOnce(handleMessage);
-      assert(waitingForPollingComplete.callCount === 5);
-      assert(waitingForPollingCompleteTimeoutExceeded.callCount === 0);
+      expect(handleStop).toHaveBeenCalledOnce();
+      expect(handleResponseProcessed).toHaveBeenCalledOnce();
+      expect(handleMessage).toHaveBeenCalledOnce();
+      expect(waitingForPollingComplete).toHaveBeenCalledTimes(5);
+      expect(waitingForPollingCompleteTimeoutExceeded).not.toHaveBeenCalled();
 
-      assert.ok(handleMessage.calledBefore(handleStop));
+      expect(handleMessage.mock.invocationCallOrder[0]).toBeLessThan(
+        handleStop.mock.invocationCallOrder[0],
+      );
 
       // handleResponseProcessed is called after handleMessage, indicating
       // messages were allowed to complete before 'stopped' was emitted
-      assert.ok(handleResponseProcessed.calledBefore(handleStop));
+      expect(handleResponseProcessed.mock.invocationCallOrder[0]).toBeLessThan(
+        handleStop.mock.invocationCallOrder[0],
+      );
     });
 
     it("waits for in-flight messages before emitting stopped (timeout reached)", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
       });
-      const handleStop = sandbox.stub().returns(null);
-      const handleResponseProcessed = sandbox.stub().returns(null);
-      const waitingForPollingComplete = sandbox.stub().returns(null);
-      const waitingForPollingCompleteTimeoutExceeded = sandbox.stub().returns(null);
+      const handleStop = vi.fn().mockReturnValue(null);
+      const handleResponseProcessed = vi.fn().mockReturnValue(null);
+      const waitingForPollingComplete = vi.fn().mockReturnValue(null);
+      const waitingForPollingCompleteTimeoutExceeded = vi.fn().mockReturnValue(null);
 
       // A slow message handler
-      handleMessage = sandbox.stub().resolves(new Promise((resolve) => setTimeout(resolve, 5000)));
+      handleMessage = vi
+        .fn()
+        .mockResolvedValue(new Promise((resolve) => setTimeout(resolve, 5000)));
 
       consumer = new Consumer({
         queueUrl: QUEUE_URL,
@@ -2420,43 +2449,47 @@ describe("Consumer", () => {
       );
 
       consumer.start();
-      await clock.tickAsync(1);
+      await vi.advanceTimersByTimeAsync(1);
       consumer.stop();
 
-      await clock.runAllAsync();
+      await vi.runAllTimersAsync();
 
-      sandbox.assert.calledOnce(handleStop);
-      sandbox.assert.calledOnce(handleResponseProcessed);
-      sandbox.assert.calledOnce(handleMessage);
-      sandbox.assert.calledOnce(waitingForPollingComplete);
-      sandbox.assert.calledOnce(waitingForPollingCompleteTimeoutExceeded);
-      assert(handleMessage.calledBefore(handleStop));
+      expect(handleStop).toHaveBeenCalledOnce();
+      expect(handleResponseProcessed).toHaveBeenCalledOnce();
+      expect(handleMessage).toHaveBeenCalledOnce();
+      expect(waitingForPollingComplete).toHaveBeenCalledOnce();
+      expect(waitingForPollingCompleteTimeoutExceeded).toHaveBeenCalledOnce();
+      expect(handleMessage.mock.invocationCallOrder[0]).toBeLessThan(
+        handleStop.mock.invocationCallOrder[0],
+      );
 
       // Stop was called before the message could be processed, because we reached timeout.
-      assert(handleStop.calledBefore(handleResponseProcessed));
+      expect(handleStop.mock.invocationCallOrder[0]).toBeLessThan(
+        handleResponseProcessed.mock.invocationCallOrder[0],
+      );
     });
   });
 
   describe("status", () => {
     it("returns the defaults before the consumer is started", () => {
-      assert.isFalse(consumer.status.isRunning);
-      assert.isFalse(consumer.status.isPolling);
+      expect(consumer.status.isRunning).toBe(false);
+      expect(consumer.status.isPolling).toBe(false);
     });
 
     it("returns true for `isRunning` if the consumer has not been stopped", () => {
       consumer.start();
-      assert.isTrue(consumer.status.isRunning);
+      expect(consumer.status.isRunning).toBe(true);
       consumer.stop();
     });
 
     it("returns false for `isRunning` if the consumer has been stopped", () => {
       consumer.start();
       consumer.stop();
-      assert.isFalse(consumer.status.isRunning);
+      expect(consumer.status.isRunning).toBe(false);
     });
 
     it("returns true for `isPolling` if the consumer is polling for messages", async () => {
-      sqs.send.withArgs(mockReceiveMessage).resolves({
+      receiveMessageMock.mockResolvedValue({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
       });
       consumer = new Consumer({
@@ -2467,25 +2500,27 @@ describe("Consumer", () => {
       });
 
       consumer.start();
-      await clock.tickAsync(1);
-      assert.isTrue(consumer.status.isPolling);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(consumer.status.isPolling).toBe(true);
       consumer.stop();
-      assert.isTrue(consumer.status.isPolling);
-      await clock.tickAsync(21);
-      assert.isFalse(consumer.status.isPolling);
+      expect(consumer.status.isPolling).toBe(true);
+      await vi.advanceTimersByTimeAsync(21);
+      expect(consumer.status.isPolling).toBe(false);
     });
   });
 
   describe("updateOption", () => {
     it("updates the visibilityTimeout option and emits an event", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
       consumer.updateOption("visibilityTimeout", 45);
 
       assert.equal(consumer.visibilityTimeout, 45);
 
-      sandbox.assert.calledWithMatch(optionUpdatedListener, "visibilityTimeout", 45);
+      expect(optionUpdatedListener).toHaveBeenCalledWith("visibilityTimeout", 45, {
+        queueUrl: QUEUE_URL,
+      });
     });
 
     it("does not update the visibilityTimeout if the value is less than the heartbeatInterval", () => {
@@ -2497,114 +2532,120 @@ describe("Consumer", () => {
         visibilityTimeout: 60,
       });
 
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("visibilityTimeout", 30);
-      }, "heartbeatInterval must be less than visibilityTimeout.");
+      }).toThrow("heartbeatInterval must be less than visibilityTimeout.");
 
       assert.equal(consumer.visibilityTimeout, 60);
 
-      sandbox.assert.notCalled(optionUpdatedListener);
+      expect(optionUpdatedListener).not.toHaveBeenCalled();
     });
 
     it("updates the batchSize option and emits an event", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
       consumer.updateOption("batchSize", 4);
 
       assert.equal(consumer.batchSize, 4);
 
-      sandbox.assert.calledWithMatch(optionUpdatedListener, "batchSize", 4);
+      expect(optionUpdatedListener).toHaveBeenCalledWith("batchSize", 4, {
+        queueUrl: QUEUE_URL,
+      });
     });
 
     it("does not update the batchSize if the value is more than 10", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("batchSize", 13);
-      }, "batchSize must be between 1 and 10.");
+      }).toThrow("batchSize must be between 1 and 10.");
 
       assert.equal(consumer.batchSize, 1);
 
-      sandbox.assert.notCalled(optionUpdatedListener);
+      expect(optionUpdatedListener).not.toHaveBeenCalled();
     });
 
     it("does not update the batchSize if the value is less than 1", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("batchSize", 0);
-      }, "batchSize must be between 1 and 10.");
+      }).toThrow("batchSize must be between 1 and 10.");
 
       assert.equal(consumer.batchSize, 1);
 
-      sandbox.assert.notCalled(optionUpdatedListener);
+      expect(optionUpdatedListener).not.toHaveBeenCalled();
     });
 
     it("updates the waitTimeSeconds option and emits an event", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
       consumer.updateOption("waitTimeSeconds", 18);
 
       assert.equal(consumer.waitTimeSeconds, 18);
 
-      sandbox.assert.calledWithMatch(optionUpdatedListener, "waitTimeSeconds", 18);
+      expect(optionUpdatedListener).toHaveBeenCalledWith("waitTimeSeconds", 18, {
+        queueUrl: QUEUE_URL,
+      });
     });
 
     it("does not update the batchSize if the value is less than 0", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("waitTimeSeconds", -1);
-      }, "waitTimeSeconds must be between 0 and 20.");
+      }).toThrow("waitTimeSeconds must be between 0 and 20.");
 
       assert.equal(consumer.waitTimeSeconds, 20);
 
-      sandbox.assert.notCalled(optionUpdatedListener);
+      expect(optionUpdatedListener).not.toHaveBeenCalled();
     });
 
     it("does not update the batchSize if the value is more than 20", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("waitTimeSeconds", 27);
-      }, "waitTimeSeconds must be between 0 and 20.");
+      }).toThrow("waitTimeSeconds must be between 0 and 20.");
 
       assert.equal(consumer.waitTimeSeconds, 20);
 
-      sandbox.assert.notCalled(optionUpdatedListener);
+      expect(optionUpdatedListener).not.toHaveBeenCalled();
     });
 
     it("updates the pollingWaitTimeMs option and emits an event", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
       consumer.updateOption("pollingWaitTimeMs", 1000);
 
       assert.equal(consumer.pollingWaitTimeMs, 1000);
 
-      sandbox.assert.calledWithMatch(optionUpdatedListener, "pollingWaitTimeMs", 1000);
+      expect(optionUpdatedListener).toHaveBeenCalledWith("pollingWaitTimeMs", 1000, {
+        queueUrl: QUEUE_URL,
+      });
     });
 
     it("does not update the pollingWaitTimeMs if the value is less than 0", () => {
-      const optionUpdatedListener = sandbox.stub();
+      const optionUpdatedListener = vi.fn();
       consumer.on("option_updated", optionUpdatedListener);
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("pollingWaitTimeMs", -1);
-      }, "pollingWaitTimeMs must be greater than 0.");
+      }).toThrow("pollingWaitTimeMs must be greater than 0.");
 
       assert.equal(consumer.pollingWaitTimeMs, 0);
 
-      sandbox.assert.notCalled(optionUpdatedListener);
+      expect(optionUpdatedListener).not.toHaveBeenCalled();
     });
 
     it("throws an error for an unknown option", () => {
@@ -2615,44 +2656,44 @@ describe("Consumer", () => {
         visibilityTimeout: 60,
       });
 
-      assert.throws(() => {
+      expect(() => {
         consumer.updateOption("unknown", "value");
-      }, `The update unknown cannot be updated`);
+      }).toThrow(`The update unknown cannot be updated`);
     });
   });
 
   describe("events", () => {
     it("logs a debug event when an event is emitted", async () => {
-      const loggerDebug = sandbox.stub(logger, "debug");
+      const loggerDebug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
 
       consumer.start();
       consumer.stop();
 
-      sandbox.assert.callCount(loggerDebug, 5);
+      expect(loggerDebug).toHaveBeenCalledTimes(5);
       // Logged directly
-      sandbox.assert.calledWithMatch(loggerDebug, "starting");
+      expect(loggerDebug).toHaveBeenCalledWith("starting");
       // Sent from the emitter
-      sandbox.assert.calledWithMatch(loggerDebug, "started", {
+      expect(loggerDebug).toHaveBeenCalledWith("started", {
         queueUrl: QUEUE_URL,
       });
       // Logged directly
-      sandbox.assert.calledWithMatch(loggerDebug, "polling");
+      expect(loggerDebug).toHaveBeenCalledWith("polling");
       // Logged directly
-      sandbox.assert.calledWithMatch(loggerDebug, "stopping");
+      expect(loggerDebug).toHaveBeenCalledWith("stopping");
       // Sent from the emitter
-      sandbox.assert.calledWithMatch(loggerDebug, "stopped", {
+      expect(loggerDebug).toHaveBeenCalledWith("stopped", {
         queueUrl: QUEUE_URL,
       });
     });
 
     it("includes queueUrl in emitted events", async () => {
-      const startedListener = sandbox.stub();
-      const messageReceivedListener = sandbox.stub();
-      const messageProcessedListener = sandbox.stub();
-      const emptyListener = sandbox.stub();
-      const stoppedListener = sandbox.stub();
-      const errorListener = sandbox.stub();
-      const processingErrorListener = sandbox.stub();
+      const startedListener = vi.fn();
+      const messageReceivedListener = vi.fn();
+      const messageProcessedListener = vi.fn();
+      const emptyListener = vi.fn();
+      const stoppedListener = vi.fn();
+      const errorListener = vi.fn();
+      const processingErrorListener = vi.fn();
 
       consumer.on("started", startedListener);
       consumer.on("message_received", messageReceivedListener);
@@ -2666,22 +2707,21 @@ describe("Consumer", () => {
       await pEvent(consumer, "message_processed");
       consumer.stop();
 
-      handleMessage.rejects(new Error("Processing error"));
+      handleMessage.mockRejectedValue(new Error("Processing error"));
       consumer.start();
       await pEvent(consumer, "processing_error");
       consumer.stop();
 
-      sandbox.assert.calledWith(startedListener, { queueUrl: QUEUE_URL });
-      sandbox.assert.calledWith(messageReceivedListener, response.Messages[0], {
+      expect(startedListener).toHaveBeenCalledWith({ queueUrl: QUEUE_URL });
+      expect(messageReceivedListener).toHaveBeenCalledWith(response.Messages[0], {
         queueUrl: QUEUE_URL,
       });
-      sandbox.assert.calledWith(messageProcessedListener, response.Messages[0], {
+      expect(messageProcessedListener).toHaveBeenCalledWith(response.Messages[0], {
         queueUrl: QUEUE_URL,
       });
-      sandbox.assert.calledWith(stoppedListener, { queueUrl: QUEUE_URL });
-      sandbox.assert.calledWith(
-        processingErrorListener,
-        sinon.match.instanceOf(Error),
+      expect(stoppedListener).toHaveBeenCalledWith({ queueUrl: QUEUE_URL });
+      expect(processingErrorListener).toHaveBeenCalledWith(
+        expect.any(Error),
         response.Messages[0],
         { queueUrl: QUEUE_URL },
       );
