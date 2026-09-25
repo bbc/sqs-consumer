@@ -1869,6 +1869,141 @@ describe("Consumer", () => {
       sandbox.assert.calledOnce(clearIntervalSpy);
     });
 
+    it("does not extend the visibility timeout once the handler succeeds", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [{ MessageId: "123", ReceiptHandle: "receipt-handle", Body: "body" }],
+      });
+      sqs.send
+        .withArgs(mockDeleteMessage)
+        .callsFake(() => new Promise((resolve) => setTimeout(resolve, 5000)));
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () =>
+          new Promise((resolve) => setTimeout(() => resolve(response.Messages[0]), 15000)),
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 10,
+      });
+
+      consumer.start();
+      await Promise.all([pEvent(consumer, "response_processed"), clock.tickAsync(20000)]);
+      consumer.stop();
+
+      // Only the tick at t=10s ran while the handler was still working. The
+      // tick at t=20s fired while the delete was in flight and must not send
+      // another ChangeMessageVisibility.
+      const visibilityCalls = sqs.send
+        .getCalls()
+        .filter((call) => mockChangeMessageVisibility.test(call.args[0]));
+      assert.equal(visibilityCalls.length, 1);
+      assert.equal(visibilityCalls[0].args[0].input.VisibilityTimeout, 40);
+    });
+
+    it("does not extend the visibility timeout after it was terminated for retry", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [{ MessageId: "123", ReceiptHandle: "receipt-handle", Body: "body" }],
+      });
+      sqs.send
+        .withArgs(mockChangeMessageVisibility)
+        .callsFake(() => new Promise((resolve) => setTimeout(resolve, 5000)));
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessage: () =>
+          new Promise((_, reject) => setTimeout(() => reject(new Error("failed")), 15000)),
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 10,
+        terminateVisibilityTimeout: true,
+      });
+
+      consumer.start();
+      await Promise.all([pEvent(consumer, "response_processed"), clock.tickAsync(20000)]);
+      consumer.stop();
+
+      // The tick at t=10s extended the timeout while the handler ran, and the
+      // failure path then terminated it to 0. The tick at t=20s fired while
+      // that termination was still in flight and must not override it back to
+      // the full visibility timeout.
+      const visibilityCalls = sqs.send
+        .getCalls()
+        .filter((call) => mockChangeMessageVisibility.test(call.args[0]));
+      assert.equal(visibilityCalls.length, 2);
+      assert.equal(visibilityCalls[0].args[0].input.VisibilityTimeout, 40);
+      assert.equal(visibilityCalls[1].args[0].input.VisibilityTimeout, 0);
+    });
+
+    it("does not extend the visibility timeout once the batch handler succeeds", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+          { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+        ],
+      });
+      sqs.send
+        .withArgs(mockDeleteMessageBatch)
+        .callsFake(() => new Promise((resolve) => setTimeout(resolve, 5000)));
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: (messages: Message[]) =>
+          new Promise((resolve) => setTimeout(() => resolve(messages), 15000)),
+        batchSize: 2,
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 10,
+      });
+
+      consumer.start();
+      await Promise.all([pEvent(consumer, "response_processed"), clock.tickAsync(20000)]);
+      consumer.stop();
+
+      const visibilityCalls = sqs.send
+        .getCalls()
+        .filter((call) => mockChangeMessageVisibilityBatch.test(call.args[0]));
+      assert.equal(visibilityCalls.length, 1);
+      assert.equal(visibilityCalls[0].args[0].input.Entries[0].VisibilityTimeout, 40);
+    });
+
+    it("does not extend the batch visibility timeout after it was terminated for retry", async () => {
+      sqs.send.withArgs(mockReceiveMessage).resolves({
+        Messages: [
+          { MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" },
+          { MessageId: "2", ReceiptHandle: "receipt-handle-2", Body: "body-2" },
+        ],
+      });
+      sqs.send
+        .withArgs(mockChangeMessageVisibilityBatch)
+        .callsFake(() => new Promise((resolve) => setTimeout(resolve, 5000)));
+      consumer = new Consumer({
+        queueUrl: QUEUE_URL,
+        region: REGION,
+        handleMessageBatch: () =>
+          new Promise((_, reject) => setTimeout(() => reject(new Error("failed")), 15000)),
+        batchSize: 2,
+        sqs,
+        visibilityTimeout: 40,
+        heartbeatInterval: 10,
+        terminateVisibilityTimeout: true,
+      });
+      consumer.on("error", () => {});
+
+      consumer.start();
+      await Promise.all([
+        pEvent(consumer, "response_processed", { rejectionEvents: [] }),
+        clock.tickAsync(20000),
+      ]);
+      consumer.stop();
+
+      const visibilityCalls = sqs.send
+        .getCalls()
+        .filter((call) => mockChangeMessageVisibilityBatch.test(call.args[0]));
+      assert.equal(visibilityCalls.length, 2);
+      assert.equal(visibilityCalls[0].args[0].input.Entries[0].VisibilityTimeout, 40);
+      assert.equal(visibilityCalls[1].args[0].input.Entries[0].VisibilityTimeout, 0);
+    });
+
     it("emit error when changing visibility timeout fails", async () => {
       sqs.send.withArgs(mockReceiveMessage).resolves({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
