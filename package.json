@@ -89,7 +89,7 @@
     "cross-spawn": "^7.0.3"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "packageManager": "pnpm@12.6.0"
 }
