@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       '@aws-sdk/client-sqs':
-        specifier: ^3.1136.0
-        version: 3.1139.0
+        specifier: ^3.1140.0
+        version: 3.1140.0
       debug:
         specifier: ^4.4.3
         version: 4.4.3(supports-color@11.0.0)
@@ -199,7 +199,7 @@ importers:
         version: 7.1.1
       sqs-producer:
         specifier: ^9.0.6
-        version: 9.0.6(@aws-sdk/client-sqs@3.1139.0)
+        version: 9.0.6(@aws-sdk/client-sqs@3.1140.0)
       typedoc:
         specifier: ^0.28.20
         version: 0.28.20(typescript@7.0.2)
@@ -212,8 +212,8 @@ importers:
 
 packages:
 
-  '@aws-sdk/client-sqs@3.1139.0':
-    resolution: {integrity: sha512-iq+KJvHRfztULhjT1MEtZcGS58fjdP2d6XmJ8W0Po2phYkGc7c/vKK+zSltlXKFQndSyv//VVnSLCRDCQq4H+w==}
+  '@aws-sdk/client-sqs@3.1140.0':
+    resolution: {integrity: sha512-H+lTRQDkYa3nU7ojfW7qE7ZNgezAFwEo9skJrxy4A259ubm2C63cho/dywpG1c2yyYsmG4MFwhSP4wE6rhNZoA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.978.1':
@@ -1626,7 +1626,7 @@ packages:
 
 snapshots:
 
-  '@aws-sdk/client-sqs@3.1139.0':
+  '@aws-sdk/client-sqs@3.1140.0':
     dependencies:
       '@aws-sdk/core': 3.978.1
       '@aws-sdk/credential-provider-node': 3.972.84
@@ -2690,9 +2690,9 @@ snapshots:
 
   spdx-license-ids@3.0.24: {}
 
-  sqs-producer@9.0.6(@aws-sdk/client-sqs@3.1139.0):
+  sqs-producer@9.0.6(@aws-sdk/client-sqs@3.1140.0):
     dependencies:
-      '@aws-sdk/client-sqs': 3.1139.0
+      '@aws-sdk/client-sqs': 3.1140.0
 
   stackback@0.0.2: {}
 
