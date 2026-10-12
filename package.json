@@ -75,7 +75,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "jsr": "^0.14.3",
     "oxfmt": "^0.70.0",
-    "oxlint": "^1.85.0",
+    "oxlint": "^1.86.0",
     "p-event": "^7.1.1",
     "sqs-producer": "^9.0.6",
     "typedoc": "^0.28.20",
