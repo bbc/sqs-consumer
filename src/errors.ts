@@ -6,13 +6,13 @@ const DEFAULT_TIMEOUT_ERROR_MESSAGE = "Operation timed out.";
 const DEFAULT_STANDARD_ERROR_MESSAGE = "An unexpected error occurred:";
 
 class SQSError extends Error {
-  code: string;
-  cause: AWSError;
-  statusCode: number;
-  service: string;
-  time: Date;
-  retryable: boolean;
-  fault: AWSError["$fault"];
+  code?: string;
+  cause?: unknown;
+  statusCode?: number;
+  service?: string;
+  time?: Date;
+  retryable?: boolean;
+  fault?: AWSError["$fault"];
   response?: AWSError["$response"];
   metadata?: AWSError["$metadata"];
   queueUrl?: string;
@@ -26,8 +26,8 @@ class SQSError extends Error {
 
 class TimeoutError extends Error {
   messageIds: string[];
-  cause: Error;
-  time: Date;
+  cause?: Error;
+  time?: Date;
 
   constructor(message?: string) {
     const errorMessage = message === undefined ? DEFAULT_TIMEOUT_ERROR_MESSAGE : message;
@@ -41,8 +41,8 @@ class TimeoutError extends Error {
 
 class StandardError extends Error {
   messageIds: string[];
-  cause: Error;
-  time: Date;
+  cause?: Error;
+  time?: Date;
 
   constructor(message?: string) {
     const errorMessage = message === undefined ? DEFAULT_STANDARD_ERROR_MESSAGE : message;
@@ -75,7 +75,9 @@ const CONNECTION_ERRORS = [
  */
 function isConnectionError(err: Error): boolean {
   if (err instanceof SQSError) {
-    return err.statusCode === 403 || CONNECTION_ERRORS.includes(err.code);
+    return (
+      err.statusCode === 403 || (err.code !== undefined && CONNECTION_ERRORS.includes(err.code))
+    );
   }
   return false;
 }
@@ -86,9 +88,29 @@ function isConnectionError(err: Error): boolean {
  */
 function getMessageIds(message: Message | Message[]): string[] {
   if (Array.isArray(message)) {
-    return message.map((m) => m.MessageId);
+    return message.flatMap((item) => (item.MessageId === undefined ? [] : [item.MessageId]));
   }
-  return [message.MessageId];
+  return message.MessageId === undefined ? [] : [message.MessageId];
+}
+
+function toError(err: unknown): Error {
+  if (err instanceof Error) {
+    return err;
+  }
+
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const error = new Error(String(err.message));
+    if ("name" in err && typeof err.name === "string") {
+      error.name = err.name;
+    }
+    return error;
+  }
+
+  return new Error(String(err));
+}
+
+function isAWSError(err: unknown): err is AWSError {
+  return typeof err === "object" && err !== null && "$metadata" in err;
 }
 
 /**
@@ -97,24 +119,30 @@ function getMessageIds(message: Message | Message[]): string[] {
  * @param message The message to send with the error.
  */
 function toSQSError(
-  err: AWSError,
+  err: unknown,
   message: string,
   extendedAWSErrors: boolean,
   queueUrl?: string,
   sqsMessage?: Message | Message[],
 ): SQSError {
+  const cause = toError(err);
   const sqsError = new SQSError(message);
   sqsError.cause = err;
-  sqsError.code = err.name;
-  sqsError.statusCode = err.$metadata?.httpStatusCode;
-  sqsError.retryable = err.$retryable?.throttling;
-  sqsError.service = err.$service;
-  sqsError.fault = err.$fault;
+  if (err instanceof Error || (typeof err === "object" && err !== null && "name" in err)) {
+    sqsError.code = cause.name;
+  }
   sqsError.time = new Date();
 
-  if (extendedAWSErrors) {
-    sqsError.response = err.$response;
-    sqsError.metadata = err.$metadata;
+  if (isAWSError(err)) {
+    sqsError.statusCode = err.$metadata?.httpStatusCode;
+    sqsError.retryable = err.$retryable?.throttling;
+    sqsError.service = err.$service;
+    sqsError.fault = err.$fault;
+
+    if (extendedAWSErrors) {
+      sqsError.response = err.$response;
+      sqsError.metadata = err.$metadata;
+    }
   }
 
   if (queueUrl) {
@@ -174,4 +202,5 @@ export {
   toSQSError,
   toStandardError,
   toTimeoutError,
+  toError,
 };

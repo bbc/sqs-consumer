@@ -18,23 +18,21 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Use pnpm and Node.js ${{ matrix.node-version }}
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
-
-      - name: Install Node Modules
-        run: npm ci
+          runtime: node@${{ matrix.node-version }}
+          cache: true
+          require-lockfile: true
 
       - name: Run Coverage Check
-        run: npm run lcov
+        run: pnpm lcov
 
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@6c1aa0cc9e1c02f9f58f01ac599f1064ccc83470 # v1.1.0
 
       - name: Report code coverage
-        uses: zgosalvez/github-actions-report-lcov@0e97540271bfaece1ddff20e7fa8d9a6ab1abf67 # v7.1.0
+        uses: zgosalvez/github-actions-report-lcov@72cb85c549acad28913c9607dbd04af41bec7980 # v7.2.1
         with:
           coverage-files: coverage/lcov.info
           minimum-coverage: 90

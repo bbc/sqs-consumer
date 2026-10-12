@@ -7,19 +7,19 @@ const buildDir = "./dist";
  * @returns {void}
  */
 function buildPackageJson() {
-  readdir(buildDir, (err, dirs) => {
+  readdir(buildDir, { withFileTypes: true }, (err, entries) => {
     if (err) {
       throw err;
     }
-    dirs.forEach((dir) => {
-      if (dir === "types") {
+    entries.forEach((entry) => {
+      if (!entry.isDirectory() || entry.name === "types") {
         return;
       }
 
-      const packageJsonFile = join(buildDir, dir, "/package.json");
+      const packageJsonFile = join(buildDir, entry.name, "/package.json");
 
       if (!existsSync(packageJsonFile)) {
-        const value = dir === "esm" ? '{"type": "module"}' : '{"type": "commonjs"}';
+        const value = entry.name === "esm" ? '{"type": "module"}' : '{"type": "commonjs"}';
 
         writeFile(packageJsonFile, new Uint8Array(Buffer.from(value)), (writeErr) => {
           if (writeErr) {

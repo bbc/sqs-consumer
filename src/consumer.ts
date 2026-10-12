@@ -31,6 +31,7 @@ import {
   toTimeoutError,
   toSQSError,
   isConnectionError,
+  toError,
 } from "./errors.js";
 import { validateOption, assertOptions, hasMessages } from "./validation.js";
 import { logger } from "./logger.js";
@@ -44,28 +45,28 @@ export class Consumer extends TypedEventEmitter {
   protected queueUrl: string;
   private isFifoQueue: boolean;
   private suppressFifoWarning: boolean;
-  private handleMessage: (message: Message) => Promise<Message | undefined>;
-  private handleMessageBatch: (messages: Message[]) => Promise<Message[] | undefined>;
+  private handleMessage?: (message: Message) => Promise<Message | undefined>;
+  private handleMessageBatch?: (messages: Message[]) => Promise<Message[] | undefined>;
   private preReceiveMessageCallback?: () => Promise<void>;
   private postReceiveMessageCallback?: () => Promise<void>;
   private sqs: SQSClient;
-  private handleMessageTimeout: number;
+  private handleMessageTimeout?: number;
   private attributeNames: QueueAttributeName[];
   private messageAttributeNames: string[];
   private messageSystemAttributeNames: MessageSystemAttributeName[];
   private shouldDeleteMessages: boolean;
   private alwaysAcknowledge: boolean;
-  private batchSize: number;
-  private visibilityTimeout: number;
+  private batchSize?: number;
+  private visibilityTimeout?: number;
   private terminateVisibilityTimeout: boolean | number | ((message: Message[]) => number);
-  private waitTimeSeconds: number;
+  private waitTimeSeconds?: number;
   private authenticationErrorTimeout: number;
-  private pollingWaitTimeMs: number;
+  private pollingWaitTimeMs?: number;
   private pollingCompleteWaitTimeMs: number;
-  private heartbeatInterval: number;
+  private heartbeatInterval?: number;
   private isPolling = false;
-  private stopRequestedAtTimestamp: number;
-  public abortController: AbortController;
+  private stopRequestedAtTimestamp = 0;
+  public abortController?: AbortController;
   private extendedAWSErrors: boolean;
   private strictReturn: boolean;
 
@@ -162,7 +163,7 @@ export class Consumer extends TypedEventEmitter {
 
     if (options?.abort) {
       logger.debug("aborting");
-      this.abortController.abort();
+      this.abortController?.abort();
       this.emit("aborted");
     }
 
@@ -251,7 +252,7 @@ export class Consumer extends TypedEventEmitter {
 
     this.isPolling = true;
 
-    let currentPollingTimeout: number = this.pollingWaitTimeMs;
+    let currentPollingTimeout = this.pollingWaitTimeMs;
     this.receiveMessage({
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
@@ -314,7 +315,7 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       throw toSQSError(
         err,
-        `SQS receive message failed: ${err.message}`,
+        `SQS receive message failed: ${toError(err).message}`,
         this.extendedAWSErrors,
         this.queueUrl,
       );
@@ -376,7 +377,7 @@ export class Consumer extends TypedEventEmitter {
         this.emit("message_processed", message);
       }
     } catch (err) {
-      this.emitError(err, message);
+      this.emitError(toError(err), message);
 
       if (this.terminateVisibilityTimeout !== false) {
         if (typeof this.terminateVisibilityTimeout === "function") {
@@ -412,7 +413,7 @@ export class Consumer extends TypedEventEmitter {
       });
 
       if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(() => handlerSettled, null, messages);
+        heartbeatTimeoutId = this.startHeartbeat(() => handlerSettled, undefined, messages);
       }
 
       let ackedMessages: Message[] | undefined;
@@ -430,7 +431,7 @@ export class Consumer extends TypedEventEmitter {
         });
       }
     } catch (err) {
-      this.emit("error", err, messages);
+      this.emit("error", toError(err), messages);
 
       if (this.terminateVisibilityTimeout !== false) {
         if (typeof this.terminateVisibilityTimeout === "function") {
@@ -460,17 +461,26 @@ export class Consumer extends TypedEventEmitter {
     message?: Message,
     messages?: Message[],
   ): NodeJS.Timeout {
+    const heartbeatInterval = this.heartbeatInterval;
+    const visibilityTimeout = this.visibilityTimeout;
+
+    if (heartbeatInterval === undefined || visibilityTimeout === undefined) {
+      throw new Error("Heartbeat requires heartbeatInterval and visibilityTimeout");
+    }
+
     return setInterval(() => {
       if (handlerSettled()) {
         return;
       }
 
-      if (this.handleMessageBatch) {
-        return this.changeVisibilityTimeoutBatch(messages, this.visibilityTimeout);
+      if (messages) {
+        return this.changeVisibilityTimeoutBatch(messages, visibilityTimeout);
       }
 
-      return this.changeVisibilityTimeout(message, this.visibilityTimeout);
-    }, this.heartbeatInterval * 1000);
+      if (message) {
+        return this.changeVisibilityTimeout(message, visibilityTimeout);
+      }
+    }, heartbeatInterval * 1000);
   }
 
   /**
@@ -481,7 +491,7 @@ export class Consumer extends TypedEventEmitter {
   private async changeVisibilityTimeout(
     message: Message,
     timeout: number,
-  ): Promise<ChangeMessageVisibilityCommandOutput> {
+  ): Promise<ChangeMessageVisibilityCommandOutput | undefined> {
     try {
       const input: ChangeMessageVisibilityCommandInput = {
         QueueUrl: this.queueUrl,
@@ -494,7 +504,7 @@ export class Consumer extends TypedEventEmitter {
         "error",
         toSQSError(
           err,
-          `Error changing visibility timeout: ${err.message}`,
+          `Error changing visibility timeout: ${toError(err).message}`,
           this.extendedAWSErrors,
           this.queueUrl,
           message,
@@ -512,7 +522,7 @@ export class Consumer extends TypedEventEmitter {
   private async changeVisibilityTimeoutBatch(
     messages: Message[],
     timeout: number,
-  ): Promise<ChangeMessageVisibilityBatchCommandOutput> {
+  ): Promise<ChangeMessageVisibilityBatchCommandOutput | undefined> {
     const params: ChangeMessageVisibilityBatchCommandInput = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message: Message) => ({
@@ -537,7 +547,7 @@ export class Consumer extends TypedEventEmitter {
         "error",
         toSQSError(
           err,
-          `Error changing visibility timeout: ${err.message}`,
+          `Error changing visibility timeout: ${toError(err).message}`,
           this.extendedAWSErrors,
           this.queueUrl,
           messages,
@@ -568,7 +578,7 @@ export class Consumer extends TypedEventEmitter {
    * Trigger the applications handleMessage function
    * @param message The message that was received from SQS
    */
-  private async executeHandler(message: Message): Promise<Message> {
+  private async executeHandler(message: Message): Promise<Message | undefined> {
     let handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
 
     try {
@@ -580,9 +590,9 @@ export class Consumer extends TypedEventEmitter {
             reject(new TimeoutError());
           }, this.handleMessageTimeout);
         });
-        result = await Promise.race([this.handleMessage(message), pending]);
+        result = await Promise.race([this.handleMessage?.(message), pending]);
       } else {
-        result = await this.handleMessage(message);
+        result = await this.handleMessage?.(message);
       }
 
       if (this.alwaysAcknowledge) {
@@ -594,7 +604,7 @@ export class Consumer extends TypedEventEmitter {
       }
 
       if (result === undefined) {
-        return null;
+        return undefined;
       }
 
       if (result === null) {
@@ -606,10 +616,10 @@ export class Consumer extends TypedEventEmitter {
         console.warn(
           "[DEPRECATION] Future versions will throw on void/null returns. Enable `strictReturn` now to prepare.",
         );
-        return null;
+        return undefined;
       }
 
-      return null;
+      return undefined;
     } catch (err) {
       if (err instanceof TimeoutError) {
         throw toTimeoutError(
@@ -635,7 +645,7 @@ export class Consumer extends TypedEventEmitter {
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
     try {
-      const result: Message[] | undefined | null = await this.handleMessageBatch(messages);
+      const result: Message[] | undefined | null = await this.handleMessageBatch?.(messages);
 
       if (this.alwaysAcknowledge) {
         return messages;
@@ -698,7 +708,7 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       throw toSQSError(
         err,
-        `SQS delete message failed: ${err.message}`,
+        `SQS delete message failed: ${toError(err).message}`,
         this.extendedAWSErrors,
         this.queueUrl,
         message,
@@ -745,7 +755,7 @@ export class Consumer extends TypedEventEmitter {
     } catch (err) {
       throw toSQSError(
         err,
-        `SQS delete message failed: ${err.message}`,
+        `SQS delete message failed: ${toError(err).message}`,
         this.extendedAWSErrors,
         this.queueUrl,
         messages,

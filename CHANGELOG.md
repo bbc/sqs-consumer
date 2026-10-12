@@ -1,3 +1,9 @@
+## 15.0.4
+
+### Patch Changes
+
+- - upgrades dependencies - upgrades to typescript 7 and adjusts code to conform to that - upgrades aws-sdk version - Removes sinon, chai and ts-node
+
 ## [15.0.1](https://github.com/bbc/sqs-consumer/compare/v15.0.0...v15.0.1) (2026-05-02)
 
 ### Chores

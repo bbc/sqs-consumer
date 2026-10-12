@@ -1,6 +1,6 @@
 {
   "name": "sqs-consumer",
-  "version": "15.0.1",
+  "version": "15.0.4",
   "description": "Build SQS-based Node applications without the boilerplate",
   "keywords": [
     "aws-sqs",
@@ -45,7 +45,9 @@
     "build": "npm run clean && npm run compile && npm run add-package-jsons",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "release": "semantic-release",
+    "release:sync": "node ./scripts/release.js sync",
+    "release:validate": "node ./scripts/release.js validate",
+    "release:notes": "node ./scripts/release.js notes",
     "test:unit": "vitest run --config ./vitest.config.ts",
     "test:unit:report": "vitest run --config ./vitest.config.ts --reporter=junit --outputFile=test/reports/test-results.xml",
     "pretest:integration:init": "npm run build",
@@ -63,43 +65,31 @@
     "generate-docs": "typedoc"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.1072.0",
+    "@aws-sdk/client-sqs": "^3.1136.0",
     "debug": "^4.4.3"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^12.9.0",
-    "@sebbo2002/semantic-release-jsr": "^4.0.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.8",
-    "@semantic-release/npm": "^13.1.5",
-    "@semantic-release/release-notes-generator": "^14.1.1",
-    "@types/chai": "^5.2.2",
+    "@cucumber/cucumber": "^13.2.1",
+    "@types/debug": "^4.1.13",
     "@types/node": "^25.9.3",
-    "@types/sinon": "^21.0.1",
     "@vitest/coverage-v8": "^4.1.10",
-    "chai": "^6.2.2",
-    "conventional-changelog-conventionalcommits": "^9.3.0",
     "jsr": "^0.14.3",
-    "oxfmt": "^0.55.0",
-    "oxlint": "^1.68.0",
-    "p-event": "^7.1.0",
-    "semantic-release": "^25.0.6",
-    "sinon": "^21.1.2",
-    "sqs-producer": "^8.0.9",
-    "ts-node": "^10.9.2",
-    "typedoc": "^0.28.19",
-    "typescript": "^5.9.3",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "p-event": "^7.1.1",
+    "sqs-producer": "^9.0.6",
+    "typedoc": "^0.28.20",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.1072.0"
+    "@aws-sdk/client-sqs": "^3.1136.0"
   },
   "overrides": {
     "cross-spawn": "^7.0.3"
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "packageManager": "pnpm@12.6.0"
 }

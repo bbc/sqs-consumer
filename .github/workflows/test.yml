@@ -22,20 +22,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Use pnpm and Node.js ${{ matrix.node-version }}
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          runtime: node@${{ matrix.node-version }}
+          cache: true
+          require-lockfile: true
 
-      - name: NPM Audit
-        run: npx audit-ci@7.1.0
-
-      - name: Install Node Modules
-        run: npm ci
+      - name: Audit Signatures
+        run: pnpm audit signatures
 
       - name: Run Tests and Linting
-        run: npm run check
+        run: pnpm check
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

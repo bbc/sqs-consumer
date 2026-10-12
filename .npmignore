@@ -9,4 +9,6 @@ public
 scripts
 .github
 jsr.json
+.changeset
+pnpm-workspace.yaml
 typdoc.json

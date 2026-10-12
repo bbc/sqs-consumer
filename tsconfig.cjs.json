@@ -1,9 +1,11 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./dist/cjs",
+    "tsBuildInfoFile": "./node_modules/.cache/sqs-consumer-cjs.tsbuildinfo",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noEmit": false,
     "declaration": true
   }
