@@ -350,15 +350,26 @@ export class Consumer extends TypedEventEmitter {
    */
   private async processMessage(message: Message): Promise<void> {
     let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+    // Set once the handler has finished running, whether it succeeded or
+    // failed. A heartbeat tick that fires after this point must not extend
+    // the visibility timeout: the message is either about to be deleted or
+    // its visibility is being terminated so it can be retried, and a late
+    // heartbeat would race that final decision.
+    let handlerSettled = false;
 
     try {
       this.emit("message_received", message);
 
       if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(message);
+        heartbeatTimeoutId = this.startHeartbeat(() => handlerSettled, message);
       }
 
-      const ackedMessage = await this.executeHandler(message);
+      let ackedMessage: Message | undefined;
+      try {
+        ackedMessage = await this.executeHandler(message);
+      } finally {
+        handlerSettled = true;
+      }
 
       if (ackedMessage?.MessageId === message.MessageId) {
         await this.deleteMessage(message);
@@ -391,6 +402,10 @@ export class Consumer extends TypedEventEmitter {
    */
   private async processMessageBatch(messages: Message[]): Promise<void> {
     let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
+    // Same guard as in processMessage: once the batch handler has finished,
+    // a heartbeat tick must not extend visibility while the batch is being
+    // deleted or its visibility terminated for retry.
+    let handlerSettled = false;
 
     try {
       messages.forEach((message: Message): void => {
@@ -398,10 +413,15 @@ export class Consumer extends TypedEventEmitter {
       });
 
       if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(undefined, messages);
+        heartbeatTimeoutId = this.startHeartbeat(() => handlerSettled, undefined, messages);
       }
 
-      const ackedMessages: Message[] = await this.executeBatchHandler(messages);
+      let ackedMessages: Message[] | undefined;
+      try {
+        ackedMessages = await this.executeBatchHandler(messages);
+      } finally {
+        handlerSettled = true;
+      }
 
       if (ackedMessages?.length > 0) {
         const deletedMessages = await this.deleteMessageBatch(ackedMessages);
@@ -430,9 +450,17 @@ export class Consumer extends TypedEventEmitter {
 
   /**
    * Trigger a function on a set interval
-   * @param heartbeatFn The function that should be triggered
+   * @param handlerSettled Returns true once the message handler has finished
+   * running; ticks after that point are skipped so they cannot race the
+   * final delete or visibility termination
+   * @param message The message that the heartbeat is for
+   * @param messages The batch of messages that the heartbeat is for
    */
-  private startHeartbeat(message?: Message, messages?: Message[]): NodeJS.Timeout {
+  private startHeartbeat(
+    handlerSettled: () => boolean,
+    message?: Message,
+    messages?: Message[],
+  ): NodeJS.Timeout {
     const heartbeatInterval = this.heartbeatInterval;
     const visibilityTimeout = this.visibilityTimeout;
 
@@ -441,6 +469,10 @@ export class Consumer extends TypedEventEmitter {
     }
 
     return setInterval(() => {
+      if (handlerSettled()) {
+        return;
+      }
+
       if (messages) {
         return this.changeVisibilityTimeoutBatch(messages, visibilityTimeout);
       }
