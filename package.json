@@ -74,7 +74,7 @@
     "@types/node": "^25.9.3",
     "@vitest/coverage-v8": "^4.1.10",
     "jsr": "^0.14.3",
-    "oxfmt": "^0.70.0",
+    "oxfmt": "^0.72.0",
     "oxlint": "^1.85.0",
     "p-event": "^7.1.1",
     "sqs-producer": "^9.0.6",
