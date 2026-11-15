@@ -32,7 +32,7 @@ jobs:
         uses: hrishikesh-kadam/setup-lcov@6c1aa0cc9e1c02f9f58f01ac599f1064ccc83470 # v1.1.0
 
       - name: Report code coverage
-        uses: zgosalvez/github-actions-report-lcov@72cb85c549acad28913c9607dbd04af41bec7980 # v7.2.1
+        uses: zgosalvez/github-actions-report-lcov@1f890959536bc7cc4f8ac36e78626797c41f6ac1 # v7.2.2
         with:
           coverage-files: coverage/lcov.info
           minimum-coverage: 90
