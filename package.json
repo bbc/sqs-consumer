@@ -65,7 +65,7 @@
     "generate-docs": "typedoc"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.1136.0",
+    "@aws-sdk/client-sqs": "^3.1148.0",
     "debug": "^4.4.3"
   },
   "devDependencies": {
@@ -83,7 +83,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.1136.0"
+    "@aws-sdk/client-sqs": "^3.1148.0"
   },
   "overrides": {
     "cross-spawn": "^7.0.3"
