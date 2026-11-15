@@ -1,3 +1,11 @@
+## 15.0.5
+
+### Patch Changes
+
+- Apply batchSize updates from preReceiveMessageCallback to the SQS receive that immediately follows.
+
+- Stop message heartbeats when the handler settles so new visibility extensions cannot race message deletion or visibility termination.
+
 ## 15.0.4
 
 ### Patch Changes
