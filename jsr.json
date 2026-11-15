@@ -5,16 +5,7 @@
     ".": "./src/index.ts"
   },
   "publish": {
-    "include": [
-      "src",
-      "package.json",
-      "README.md",
-      "LICENSE"
-    ],
-    "exclude": [
-      "dist",
-      "test",
-      "scripts"
-    ]
+    "include": ["src", "package.json", "README.md", "LICENSE"],
+    "exclude": ["dist", "test", "scripts"]
   }
 }
