@@ -348,14 +348,8 @@ export class Consumer extends TypedEventEmitter {
    * @param message The message that was delivered from SQS
    */
   private async processMessage(message: Message): Promise<void> {
-    let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
-
     try {
       this.emit("message_received", message);
-
-      if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(message);
-      }
 
       const ackedMessage = await this.executeHandler(message);
 
@@ -377,10 +371,6 @@ export class Consumer extends TypedEventEmitter {
           await this.changeVisibilityTimeout(message, timeout);
         }
       }
-    } finally {
-      if (this.heartbeatInterval) {
-        clearInterval(heartbeatTimeoutId);
-      }
     }
   }
 
@@ -389,16 +379,10 @@ export class Consumer extends TypedEventEmitter {
    * @param messages The messages that were delivered from SQS
    */
   private async processMessageBatch(messages: Message[]): Promise<void> {
-    let heartbeatTimeoutId: NodeJS.Timeout | undefined = undefined;
-
     try {
       messages.forEach((message: Message): void => {
         this.emit("message_received", message);
       });
-
-      if (this.heartbeatInterval) {
-        heartbeatTimeoutId = this.startHeartbeat(undefined, messages);
-      }
 
       const ackedMessages: Message[] = await this.executeBatchHandler(messages);
 
@@ -422,8 +406,6 @@ export class Consumer extends TypedEventEmitter {
           await this.changeVisibilityTimeoutBatch(messages, timeout);
         }
       }
-    } finally {
-      clearInterval(heartbeatTimeoutId);
     }
   }
 
@@ -546,6 +528,7 @@ export class Consumer extends TypedEventEmitter {
    * @param message The message that was received from SQS
    */
   private async executeHandler(message: Message): Promise<Message | undefined> {
+    const heartbeatTimeoutId = this.heartbeatInterval ? this.startHeartbeat(message) : undefined;
     let handleMessageTimeoutId: NodeJS.Timeout | undefined = undefined;
 
     try {
@@ -600,6 +583,9 @@ export class Consumer extends TypedEventEmitter {
       }
       throw err;
     } finally {
+      if (heartbeatTimeoutId) {
+        clearInterval(heartbeatTimeoutId);
+      }
       if (handleMessageTimeoutId) {
         clearTimeout(handleMessageTimeoutId);
       }
@@ -611,6 +597,10 @@ export class Consumer extends TypedEventEmitter {
    * @param messages The messages that should be forwarded from the SQS queue
    */
   private async executeBatchHandler(messages: Message[]): Promise<Message[]> {
+    const heartbeatTimeoutId = this.heartbeatInterval
+      ? this.startHeartbeat(undefined, messages)
+      : undefined;
+
     try {
       const result: Message[] | undefined | null = await this.handleMessageBatch?.(messages);
 
@@ -649,6 +639,10 @@ export class Consumer extends TypedEventEmitter {
         );
       }
       throw err;
+    } finally {
+      if (heartbeatTimeoutId) {
+        clearInterval(heartbeatTimeoutId);
+      }
     }
   }
 

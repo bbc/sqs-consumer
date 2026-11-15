@@ -1912,6 +1912,65 @@ describe("Consumer", () => {
       expect(clearIntervalSpy).toHaveBeenCalledOnce();
     });
 
+    describe.each(["single", "batch"])("%s message heartbeat", (mode) => {
+      it.each(["delete", "visibility termination"])(
+        "does not extend visibility during %s",
+        async (operation) => {
+          const isBatch = mode === "batch";
+          const shouldDelete = operation === "delete";
+          const handler = isBatch ? handleMessageBatch : handleMessage;
+          const deleteMock = isBatch ? deleteMessageBatchMock : deleteMessageMock;
+          const visibilityMock = isBatch
+            ? changeMessageVisibilityBatchMock
+            : changeMessageVisibilityMock;
+          const handling = Promise.withResolvers<Message | Message[]>();
+          const finalizing = Promise.withResolvers<void>();
+
+          handler.mockReturnValueOnce(handling.promise);
+          if (shouldDelete) {
+            deleteMock.mockReturnValueOnce(finalizing.promise);
+          } else {
+            visibilityMock.mockResolvedValueOnce(undefined).mockReturnValueOnce(finalizing.promise);
+          }
+
+          consumer = new Consumer({
+            queueUrl: QUEUE_URL,
+            sqs,
+            ...(isBatch ? { handleMessageBatch } : { handleMessage }),
+            heartbeatInterval: 10,
+            visibilityTimeout: 40,
+            terminateVisibilityTimeout: true,
+          });
+          consumer.on("error", vi.fn());
+
+          const processed = Promise.withResolvers<void>();
+          consumer.once("response_processed", () => processed.resolve());
+          consumer.start();
+          await vi.advanceTimersByTimeAsync(15_000);
+          expect(visibilityMock).toHaveBeenCalledOnce();
+
+          if (shouldDelete) {
+            handling.resolve(isBatch ? response.Messages : response.Messages[0]);
+          } else {
+            handling.reject(new Error("Handler failed"));
+          }
+
+          await vi.advanceTimersByTimeAsync(5_000);
+          finalizing.resolve();
+          await processed.promise;
+          consumer.stop();
+
+          expect(deleteMock).toHaveBeenCalledTimes(shouldDelete ? 1 : 0);
+          expect(visibilityMock).toHaveBeenCalledTimes(shouldDelete ? 1 : 2);
+          if (!shouldDelete) {
+            expect(visibilityMock.mock.calls[1][0].input).toMatchObject(
+              isBatch ? { Entries: [{ VisibilityTimeout: 0 }] } : { VisibilityTimeout: 0 },
+            );
+          }
+        },
+      );
+    });
+
     it("emit error when changing visibility timeout fails", async () => {
       receiveMessageMock.mockResolvedValue({
         Messages: [{ MessageId: "1", ReceiptHandle: "receipt-handle-1", Body: "body-1" }],
