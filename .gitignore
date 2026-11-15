@@ -7,3 +7,4 @@ public
 .DS_Store
 test/reports/*
 !test/reports/.keep
+.claude
