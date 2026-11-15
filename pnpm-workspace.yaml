@@ -1,5 +1,6 @@
 packages:
   - "."
+  - "scripts/docs"
 
 minimumReleaseAgeExclude:
   - sqs-producer@9.0.6

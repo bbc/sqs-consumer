@@ -1,0 +1,8 @@
+{
+  "name": "sqs-consumer-docs",
+  "private": true,
+  "devDependencies": {
+    "typedoc": "^0.28.20",
+    "typescript": "~6.0.3"
+  }
+}

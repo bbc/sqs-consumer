@@ -62,7 +62,7 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
-    "generate-docs": "typedoc"
+    "generate-docs": "pnpm --filter sqs-consumer-docs exec typedoc --options ../../typedoc.json --tsconfig ../../tsconfig.json --readme ../../README.md"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1148.0",
@@ -78,7 +78,6 @@
     "oxlint": "^1.85.0",
     "p-event": "^7.1.1",
     "sqs-producer": "^9.0.6",
-    "typedoc": "^0.28.20",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
