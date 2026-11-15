@@ -2,3 +2,8 @@ sqs-consumer@15.0.4:
   dir: ""
   intents:
     - old-jeans-wave
+sqs-consumer@15.0.5:
+  dir: ""
+  intents:
+    - eager-cats-lie
+    - smooth-keys-win
