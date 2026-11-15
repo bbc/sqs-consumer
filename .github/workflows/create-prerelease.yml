@@ -61,4 +61,11 @@ jobs:
             echo "Release $RELEASE_TAG already exists" >&2
             exit 1
           fi
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            tag_sha=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+            if [ "$tag_sha" != "$RELEASE_SHA" ]; then
+              echo "Release tag already points to a different commit" >&2
+              exit 1
+            fi
+          fi
           gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --title "$RELEASE_TAG" --notes-file "$RELEASE_NOTES" --prerelease

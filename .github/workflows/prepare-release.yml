@@ -12,22 +12,25 @@ concurrency:
 
 jobs:
   prepare:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      version: ${{ steps.release.outputs.version }}
+      patch: ${{ steps.patch.outputs.artifact-id }}
     steps:
       - name: Checkout main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+          ref: refs/heads/main
 
       - name: Setup pnpm and Node.js
         uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
         with:
           runtime: node@24
-          cache: true
-          require-lockfile: true
+          install: false
 
       - name: Apply release plan
         run: |
@@ -35,28 +38,69 @@ jobs:
           pnpm release:sync
           pnpm install --lockfile-only
 
-      - name: Read release version
+      - name: Read release metadata
         id: release
-        run: node -e 'const { version } = require("./package.json"); console.log(`version=${version}`)' >> "$GITHUB_OUTPUT"
+        run: |
+          printf 'commit=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          node -e 'const { version } = require("./package.json"); console.log(`version=${version}`)' >> "$GITHUB_OUTPUT"
 
-      - name: Commit release changes
+      - name: Create release patch
+        run: |
+          git add -- package.json jsr.json pnpm-lock.yaml CHANGELOG.md .changeset
+          git diff --cached --binary --full-index > "$RUNNER_TEMP/release.patch"
+          if [ ! -s "$RUNNER_TEMP/release.patch" ]; then
+            echo "No pending change intents to release" >&2
+            exit 1
+          fi
+
+      - name: Upload release patch
+        id: patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          path: ${{ runner.temp }}/release.patch
+          if-no-files-found: error
+          archive: false
+          overwrite: true
+
+  open-pull-request:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout release plan base commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.commit }}
+
+      - name: Download release patch
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.patch }}
+          path: ${{ runner.temp }}
+          skip-decompress: true
+
+      - name: Push release branch
         env:
-          RELEASE_BRANCH: release/v${{ steps.release.outputs.version }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: release/v${{ needs.prepare.outputs.version }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$RELEASE_BRANCH"
-          git add package.json jsr.json pnpm-lock.yaml CHANGELOG.md .changeset
-          git diff --cached --exit-code && { echo "No pending change intents to release"; exit 1; }
-          git commit -m "chore(release): v${RELEASE_VERSION}"
+          git apply --index "$RUNNER_TEMP/release.patch"
+          git -c core.hooksPath=/dev/null commit -m "chore(release): v${RELEASE_VERSION}"
+          gh auth setup-git
           git push origin "$RELEASE_BRANCH"
 
       - name: Open release pull request
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_BRANCH: release/v${{ steps.release.outputs.version }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_BRANCH: release/v${{ needs.prepare.outputs.version }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: >-
           gh pr create
           --base main

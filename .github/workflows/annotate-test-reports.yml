@@ -12,11 +12,13 @@ jobs:
   annotate:
     name: Annotate CI run with test results
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion != 'cancelled' }}
+    if: >-
+      (github.event.workflow_run.path == '.github/workflows/test.yml' ||
+      startsWith(github.event.workflow_run.path, '.github/workflows/test.yml@')) &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')
     permissions:
       actions: read
       checks: write
-      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +29,7 @@ jobs:
         uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a # v3.2.0
         with:
           artifact: test-reports-${{ matrix.node-version }}
-          name: Test Results (${{matrix.node-version}}
+          name: Test Results (${{ matrix.node-version }})
           path: "test-results.xml"
           reporter: java-junit
           token: ${{ secrets.GITHUB_TOKEN }}

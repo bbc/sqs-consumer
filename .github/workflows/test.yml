@@ -12,15 +12,14 @@ permissions:
 jobs:
   test-node:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      checks: write
     strategy:
       matrix:
         node-version: [22.x, 24.x]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Use pnpm and Node.js ${{ matrix.node-version }}
         uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
@@ -36,17 +35,18 @@ jobs:
         run: pnpm check
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
         with:
           name: test-reports-${{ matrix.node-version }}
           path: test/reports/
 
   test-bun:
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0

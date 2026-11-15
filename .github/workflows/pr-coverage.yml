@@ -1,4 +1,4 @@
-name: Comment PR Coverage
+name: PR Coverage
 on:
   pull_request:
     branches:
@@ -10,13 +10,13 @@ jobs:
   coverage_report:
     name: Generate coverage report
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     strategy:
       matrix:
         node-version: [24.x]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Use pnpm and Node.js ${{ matrix.node-version }}
         uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
@@ -32,11 +32,17 @@ jobs:
         uses: hrishikesh-kadam/setup-lcov@6c1aa0cc9e1c02f9f58f01ac599f1064ccc83470 # v1.1.0
 
       - name: Report code coverage
+        id: coverage
         uses: zgosalvez/github-actions-report-lcov@1f890959536bc7cc4f8ac36e78626797c41f6ac1 # v7.2.2
         with:
           coverage-files: coverage/lcov.info
           minimum-coverage: 90
           genhtml-ignore-errors: category,inconsistent
           artifact-name: code-coverage-report
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
+
+      - name: Summarise coverage
+        if: ${{ !cancelled() && steps.coverage.outputs.total-coverage != '' }}
+        env:
+          COVERAGE: ${{ steps.coverage.outputs.total-coverage }}
+        run: |
+          printf 'Line coverage: %s%%\n' "$COVERAGE" >> "$GITHUB_STEP_SUMMARY"

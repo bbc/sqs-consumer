@@ -19,23 +19,65 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  verify:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event.release.draft == false &&
+      (github.event_name == 'release' &&
+      github.event.release.draft == false &&
       github.event.release.prerelease == false &&
       startsWith(github.event.release.tag_name, 'v'))
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
     steps:
-      - name: Checkout release tag
+      - name: Checkout main and fetch release tags
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: refs/heads/main
+
+      - name: Verify release target
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          RELEASE_EVENT_SHA: ${{ github.event_name == 'release' && github.sha || '' }}
+          RELEASE_TARGET: ${{ github.event.release.target_commitish }}
+        run: |
+          if [[ "$RELEASE_TAG" != v* ]]; then
+            echo "Release tag must start with v" >&2
+            exit 1
+          fi
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          release_sha=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$release_sha" HEAD
+
+          if [[ -n "$RELEASE_EVENT_SHA" && ( "$release_sha" != "$RELEASE_EVENT_SHA" || "$release_sha" != "$RELEASE_TARGET" ) ]]; then
+            echo "Release tag does not match its reviewed merge commit" >&2
+            exit 1
+          fi
+
+          release_state=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '"\(.isDraft):\(.isPrerelease)"')
+          if [[ "$release_state" != "false:false" ]]; then
+            echo "Release $RELEASE_TAG is not a stable GitHub release" >&2
+            exit 1
+          fi
+          printf 'commit=%s\n' "$release_sha" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: package-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.verify.outputs.commit }}
 
       - name: Setup pnpm
         uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
@@ -48,26 +90,6 @@ jobs:
           node-version: 24
           package-manager-cache: false
           registry-url: https://registry.npmjs.org
-
-      - name: Verify release target
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MANUAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-          RELEASE_TARGET: ${{ github.event.release.target_commitish }}
-        run: |
-          release_sha=$(git rev-parse HEAD)
-          if [ "$MANUAL_RELEASE" = "true" ]; then
-            release_state=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '"\(.isDraft):\(.isPrerelease)"')
-            if [ "$release_state" != "false:false" ]; then
-              echo "Release $RELEASE_TAG is not a stable GitHub release" >&2
-              exit 1
-            fi
-          elif [ "$release_sha" != "$RELEASE_TARGET" ]; then
-            echo "Release tag does not match its reviewed merge commit" >&2
-            exit 1
-          fi
-          git merge-base --is-ancestor "$release_sha" refs/remotes/origin/main
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
