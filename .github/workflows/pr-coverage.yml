@@ -36,6 +36,7 @@ jobs:
         with:
           coverage-files: coverage/lcov.info
           minimum-coverage: 90
+          genhtml-ignore-errors: category,inconsistent
           artifact-name: code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
