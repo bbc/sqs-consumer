@@ -819,6 +819,35 @@ describe("Consumer", () => {
       expect(postReceiveMessageCallbackStub).toHaveBeenCalledOnce();
     });
 
+    it("uses the batch size set by the pre-receive callback for the current receive", async () => {
+      const batchSizes = [3, 1, 2];
+      const pendingBatchSizes = batchSizes.values();
+      const pollingWaitTimeMs = 10;
+      receiveMessageMock.mockResolvedValue({ Messages: [] });
+
+      const rateLimitedConsumer = Consumer.create({
+        queueUrl: QUEUE_URL,
+        handleMessage,
+        sqs,
+        batchSize: 10,
+        pollingWaitTimeMs,
+        preReceiveMessageCallback: async () => {
+          const nextBatchSize = await Promise.resolve(pendingBatchSizes.next());
+          if (!nextBatchSize.done) {
+            rateLimitedConsumer.updateOption("batchSize", nextBatchSize.value);
+          }
+        },
+      });
+
+      rateLimitedConsumer.start();
+      await vi.advanceTimersByTimeAsync(pollingWaitTimeMs * (batchSizes.length - 1));
+      rateLimitedConsumer.stop();
+
+      expect(
+        receiveMessageMock.mock.calls.map(([command]) => command.input.MaxNumberOfMessages),
+      ).toEqual(batchSizes);
+    });
+
     it("deletes the message when the handleMessage function is called", async () => {
       handleMessage.mockResolvedValue(response.Messages[0]);
 

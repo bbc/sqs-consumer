@@ -258,7 +258,6 @@ export class Consumer extends TypedEventEmitter {
       AttributeNames: this.attributeNames,
       MessageAttributeNames: this.messageAttributeNames,
       MessageSystemAttributeNames: this.messageSystemAttributeNames,
-      MaxNumberOfMessages: this.batchSize,
       WaitTimeSeconds: this.waitTimeSeconds,
       VisibilityTimeout: this.visibilityTimeout,
     })
@@ -304,7 +303,7 @@ export class Consumer extends TypedEventEmitter {
         await this.preReceiveMessageCallback();
       }
       const result: ReceiveMessageCommandOutput = await this.sqs.send(
-        new ReceiveMessageCommand(params),
+        new ReceiveMessageCommand({ ...params, MaxNumberOfMessages: this.batchSize }),
         this.sqsSendOptions,
       );
       if (this.postReceiveMessageCallback) {
