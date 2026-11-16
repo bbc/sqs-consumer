@@ -65,7 +65,7 @@
     "generate-docs": "pnpm --filter sqs-consumer-docs exec typedoc --options ../../typedoc.json --tsconfig ../../tsconfig.json --readme ../../README.md"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.1148.0",
+    "@aws-sdk/client-sqs": "^3.1163.0",
     "debug": "^4.4.3"
   },
   "devDependencies": {
@@ -82,7 +82,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.1148.0"
+    "@aws-sdk/client-sqs": "^3.1163.0"
   },
   "overrides": {
     "cross-spawn": "^7.0.3"
